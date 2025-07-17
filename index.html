@@ -218,30 +218,18 @@
               restoreSession: false,
             },
             selectorOptions: {
-              appName: "Pandania.xyz",
-              enabledWalletTypes: ["webauth", "proton"],
+              appName: "Proton Pandas",
+              appLogo: "https://bloks.io/cdn-cgi/image/width=70,height=70/https://lh3.googleusercontent.com/a/AAcHTtfsatkCTk0jlH6Iyg5S4HEEVtkMWXlHJrauBcYw=s288-c-rg-br100",
+              customStyleOptions: {
+                modalBackgroundColor: "#F4F7FA",
+                logoBackgroundColor: "indigo",
+                isLogoRound: true,
+                optionBackgroundColor: "white",
+                optionFontColor: "black",
+                primaryFontColor: "black",
+                secondaryFontColor: "#6B727F",
+                linkColor: "#752EEB"
+              }
             },
             transportOptions: {
-              requestAccount: "pandaniaxyz",
-            },
-          });
-
-          const hasAccess = await checkPDABalance(session);
-
-          if (hasAccess) {
-            document.body.classList.add("unlocked");
-            document.getElementById('main-content').style.display = "block";
-            document.getElementById("gate-cover").style.display = "none";
-          } else {
-            deniedMessage.style.display = "block";
-            connectBtn.style.display = "none";
-          }
-        } catch (err) {
-          alert("Wallet connection failed.");
-          console.error("Connection Error ⚠️", err);
-        }
-      });
-    });
-  </script>
-</body>
-</html>
+              requestAccount: "

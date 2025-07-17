@@ -1,69 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>Proton Pandas</title>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <title>Proton Pandas</title>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- favicon -->
-    <link rel="icon" href="images/x-icon/og-panda-transparent.png" sizes="180x180">
-    <link rel="icon" type="image/png" sizes="32x32" href="images/x-icon/og-panda-transparent.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="images/x-icon/og-panda-transparent.png">
-    <link rel="manifest" href="images/x-icon/og-panda-transparent.png">
-    <link rel="stylesheet" href="css/style.css" />
-    <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
-    <style>
-      #gated-content {
-        display: none;
-      }
-      #denied-message {
-        display: none;
-        color: red;
-        text-align: center;
-        padding: 2em;
-      }
-      .connect-btn {
-        background-color: #6b46c1;
-        color: #fff;
-        padding: 12px 24px;
-        font-size: 16px;
-        cursor: pointer;
-        border: none;
-        border-radius: 6px;
-        margin: 20px 0;
-      }
-      .connect-btn:hover { background-color: #553c9a; }
-      .green-button {
-        display: inline-block;
-        padding: 10px 30px;
-        background-color: green;
-        color: yellow;
-        font-size: 16px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-      }
-      .green-button:hover { background-color: darkgreen; }
-    </style>
-  </head>
-  <body>
-    <!-- Header -->
-    <header>
-      <div class="container" style="text-align:center;">
-        <div class="logo">
-          <a href="/"><img src="images/x-icon/favicon.ico" alt="logo" /></a>
-        </div>
-        <button id="connect-btn" class="connect-btn">Connect Wallet</button>
+  <!-- favicon -->
+  <link rel="icon" href="images/x-icon/og-panda-transparent.png" sizes="180x180">
+  <link rel="icon" type="image/png" sizes="32x32" href="images/x-icon/og-panda-transparent.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images/x-icon/og-panda-transparent.png">
+  <link rel="manifest" href="images/x-icon/og-panda-transparent.png">
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Proton SDK -->
+  <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
+  <style>
+    #denied-message {
+      display: none;
+      position: fixed;
+      top:0; left:0; right:0; bottom:0;
+      z-index: 3000;
+      background: rgba(255,255,255,0.985);
+      color: red;
+      text-align: center;
+      padding: 6em 0 2em 0;
+      font-size: 2rem;
+    }
+    #connect-btn {
+      background-color: #6b46c1;
+      color: #fff;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      margin: 10px 20px;
+      transition: background 0.2s;
+    }
+    #connect-btn:hover { background-color: #553c9a; }
+    .green-button {
+      display: inline-block;
+      padding: 10px 30px;
+      background-color: green;
+      color: yellow;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .green-button:hover { background-color: darkgreen; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="logo">
+        <a href="/"><img src="images/x-icon/favicon.ico" alt="logo" /></a>
       </div>
-    </header>
+      <div class="menu">
+        <!-- Connect Wallet Button -->
+        <button id="connect-btn">Connect Wallet</button>
 
-    <!-- The full, original site as gated content  -->
-    <div id="gated-content">
-      <div class="menu" style="text-align:center;">
         <a href="https://proton.alcor.exchange/positions/new?left=xpr-eosio.token&right=pda-xprpandas" target="_blank" rel="noopener noreferrer">
-          <img src="images/header/pda-favicon-32x32.png" alt="alcor exchange" /><p>Provide Liquidity</p>
+          <center><img src="images/header/pda-favicon-32x32.png" alt="alcor exchange" /></center><p>Provide Liquidity</p>
         </a>
         <a href="https://twitter.com/protonpandas" target="_blank" rel="noopener noreferrer">
           <img src="images/header/x-favicon-16x16.png" /><p>X.com</p>
@@ -75,118 +76,134 @@
           <img src="images/header/telegram-favicon-16x16.png" /><p>Telegram</p>
         </a>
       </div>
-      <h2><center><img src="images/header/protonpanda-gif.gif"></center></h2>
-      <section class="container">
-        <h1>Pandania NFT DaPP Coming Soon!!</h1>
-        <p>For now try kill time by playing Pandee Hero!</p>
-        <a href="https://flappycreator.com/flappy.php?id=66f90f9e9ad5f" class="green-button" target="_blank">Play Pandee Hero</a>
-        <br>
-        <p>Launched on January 10th, 2022. One of the few remaining (OG) NFT collections on XprNetwork.</p>
-        <p>There will only ever be 200 ProtonPanda NFTs in circulation.</p>
-        <p>NFT Rarity: 80-Common(40%) | 50-Uncommon(25%) | 30-Epic(15%) | 25-Rare(12.5%) | 15-Ultra Rare(7.5%)</p>
-        <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
-        <br>
-        <p>Token Launched on June 1st, 2023. Only active cryptocurrency donating to World WildLife Foundation and environmental conservation on XprNetwork.</p>
-        <h3><center><img src="images/x-icon/pda-xprpanda-65x65.png"></center></h3>
-        <h2>Buy on Alcor Exchange</h2>
-        <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
-        <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
-        <br>
-        <p>Or</p>
-        <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
-        <br>
-        <p>Total Capped Supply 555,555,555 Tokens.</p>
-        <p>100% Of Supply In Circulation.</p> 
-        <img src="images/header/Token-Pi.png">
-        <p>The Token Distribution for PDA is as follows: 65% of tokens are allocated to the PandaVault wallet for providing liquidity for PDA amongst other future initiatives. 15% was assigned to the Xprpandas wallet which supports both the NFT project and community by funding events such as giveaways, etc. 15% to the founder, 5% to community airdrop after launch.</p>
-        <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">(PDA) XPRNetwork Explorer info</a>
-        <br>
-        <p>PDA Pandacoin is a Utility Token used to empower a decentralized commnunity on XPRNetwork.</p>
-        <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank" rel="noopener noreferrer" class="hero-btn btn"><span>Join the #PandaFam</span></a>
-        <br>
-        <h2><center>$200 In Total Donations To Date.</center></h2>
-        <h3><center>Donated to The World WildLife Foundation</center></h3>
-        <img src="images/header/Conservation-planet.png">
-        <center>
-          <img src="images/header/Donation-Wwf.jpeg">
-          <img src="images/header/Donation-Wwfl.png">
-        </center>
-      </section>
     </div>
+  </header>
 
-    <!-- Access Denied -->
-    <div id="denied-message">
-      <h2>Access Denied</h2>
-      <p>❌ You need ≥ 555,555 PDA tokens to access this content.</p>
-    </div> 
+  <h2><center><img src="images/header/protonpanda-gif.gif"></center></h2>
+  <section class="container">
+    <div class="owner-status"></div>
+    <div class="countdown">
+      <h1>Pandania NFT DaPP Coming Soon!!</h1>
+      <p>For now try kill time by playing Pandee Hero!</p>
+      <a href="https://flappycreator.com/flappy.php?id=66f90f9e9ad5f" class="green-button" target="_blank">Play Pandee Hero</a>
+      <br>
+      <p>Launched on January 10th, 2022. One of the few remaining (OG) NFT collections on XprNetwork.</p>
+      <p>There will only ever be 200 ProtonPanda NFTs in circulation.</p>
+      <p>NFT Rarity: 80-Common(40%) | 50-Uncommon(25%) | 30-Epic(15%) | 25-Rare(12.5%) | 15-Ultra Rare(7.5%)</p>
+      <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
+      <br>
+      <p>Token Launched on June 1st, 2023. Only active cryptocurrency donating to World WildLife Foundation and environmental conservation on XprNetwork.</p>
+      <h3><center><img src="images/x-icon/pda-xprpanda-65x65.png"></center></h3>
+      <h2>Buy on Alcor Exchange</h2>
+      <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
+      <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
+      <br>
+      <p>Or</p>
+      <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
+      <br>
+      <p>Total Capped Supply 555,555,555 Tokens.</p>
+      <p>100% Of Supply In Circulation.</p> 
+      <img src="images/header/Token-Pi.png">
+      <p>The Token Distribution for PDA is as follows: 65% to PandaVault liquidity, 15% to Xprpandas wallet (for community and events), 15% to the founder, and 5% to community airdrop.</p>
+      <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">(PDA) XPRNetwork Explorer info</a>
+      <br>
+      <p>PDA Pandacoin is a Utility Token used to empower a decentralized commnunity on XPRNetwork.</p>
+      <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank" rel="noopener noreferrer" class="hero-btn btn"><span>Join the #PandaFam</span></a>
+      <br>
+      <h2><center>$200 In Total Donations To Date.</center></h2>
+      <h3><center>Donated to The World WildLife Foundation</center></h3>
+      <img src="images/header/Conservation-planet.png">
+      <center>
+        <img src="images/header/Donation-Wwf.jpeg">
+        <img src="images/header/Donation-Wwfl.png">
+      </center>
+    </div>
+  </section>
 
-    <script>
-      window.addEventListener("DOMContentLoaded", () => {
-        const connectBtn = document.getElementById("connect-btn");
-        const gatedContent = document.getElementById("gated-content");
-        const deniedMessage = document.getElementById("denied-message");
+  <!-- Token Gate Overlay -->
+  <div id="denied-message">
+    <h2>Access Denied</h2>
+    <p>❌ You need ≥ 555,555 PDA tokens to access this content.</p>
+  </div>
 
-        async function checkPDABalance(session) {
-          try {
-            const response = await fetch(
-              "https://proton.greymass.com/v1/chain/get_currency_balance", // Use mainnet endpoint in production!
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  code: "xprpandas",
-                  account: session.auth.actor,
-                  symbol: "PDA",
-                }),
-              }
-            );
-            const balances = await response.json();
-            const balanceAmount = parseFloat(
-              (balances[0] || "0 PDA").split(" ")[0]
-            );
-            return balanceAmount >= 555555;
-          } catch (error) {
-            console.error("Error checking PDA balance:", error);
-            return false;
-          }
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const connectBtn = document.getElementById("connect-btn");
+      const deniedMessage = document.getElementById("denied-message");
+      const menu = document.querySelector('.menu');
+      const container = document.querySelector('section.container');
+
+      function showGate(allowed) {
+        deniedMessage.style.display = allowed ? 'none' : 'block';
+        if(!allowed){
+          if(container) container.style.filter = "blur(2px)";
+          if(menu) menu.style.filter = "blur(2px)";
+        }else{
+          if(container) container.style.filter = "";
+          if(menu) menu.style.filter = "";
         }
+      }
 
-        connectBtn.addEventListener("click", async () => {
-          try {
-            const { session } = await window.ProtonWebSDK({
-              linkOptions: {
-                endpoints: [
-                  "https://proton.greymass.com", // Mainnet node for production
-                  "https://proton.eosusa.news"
-                ],
-                restoreSession: false,
-              },
-              selectorOptions: {
-                appName: "Pandania.xyz",
-                enabledWalletTypes: ["webauth", "proton"],
-              },
-              transportOptions: {
-                requestAccount: "pandaniaxyz",
-              },
-            });
-
-            const hasAccess = await checkPDABalance(session);
-
-            if (hasAccess) {
-              gatedContent.style.display = "block";
-              deniedMessage.style.display = "none";
-            } else {
-              gatedContent.style.display = "none";
-              deniedMessage.style.display = "block";
+      async function checkPDABalance(session) {
+        try {
+          const response = await fetch(
+            "https://proton.greymass.com/v1/chain/get_currency_balance", // Mainnet endpoint!
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                code: "xprpandas",          // PDA's contract (mainnet)
+                account: session.auth.actor,
+                symbol: "PDA",
+              }),
             }
+          );
+          const balances = await response.json();
+          const balanceAmount = parseFloat(
+            (balances[0] || "0 PDA").split(" ")[0]
+          );
+          return balanceAmount >= 555555;
+        } catch (error) {
+          console.error("Error checking PDA balance:", error);
+          return false;
+        }
+      }
 
+      connectBtn.addEventListener("click", async () => {
+        try {
+          const { session } = await window.ProtonWebSDK({
+            linkOptions: {
+              endpoints: [
+                "https://proton.greymass.com",
+                "https://proton.eosusa.news"
+              ],
+              restoreSession: false,
+            },
+            selectorOptions: {
+              appName: "Pandania.xyz",
+              enabledWalletTypes: ["webauth", "proton"],
+            },
+            transportOptions: {
+              requestAccount: "pandaniaxyz",
+            },
+          });
+
+          const hasAccess = await checkPDABalance(session);
+
+          if (hasAccess) {
+            deniedMessage.style.display = "none";
             connectBtn.style.display = "none";
-          } catch (err) {
-            alert("Wallet connection failed.");
-            console.error("Connection Error ⚠️", err);
+            showGate(true);
+          } else {
+            showGate(false);
+            connectBtn.style.display = "none";
           }
-        });
+        } catch (err) {
+          alert("Wallet connection failed.");
+          console.error("Connection Error ⚠️", err);
+        }
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>

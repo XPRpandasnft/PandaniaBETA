@@ -21,6 +21,10 @@
       background: #151517;
       min-height: 100vh;
       margin: 0;
+      transition: background 0.3s;
+    }
+    body.unlocked {
+      background: #000 !important;    /* FORCE all-black after unlock */
     }
     #gate-cover {
       display: flex;
@@ -45,6 +49,14 @@
       display: block;
     }
     #connect-btn:hover { background: #553c9a; }
+    #gate-panda-gif {
+      display: block;
+      width: 200px;
+      max-width: 80vw;
+      margin: 0 auto 2.5rem auto;
+      /* Optionally add some subtle drop shadow: */
+      filter: drop-shadow(0 4px 28px #0006);
+    }
     #denied-message {
       display: none;
       color: #fff;
@@ -63,16 +75,17 @@
   </style>
 </head>
 <body>
-  <!-- The entire site is covered until wallet passes the gate -->
+  <!-- Token-gate block (only visible until access is granted) -->
   <div id="gate-cover">
     <button id="connect-btn">Connect Wallet</button>
+    <img id="gate-panda-gif" src="images/header/protonpanda-gif.gif" alt="Proton Panda" />
     <div id="denied-message">
       <h2>Access Denied</h2>
       <p>❌ You need ≥ 555,555 PDA tokens to access this content.</p>
     </div>
   </div>
 
-  <!-- The ACTUAL site content, hidden until access granted -->
+  <!-- Main site, stays hidden until access allowed -->
   <div id="main-content">
     <header>
       <div class="container">
@@ -141,8 +154,7 @@
     window.addEventListener("DOMContentLoaded", () => {
       const connectBtn = document.getElementById("connect-btn");
       const deniedMessage = document.getElementById("denied-message");
-
-      // Hide the entire site until allowed
+      // The entire site is hidden until this triggers
       document.getElementById('main-content').style.display = "none";
       deniedMessage.style.display = "none";
 
@@ -196,7 +208,6 @@
           if (hasAccess) {
             document.body.classList.add("unlocked");
             document.getElementById('main-content').style.display = "block";
-            // Hide gating UI for good
             document.getElementById("gate-cover").style.display = "none";
           } else {
             deniedMessage.style.display = "block";

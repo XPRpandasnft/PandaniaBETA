@@ -7,503 +7,186 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- favicon -->
-    <link rel="images/x-icon/og-panda-transparent.png" sizes="180x180" href="images/x-icon/og-panda-transparent.png">
+    <link rel="icon" href="images/x-icon/og-panda-transparent.png" sizes="180x180">
     <link rel="icon" type="image/png" sizes="32x32" href="images/x-icon/og-panda-transparent.png">
     <link rel="icon" type="image/png" sizes="16x16" href="images/x-icon/og-panda-transparent.png">
     <link rel="manifest" href="images/x-icon/og-panda-transparent.png">
     <link rel="stylesheet" href="css/style.css" />
-  </head>
-  <body>
-    <header>
-      <div class="container">
-        <div class="logo">
-          <a href="/">
-            <img src="images/x-icon/favicon.ico" alt="logo" />
-          </a>
-        </div>
-        <div class="menu">
-          <a
-            href="https://proton.alcor.exchange/positions/new?left=xpr-eosio.token&right=pda-xprpandas"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-  
-            <center><img src="images/header/pda-favicon-32x32.png" alt="alcor exchange" /></center><p>Provide Liquidity</p>
-          </a>
-          <a
-            href="https://twitter.com/protonpandas"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img src="images/header/x-favicon-16x16.png" /><p>X.com</p>
-          </a>
-          <a
-            href="https://soon.market/collections/144534352512"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img src="images/header/soon-market-favicon-16x16.png" /><p>Soon.Market</p>
-          </a>
-          <a
-            href="https://t.me/+lPYmNDvlKAFlNzRh"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img src="images/header/telegram-favicon-16x16.png" /><p>Telegram</p>
-          </a>
-          <html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <link rel="shortcut icon" href="#" />
-
     <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
+    <style>
+      #gated-content {
+        display: none;
+      }
+      #denied-message {
+        display: none;
+        color: red;
+        text-align: center;
+        padding: 2em;
+      }
+      .connect-btn {
+        background-color: #6b46c1;
+        color: #fff;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        margin: 20px 0;
+      }
+      .connect-btn:hover { background-color: #553c9a; }
+      .green-button {
+        display: inline-block;
+        padding: 10px 30px;
+        background-color: green;
+        color: yellow;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .green-button:hover { background-color: darkgreen; }
+    </style>
   </head>
-
   <body>
-    <div class="relative bg-white">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="flex justify-between items-center border-b border-gray-200 py-6 md:justify-start md:space-x-10">
-          <div class="hidden sm:block flex justify-start">
-            <span class="sr-only">XPR</span>
-            <img class="w-auto h-8 sm:h-10" src="https://protonresources.com/img/logo.475b3e38.svg" alt="">
-          </div>
-  
-          <nav class="flex cursor-pointer space-x-4 sm:space-x-10 justify-center pr-2">
-            Network
-          </nav>
-  
-          <div class="flex items-center justify-end space-x-8 md:flex-1 lg:w-0">
-            <div>
-              <div
-                <button class="login-btn btn" id="login-button">
-                <class="cursor-pointer whitespace-nowrap bg-purple-100 border border-transparent rounded-md py-2 px-4 inline-flex items-center justify-center text-base font-medium text-purple-600 hover:bg-purple-200"
-              >
-                Connect Wallet
-              </div>
-          
-              <div
-                id="avatar"
-                class="relative"
-              >
-                <div>
-                  <div
-                    class="max-w-xs bg-white rounded-full flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 lg:p-2 lg:rounded-md0"
-                    aria-haspopup="true"
-                  >
-                    <img
-                      id="avatar-image"
-                      class="hidden sm:block h-8 w-8 rounded-full"
-                      alt="Profile Photo"
-                    />
-          
-                    <span
-                      id="avatar-name"
-                      class="ml-1 sm:ml-3 text-gray-700 text-sm font-medium lg:block"
-                    >
-                    </span>
-
-                    <svg
-                      id="logout-icon"
-                      aria-hidden="true"
-                      focusable="false"
-                      data-prefix="far"
-                      data-icon="trash-alt"
-                      role="img"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 448 512"
-                      class="ml-2 w-4 h-4 cursor-pointer"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M268 416h24a12 12 0 0 0 12-12V188a12 12 0 0 0-12-12h-24a12 12 0 0 0-12 12v216a12 12 0 0 0 12 12zM432 80h-82.41l-34-56.7A48 48 0 0 0 274.41 0H173.59a48 48 0 0 0-41.16 23.3L98.41 80H16A16 16 0 0 0 0 96v16a16 16 0 0 0 16 16h16v336a48 48 0 0 0 48 48h288a48 48 0 0 0 48-48V128h16a16 16 0 0 0 16-16V96a16 16 0 0 0-16-16zM171.84 50.91A6 6 0 0 1 177 48h94a6 6 0 0 1 5.15 2.91L293.61 80H154.39zM368 464H80V128h288zm-212-48h24a12 12 0 0 0 12-12V188a12 12 0 0 0-12-12h-24a12 12 0 0 0-12 12v216a12 12 0 0 0 12 12z"
-                        class=""
-                      >
-                      </path>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <!-- Header -->
+    <header>
+      <div class="container" style="text-align:center;">
+        <div class="logo">
+          <a href="/"><img src="images/x-icon/favicon.ico" alt="logo" /></a>
         </div>
+        <button id="connect-btn" class="connect-btn">Connect Wallet</button>
       </div>
-    </div>
-
-    <div class="p-8 flex items-center justify-center bg-white">
-      <div class="w-full max-w-xs mx-auto space-y-4">
-        <div>
-          <label for="email" class="flex text-sm font-medium text-gray-700">From</label>
-          <div class="mt-1">
-            <input
-              id="from-input"
-              type="text"
-              name="from"
-              id="from"
-              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              disabled="true"
-              placeholder="Please login"
-            />
-          </div>
-        </div>
-  
-        <div>
-          <label for="email" class="flex text-sm font-medium text-gray-700">To</label>
-          <div class="mt-1">
-            <input
-              id="to-input"
-              type="text"
-              name="to"
-              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              placeholder="add @ name"
-            >
-          </input>
-          </div>
-        </div>
-        <div>
-          <label for="email" class="flex text-sm font-medium text-gray-700">XPR Amount</label>
-          <div class="mt-1">
-            <input
-              id="amount-input"
-              type="text"
-              name="amount"
-              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
-              placeholder="add amount"
-            >
-            </input>
-          </div>
-        </div>
-  
-        <div class="flex justify-center">
-          <div
-            id="transfer-button"
-            class="cursor-pointer whitespace-nowrap bg-purple-100 border border-transparent rounded-md py-2 px-4 inline-flex items-center justify-center text-base font-medium text-purple-600 hover:bg-purple-200"
-          >
-          <button class="transfer-btn btn" id="transfer">Transfer</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <script type="module">
-      let link = undefined;
-      let session = undefined;
-      let accountData = undefined;
-
-      const appIdentifier = "Proton Pandas"
-      const chainId = "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0"
-      const endpoints = ["https://proton.greymass.com"]
-
-      const loginButton = document.querySelector('#login-button')
-      const avatar = document.querySelector('#avatar')
-      const avatarName = document.querySelector('#avatar-name')
-      const avatarImage = document.querySelector('#avatar-image')
-      const logoutIcon = document.querySelector('#logout-icon')
-      const fromInput = document.querySelector('#from-input')
-      const toInput = document.querySelector('#to-input')
-      const amountInput = document.querySelector('#amount-input')
-      const transferButton = document.querySelector('#transfer-button')
-
-      const getAvatarImage = () => {
-        const avatar = accountData && accountData.avatar
-
-        if (avatar) {
-          if (avatar.indexOf('/9j/') !== -1) {
-            return `data:image/jpeg;base64,${avatar}`
-          } else if (avatar.indexOf('iVBORw0KGgo') !== -1) {
-            return `data:image/png;base64,${avatar}`
-          }
-        }
-
-        return 'https://bloks.io/img/proton_avatar.png'
-      }
-
-      const updateStatus = () => {
-        avatarImage.src = getAvatarImage()
-
-        if (session && session.auth) {
-          avatarName.textContent = session.auth.actor.toString()
-          fromInput.value = session.auth.actor.toString()
-          loginButton.style.display = "none"
-          avatar.style.display = "block"
-        } else {
-          avatarName.textContent = ""
-          fromInput.value = ""
-          loginButton.style.display = "block"
-          avatar.style.display = "none"
-        }
-      }
-
-      const login = async (restoreSession) => {
-        const { link: localLink, session: localSession } = await ProtonWebSDK({
-          linkOptions: {
-            endpoints,
-            chainId,
-            restoreSession,
-          },
-          transportOptions: {
-            requestAccount: appIdentifier
-          },
-          selectorOptions: {
-            appName: "Proton Pandas",
-            appLogo: "https://bloks.io/cdn-cgi/image/width=70,height=70/https://lh3.googleusercontent.com/a/AAcHTtfsatkCTk0jlH6Iyg5S4HEEVtkMWXlHJrauBcYw=s288-c-rg-br100",
-            customStyleOptions: {
-                modalBackgroundColor: "#F4F7FA",
-                logoBackgroundColor: "indigo",
-                isLogoRound: true,
-                optionBackgroundColor: "white",
-                optionFontColor: "black",
-                primaryFontColor: "black",
-                secondaryFontColor: "#6B727F",
-                linkColor: "#752EEB"
-            }
-          }
-        })
-      
-        link = localLink
-        session = localSession
-
-        updateStatus()
-      }
-
-      const logout = async () => {
-        if (link && session) {
-          await link.removeSession(appIdentifier, session.auth, chainId);
-        }
-        session = undefined;
-        link = undefined;
-
-        updateStatus()
-      }
-
-      const transfer = async ({ to, amount }) => {
-        if (!session) {
-          throw new Error('No Session');
-        }
-
-        return await session.transact({
-          actions: [{
-            /**
-             * The token contract, precision and symbol for tokens can be seen at protonscan.io/tokens
-             */
-
-            // Token contract
-            account: "eosio.token",
-
-            // Action name
-            name: "transfer",
-            
-            // Action parameters
-            data: {
-              // Sender
-              from: session.auth.actor,
-
-              // Receiver
-              to: to,
-
-              // 4 is precision, XPR is symbol
-              quantity: `${(+amount).toFixed(4)} XPR`,
-
-              // Optional memo
-              memo: ""
-            },
-            authorization: [session.auth]
-          }]
-        }, {
-          broadcast: true
-        })
-      }
-
-      // Add button listeners
-      logoutIcon.addEventListener("click", logout)
-      loginButton.addEventListener("click", () => login(false))
-      transferButton.addEventListener("click", () => transfer({
-        to: toInput.value,
-        amount: amountInput.value,
-      }))
-
-      // Restore
-      login(true)
-    </script>
-  </body>
-</html>
-          
     </header>
-<h2><center><img src="images/header/protonpanda-gif.gif"></center></h2>
-    <section class="container">
-      <div class="owner-status"></div>
-      <div class="countdown">
-       
+
+    <!-- The full, original site as gated content  -->
+    <div id="gated-content">
+      <div class="menu" style="text-align:center;">
+        <a href="https://proton.alcor.exchange/positions/new?left=xpr-eosio.token&right=pda-xprpandas" target="_blank" rel="noopener noreferrer">
+          <img src="images/header/pda-favicon-32x32.png" alt="alcor exchange" /><p>Provide Liquidity</p>
+        </a>
+        <a href="https://twitter.com/protonpandas" target="_blank" rel="noopener noreferrer">
+          <img src="images/header/x-favicon-16x16.png" /><p>X.com</p>
+        </a>
+        <a href="https://soon.market/collections/144534352512" target="_blank" rel="noopener noreferrer">
+          <img src="images/header/soon-market-favicon-16x16.png" /><p>Soon.Market</p>
+        </a>
+        <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank" rel="noopener noreferrer">
+          <img src="images/header/telegram-favicon-16x16.png" /><p>Telegram</p>
+        </a>
+      </div>
+      <h2><center><img src="images/header/protonpanda-gif.gif"></center></h2>
+      <section class="container">
         <h1>Pandania NFT DaPP Coming Soon!!</h1>
         <p>For now try kill time by playing Pandee Hero!</p>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Green Button with Yellow Text</title>
-          <style>
-              .green-button {
-                  display: inline-block;
-                  padding: 10px 30px;
-                  background-color: green;
-                  color: yellow;
-                  font-size: 16px;
-                  border: none;
-                  border-radius: 5px;
-                  cursor: pointer;
-                  text-decoration: none;
-              }
-          
-              .green-button:hover {
-                  background-color: darkgreen;
-              }
-          </style>
-          </head>
-          <body>
-          
-          <a href="https://flappycreator.com/flappy.php?id=66f90f9e9ad5f" class="green-button" target="_blank">Play Pandee Hero</a>
-          <br>
+        <a href="https://flappycreator.com/flappy.php?id=66f90f9e9ad5f" class="green-button" target="_blank">Play Pandee Hero</a>
+        <br>
         <p>Launched on January 10th, 2022. One of the few remaining (OG) NFT collections on XprNetwork.</p>
-          <p>There will only ever be 200 ProtonPanda NFTs in circulation.</p>
-          <p>NFT Rarity: 80-Common(40%) | 50-Uncommon(25%) | 30-Epic(15%) | 25-Rare(12.5%) | 15-Ultra Rare(7.5%)</p>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Green Button with Yellow Text</title>
-<style>
-    .green-button {
-        display: inline-block;
-        padding: 10px 30px;
-        background-color: green;
-        color: yellow;
-        font-size: 16px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .green-button:hover {
-        background-color: darkgreen;
-    }
-</style>
-</head>
-<body>
-
-<a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
-
-</body>
-          <br>
+        <p>There will only ever be 200 ProtonPanda NFTs in circulation.</p>
+        <p>NFT Rarity: 80-Common(40%) | 50-Uncommon(25%) | 30-Epic(15%) | 25-Rare(12.5%) | 15-Ultra Rare(7.5%)</p>
+        <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
+        <br>
         <p>Token Launched on June 1st, 2023. Only active cryptocurrency donating to World WildLife Foundation and environmental conservation on XprNetwork.</p>
         <h3><center><img src="images/x-icon/pda-xprpanda-65x65.png"></center></h3>
-          <h2>Buy on Alcor Exchange</h2>
-          <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
-        
-          <!DOCTYPE html>
-  <html lang="en">
-    <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Green Button with Yellow Text</title>
-    <style>
-        .green-button {
-            display: inline-block;
-            padding: 10px 30px;
-            background-color: green;
-            color: yellow;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-    
-        .green-button:hover {
-            background-color: darkgreen;
-        }
-    </style>
-    </head>
-    <body>
-    
-    <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
-    
-    </body>
-<br>
-<p>Or</p>
-<html lang="en">
-    <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Green Button with Yellow Text</title>
-<style>
-    .green-button {
-        display: inline-block;
-        padding: 10px 30px;
-        background-color: green;
-        color: yellow;
-        font-size: 16px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .green-button:hover {
-        background-color: darkgreen;
-    }
-</style>
-</head>
-<body>
-
-<a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
-
-        
-          
-<br>
+        <h2>Buy on Alcor Exchange</h2>
+        <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
+        <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
+        <br>
+        <p>Or</p>
+        <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
+        <br>
         <p>Total Capped Supply 555,555,555 Tokens.</p>
-          <p>100% Of Supply In Circulation.</p> 
-          <img src="images/header/Token-Pi.png">
-          <p>The Token Distribution for PDA is as follows: 65% of tokens are allocated to the PandaVault wallet for providing liquidity for PDA amongst other future intitives. 15% was assigned to the Xprpandas wallet which supports both the NFT project and community by funding events such as giveaways which further distributes the mass token supply into the hands of the community while also focusing on further developments. 15% received by the founder who was given complete token acess at launch. The remaining 5% was distributed to community members through an airdrop shortly following the token launch. The 5% for community members does not include any events that may have occured after launch. 
-          </p>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Green Button with Yellow Text</title>
-            <style>
-                .green-button {
-                    display: inline-block;
-                    padding: 10px 30px;
-                    background-color: green;
-                    color: yellow;
-                    font-size: 16px;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    text-decoration: none;
-                }
-            
-                .green-button:hover {
-                    background-color: darkgreen;
-                }
-            </style>
-            </head>
-            <body>
-            
-            <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">(PDA) XPRNetwork Explorer info</a>
-            <br>
-          <p>PDA Pandacoin is a Utility Token used to empower a decentralized commnunity on XPRNetwork.</p>
-        <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank" rel="noopener noreferrer" class="hero-btn btn"
-          ><span>Join the #PandaFam</span>
-      </a>
-      <br>
-      <h2><center>$200 In Total Donations To Date.</center></h2>
-      <h3><center>Donated to The World WildLife Foundation</center></h3>
-      <br>  
-      <img src="images/header/Conservation-planet.png">
-      <center><img src="images/header/Donation-Wwf.jpeg"><img src="images/header/Donation-Wwfl.png"></center>
-      </div>
-    </section>
+        <p>100% Of Supply In Circulation.</p> 
+        <img src="images/header/Token-Pi.png">
+        <p>The Token Distribution for PDA is as follows: 65% of tokens are allocated to the PandaVault wallet for providing liquidity for PDA amongst other future initiatives. 15% was assigned to the Xprpandas wallet which supports both the NFT project and community by funding events such as giveaways, etc. 15% to the founder, 5% to community airdrop after launch.</p>
+        <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">(PDA) XPRNetwork Explorer info</a>
+        <br>
+        <p>PDA Pandacoin is a Utility Token used to empower a decentralized commnunity on XPRNetwork.</p>
+        <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank" rel="noopener noreferrer" class="hero-btn btn"><span>Join the #PandaFam</span></a>
+        <br>
+        <h2><center>$200 In Total Donations To Date.</center></h2>
+        <h3><center>Donated to The World WildLife Foundation</center></h3>
+        <img src="images/header/Conservation-planet.png">
+        <center>
+          <img src="images/header/Donation-Wwf.jpeg">
+          <img src="images/header/Donation-Wwfl.png">
+        </center>
+      </section>
+    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@metamask/onboarding@1.0.1/dist/metamask-onboarding.bundle.js"></script>
-    <script src="js/countdown.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Access Denied -->
+    <div id="denied-message">
+      <h2>Access Denied</h2>
+      <p>❌ You need ≥ 555,555 PDA tokens to access this content.</p>
+    </div> 
+
+    <script>
+      window.addEventListener("DOMContentLoaded", () => {
+        const connectBtn = document.getElementById("connect-btn");
+        const gatedContent = document.getElementById("gated-content");
+        const deniedMessage = document.getElementById("denied-message");
+
+        async function checkPDABalance(session) {
+          try {
+            const response = await fetch(
+              "https://proton.greymass.com/v1/chain/get_currency_balance", // Use mainnet endpoint in production!
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  code: "xprpandas",
+                  account: session.auth.actor,
+                  symbol: "PDA",
+                }),
+              }
+            );
+            const balances = await response.json();
+            const balanceAmount = parseFloat(
+              (balances[0] || "0 PDA").split(" ")[0]
+            );
+            return balanceAmount >= 555555;
+          } catch (error) {
+            console.error("Error checking PDA balance:", error);
+            return false;
+          }
+        }
+
+        connectBtn.addEventListener("click", async () => {
+          try {
+            const { session } = await window.ProtonWebSDK({
+              linkOptions: {
+                endpoints: [
+                  "https://proton.greymass.com", // Mainnet node for production
+                  "https://proton.eosusa.news"
+                ],
+                restoreSession: false,
+              },
+              selectorOptions: {
+                appName: "Pandania.xyz",
+                enabledWalletTypes: ["webauth", "proton"],
+              },
+              transportOptions: {
+                requestAccount: "pandaniaxyz",
+              },
+            });
+
+            const hasAccess = await checkPDABalance(session);
+
+            if (hasAccess) {
+              gatedContent.style.display = "block";
+              deniedMessage.style.display = "none";
+            } else {
+              gatedContent.style.display = "none";
+              deniedMessage.style.display = "block";
+            }
+
+            connectBtn.style.display = "none";
+          } catch (err) {
+            alert("Wallet connection failed.");
+            console.error("Connection Error ⚠️", err);
+          }
+        });
+      });
+    </script>
   </body>
 </html>

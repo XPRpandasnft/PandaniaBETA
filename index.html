@@ -15,23 +15,20 @@
 
   <!-- Proton SDK -->
   <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
-
   <style>
-    body {
-      background: #151517;
+    html, body {
+      background: #000 !important;
       min-height: 100vh;
       margin: 0;
+      padding: 0;
       transition: background 0.3s;
-    }
-    body.unlocked {
-      background: #000 !important;    /* FORCE all-black after unlock */
     }
     #gate-cover {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #111;
+      background: #000;
       position: fixed;
       inset: 0;
       z-index: 9000;
@@ -49,12 +46,12 @@
       display: block;
     }
     #connect-btn:hover { background: #553c9a; }
+    /* Panda GIF on gate screen: */
     #gate-panda-gif {
       display: block;
       width: 200px;
       max-width: 80vw;
-      margin: 0 auto 2.5rem auto;
-      /* Optionally add some subtle drop shadow: */
+      margin: 0 0 2.5rem 0;
       filter: drop-shadow(0 4px 28px #0006);
     }
     #denied-message {
@@ -68,10 +65,28 @@
       margin: 1.5rem auto 0 auto;
       box-shadow: 0 3px 32px #0009;
     }
-    /* When unlocked, allow scroll/content: */
     body.unlocked #gate-cover { display: none !important; }
     body.unlocked #main-content { display: block !important; }
-    #main-content { display: none; }
+    #main-content { display: none; background: #000 !important; }
+
+    /* --- Green Button style as in your original code --- */
+    .green-button {
+      display: inline-block;
+      padding: 10px 30px;
+      background-color: green;
+      color: yellow;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+      margin: 8px 0;
+      transition: background 0.2s;
+    }
+    .green-button:hover {
+      background-color: darkgreen;
+      color: #fff200;
+    }
   </style>
 </head>
 <body>
@@ -112,28 +127,37 @@
     <section class="container">
       <div class="owner-status"></div>
       <div class="countdown">
+
         <h1>Pandania NFT DaPP Coming Soon!!</h1>
         <p>For now try kill time by playing Pandee Hero!</p>
+        
+        <!-- Restore Original Style Buttons Here -->
         <a href="https://flappycreator.com/flappy.php?id=66f90f9e9ad5f" class="green-button" target="_blank">Play Pandee Hero</a>
         <br>
+
         <p>Launched on January 10th, 2022. One of the few remaining (OG) NFT collections on XprNetwork.</p>
         <p>There will only ever be 200 ProtonPanda NFTs in circulation.</p>
         <p>NFT Rarity: 80-Common(40%) | 50-Uncommon(25%) | 30-Epic(15%) | 25-Rare(12.5%) | 15-Ultra Rare(7.5%)</p>
+
         <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
         <br>
+
         <p>Token Launched on June 1st, 2023...</p>
         <h3><center><img src="images/x-icon/pda-xprpanda-65x65.png"></center></h3>
         <h2>Buy on Alcor Exchange</h2>
         <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
+
         <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
         <br>
         <p>Or</p>
         <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
         <br>
+
         <p>Total Capped Supply 555,555,555 Tokens.</p>
         <p>100% Of Supply In Circulation.</p>
         <img src="images/header/Token-Pi.png">
         <p>The Token Distribution for PDA is as follows: 65% to PandaVault liquidity, 15% to Xprpandas wallet (for community and events), 15% to the founder, and 5% to community airdrop.</p>
+        
         <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">(PDA) XPRNetwork Explorer info</a>
         <br>
         <p>PDA Pandacoin is a Utility Token used to empower a decentralized commnunity on XPRNetwork.</p>
@@ -154,7 +178,6 @@
     window.addEventListener("DOMContentLoaded", () => {
       const connectBtn = document.getElementById("connect-btn");
       const deniedMessage = document.getElementById("denied-message");
-      // The entire site is hidden until this triggers
       document.getElementById('main-content').style.display = "none";
       deniedMessage.style.display = "none";
 

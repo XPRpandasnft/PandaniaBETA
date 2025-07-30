@@ -65,7 +65,6 @@
       margin-bottom: 0.25rem;
     }
     
-    /* Proposal container styling */
     .proposal {
       margin-bottom: 2rem;
       padding: 1rem;
@@ -208,6 +207,15 @@
     .retry-btn:hover {
       background: #555;
     }
+
+    .offline-notice {
+      background: #333;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -227,6 +235,16 @@
 
   <div id="wallet-display" style="margin-bottom: 8px;"></div>
   <div id="status-msg">⏳ Loading proposals...</div>
+
+  <!-- Offline Notice -->
+  <div id="offline-notice" class="offline-notice" style="display: none;">
+    <h3>📡 Governance Data Unavailable</h3>
+    <p>Unable to load existing proposals due to network issues.<br/>
+    <strong>You can still create new proposals!</strong></p>
+    <p style="font-size: 0.9rem; color: #aaa;">
+      New proposals will appear once the network connection is restored.
+    </p>
+  </div>
 
   <!-- Proposal Creation Form -->
   <form id="proposal-form" style="display:none;">
@@ -252,7 +270,7 @@
     <div id="closed-proposals-list"></div>
   </div>
 
-  <!-- Voting UI for one active proposal -->
+  <!-- Voting UI -->
   <form id="vote-form" style="display:none;">
     <h2>Vote on Proposal</h2>
     <p><strong>Selected Proposal:</strong> <span id="selected-proposal-title"></span></p>
@@ -284,11 +302,12 @@
   const BURN_ACCOUNT = "token.burn";
   const XPRPANDAS_ACCOUNT = "xprpandas";
 
-  // FIXED: More reliable endpoints in better order
+  // FIXED: Try different endpoint patterns for better connectivity
   const MAINNET_ENDPOINTS = [
     "https://proton.greymass.com",
-    "https://api.protonchain.com", 
-    "https://proton.eosusa.news"
+    "https://api.protonchain.com",
+    "https://proton.eosusa.news",
+    "https://proton-api.eosrio.io"
   ];
 
   let currentEndpoint = MAINNET_ENDPOINTS[0];
@@ -297,6 +316,7 @@
   let voteWeight = 0;
   let proposals = [];
   let votes = [];
+  let isOfflineMode = false;
 
   // HTML Elements
   const homeBtn = document.getElementById("home-btn");
@@ -306,6 +326,7 @@
   const proposalForm = document.getElementById("proposal-form");
   const proposalTitleEl = document.getElementById("proposal-title");
   const proposalTextEl = document.getElementById("proposal-text");
+  const offlineNotice = document.getElementById("offline-notice");
 
   const activeProposalsList = document.getElementById("active-proposals-list");
   const closedProposalsList = document.getElementById("closed-proposals-list");
@@ -317,121 +338,135 @@
 
   let selectedProposal = null;
 
-  // Format timestamp
   function formatDate(timestamp) {
     const d = new Date(parseInt(timestamp) * 1000);
     return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   }
 
-  // Check if user voted
   function hasUserVoted(proposalId, userAccount) {
     if (!userAccount) return false;
     return votes.some(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // Get user's vote
   function getUserVote(proposalId, userAccount) {
     if (!userAccount) return null;
     return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // FIXED: Better endpoint testing with more detailed error info
+  // FIXED: More robust endpoint testing with fallbacks
   async function findWorkingEndpoint() {
-    console.log("Testing Proton mainnet endpoints...");
+    console.log("Testing endpoints...");
     
-    for (let i = 0; i < MAINNET_ENDPOINTS.length; i++) {
-      const endpoint = MAINNET_ENDPOINTS[i];
+    for (const endpoint of MAINNET_ENDPOINTS) {
       try {
         console.log(`Testing: ${endpoint}`);
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        // Test with a simple get_info call first
+        const testResponse = await Promise.race([
+          fetch(`${endpoint}/v1/chain/get_info`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+          )
+        ]);
         
-        const response = await fetch(`${endpoint}/v1/chain/get_info`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const info = await response.json();
+        if (testResponse.ok) {
           currentEndpoint = endpoint;
-          console.log(`✅ Using endpoint: ${endpoint}`, info);
+          console.log(`✅ Working endpoint: ${endpoint}`);
           return true;
-        } else {
-          console.log(`❌ ${endpoint} returned: ${response.status} ${response.statusText}`);
         }
       } catch (err) {
-        console.log(`❌ ${endpoint} failed:`, err.name, err.message);
+        console.log(`❌ ${endpoint} failed:`, err.message);
       }
     }
     
-    console.log("❌ No working endpoints found");
     return false;
   }
 
-  // FIXED: Better error handling for table loading
-  async function makeTableRequest(table, limit = 100) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-    
+  // FIXED: Graceful data loading with offline fallback
+  async function loadGovernanceData() {
     try {
-      const response = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: VOTE_CONTRACT,
-          scope: VOTE_CONTRACT,
-          table: table,
-          limit: limit
+      console.log(`Attempting to load data from ${currentEndpoint}...`);
+      
+      // Try to load proposals
+      const proposalsResponse = await Promise.race([
+        fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: VOTE_CONTRACT,
+            scope: VOTE_CONTRACT,
+            table: "proposals",
+            limit: 100
+          })
         }),
-        signal: controller.signal
-      });
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        )
+      ]);
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${response.statusText}\nResponse: ${errorText}`);
+      if (proposalsResponse.ok) {
+        const proposalsData = await proposalsResponse.json();
+        proposals = proposalsData.rows || [];
+        console.log(`✅ Loaded ${proposals.length} proposals`);
+      } else {
+        throw new Error(`Proposals API returned ${proposalsResponse.status}`);
       }
 
-      const data = await response.json();
-      return data;
-      
+      // Try to load votes
+      const votesResponse = await Promise.race([
+        fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: VOTE_CONTRACT,
+            scope: VOTE_CONTRACT,
+            table: "votes", 
+            limit: 1000
+          })
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        )
+      ]);
+
+      if (votesResponse.ok) {
+        const votesData = await votesResponse.json();
+        votes = votesData.rows || [];
+        console.log(`✅ Loaded ${votes.length} votes`);
+      } else {
+        console.log(`⚠️ Votes API returned ${votesResponse.status}, but continuing...`);
+        votes = []; // Continue with empty votes
+      }
+
+      return true;
+
     } catch (err) {
-      clearTimeout(timeoutId);
-      
-      if (err.name === 'AbortError') {
-        throw new Error(`Request timeout for table "${table}"`);
-      }
-      
-      throw new Error(`Failed to load ${table}: ${err.message}`);
+      console.error("Data loading failed:", err);
+      throw err;
     }
   }
 
-  // Load proposals with better error info
-  async function loadProposals() {
-    console.log(`Loading proposals from ${VOTE_CONTRACT}...`);
-    const data = await makeTableRequest("proposals");
-    proposals = data.rows || [];
-    console.log(`✅ Loaded ${proposals.length} proposals:`, proposals);
-    return proposals;
-  }
-
-  // Load votes with better error info  
-  async function loadVotes() {
-    console.log(`Loading votes from ${VOTE_CONTRACT}...`);
-    const data = await makeTableRequest("votes", 1000);
-    votes = data.rows || [];
-    console.log(`✅ Loaded ${votes.length} votes:`, votes);
-    return votes;
-  }
-
-  // Render proposals
   function renderProposals() {
+    if (proposals.length === 0) {
+      // Show empty state
+      activeProposalsList.innerHTML = `
+        <div style="text-align: center; color: #888; font-style: italic; padding: 2rem;">
+          📝 No proposals yet. ${isOfflineMode ? 'Create the first one!' : 'Be the first to create one!'}
+        </div>
+      `;
+      closedProposalsList.innerHTML = `
+        <div style="text-align: center; color: #888; font-style: italic;">
+          No closed proposals yet.
+        </div>
+      `;
+      return;
+    }
+
     const now = Date.now();
     let activeProps = [];
     let closedProps = [];
@@ -446,135 +481,125 @@
       }
     });
 
+    // Render active proposals
     activeProposalsList.innerHTML = "";
-    closedProposalsList.innerHTML = "";
-
-    function renderProposal(proposal, isActive) {
-      const createdDate = proposal.created_at ? parseInt(proposal.created_at) * 1000 : 0;
-      const nowTime = new Date().getTime();
-      const elapsedDays = (nowTime - createdDate) / MS_PER_DAY;
-      const daysLeft = Math.max(0, VOTE_PERIOD_DAYS - Math.floor(elapsedDays));
-
-      const createdStr = createdDate ? formatDate(proposal.created_at) : "Unknown date";
-      const yesVotes = proposal.yes_votes || 0;
-      const noVotes = proposal.no_votes || 0;
-
-      const title = proposal.title || "(No Title)";
-      const fullText = proposal.text || "(No description)";
-      
-      const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
-      const userVote = actor ? getUserVote(proposal.id, actor) : null;
-
-      const votersHtml = votersForProposal.length > 0
-        ? '<div class="voters-container">' +
-          votersForProposal.map(v => {
-            const isCurrentUser = actor && v.voter === actor;
-            const highlightClass = isCurrentUser ? 'style="background-color: #444; border: 2px solid #ffcc00;"' : '';
-            return `
-              <div class="voter-entry" ${highlightClass}>
-                <div class="voter-name">${v.voter}${isCurrentUser ? ' (You)' : ''}</div>
-                <div class="voter-vote ${v.vote === 'yes' ? 'vote-yes' : 'vote-no'}">${v.vote.toUpperCase()}</div>
-                <div class="voter-weight">Weight: ${v.weight}</div>
-                <div class="voter-pda">${v.pda_balance ? Number(v.pda_balance).toLocaleString() + " PDA" : "N/A"}</div>
-              </div>`;
-          }).join('') +
-          '</div>'
-        : '<div style="font-style:italic;color:#777;margin-top:6px;">No votes yet.</div>';
-
-      let statusClass = isActive ? "status-active" : "status-closed";
-      let statusText = isActive ? "Active" : "Closed";
-      let daysLeftDisplay = isActive
-        ? `<span class="status-timer">⏰ ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</span>`
-        : "";
-
-      let userVoteStatus = "";
-      if (userVote && isActive) {
-        userVoteStatus = `<div style="background: #333; color: #ffcc00; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem; margin-top: 4px;">✅ You voted: ${userVote.vote.toUpperCase()}</div>`;
-      }
-
-      const container = document.createElement("div");
-      container.className = "proposal";
-      
-      if (userVote && isActive) {
-        container.classList.add("already-voted");
-      }
-
-      container.innerHTML = `
-        <div class="proposal-header">
-          <div>
-            <div class="proposal-creator">📝 Proposed by <strong>${proposal.proposer}</strong> on <em>${createdStr}</em></div>
-            <div class="proposal-title" title="${title}">${title}</div>
-            ${userVoteStatus}
-          </div>
-          <div class="proposal-status ${statusClass}">${statusText}${daysLeftDisplay}</div>
+    if (activeProps.length === 0) {
+      activeProposalsList.innerHTML = `
+        <div style="text-align: center; color: #888; font-style: italic;">
+          No active proposals at the moment.
         </div>
-        <div class="proposal-summary" style="max-height: 3em; overflow: hidden; white-space: pre-wrap;">${fullText}</div>
-        <div class="read-toggle" style="user-select:none; cursor:pointer;">🔍 Read More</div>
-        <strong>Votes:</strong> Yes: ${yesVotes} | No: ${noVotes}
-        <div><strong>Voters:</strong></div>
-        ${votersHtml}
       `;
-
-      const readToggle = container.querySelector(".read-toggle");
-      const summaryDiv = container.querySelector(".proposal-summary");
-      readToggle.onclick = () => {
-        if (summaryDiv.style.maxHeight === "none") {
-          summaryDiv.style.maxHeight = "3em";
-          summaryDiv.style.overflow = "hidden";
-          readToggle.textContent = "🔍 Read More";
-        } else {
-          summaryDiv.style.maxHeight = "none";
-          summaryDiv.style.overflow = "auto";
-          readToggle.textContent = "⬅️ Collapse";
-        }
-      };
-
-      if (isActive && !userVote) {
-        container.style.cursor = "pointer";
-        container.title = "Click to select this proposal for voting";
-        container.onclick = () => selectProposalForVoting(proposal);
-      } else if (userVote) {
-        container.style.cursor = "not-allowed";
-        container.title = `You have already voted "${userVote.vote}" on this proposal`;
-      }
-
-      return container;
-    }
-
-    if (proposals.length === 0) {
-      const noProposalsMsg = document.createElement("div");
-      noProposalsMsg.style.textAlign = "center";
-      noProposalsMsg.style.color = "#888";
-      noProposalsMsg.style.fontStyle = "italic";
-      noProposalsMsg.style.padding = "2rem";
-      noProposalsMsg.innerHTML = "📝 No proposals yet. Create the first one!";
-      activeProposalsList.appendChild(noProposalsMsg);
     } else {
-      activeProps.forEach(p => {
-        activeProposalsList.appendChild(renderProposal(p, true));
+      activeProps.forEach(proposal => {
+        activeProposalsList.appendChild(createProposalElement(proposal, true));
       });
-      closedProps.forEach(p => {
-        closedProposalsList.appendChild(renderProposal(p, false));
-      });
-
-      if (activeProps.length === 0) {
-        const noActiveMsg = document.createElement("div");
-        noActiveMsg.style.textAlign = "center";
-        noActiveMsg.style.color = "#888";
-        noActiveMsg.style.fontStyle = "italic";
-        noActiveMsg.innerHTML = "No active proposals at the moment.";
-        activeProposalsList.appendChild(noActiveMsg);
-      }
-
-      if (closedProps.length === 0) {
-        const noClosedMsg = document.createElement("div");
-        noClosedMsg.style.textAlign = "center";
-        noClosedMsg.style.color = "#888";
-        noClosedMsg.style.fontStyle = "italic";
-        noClosedMsg.innerHTML = "No closed proposals yet.";
-        closedProposalsList.appendChild(noClosedMsg);
-      }
     }
+
+    // Render closed proposals
+    closedProposalsList.innerHTML = "";
+    if (closedProps.length === 0) {
+      closedProposalsList.innerHTML = `
+        <div style="text-align: center; color: #888; font-style: italic;">
+          No closed proposals yet.
+        </div>
+      `;
+    } else {
+      closedProps.forEach(proposal => {
+        closedProposalsList.appendChild(createProposalElement(proposal, false));
+      });
+    }
+  }
+
+  function createProposalElement(proposal, isActive) {
+    const createdDate = proposal.created_at ? parseInt(proposal.created_at) * 1000 : 0;
+    const nowTime = Date.now();
+    const elapsedDays = (nowTime - createdDate) / MS_PER_DAY;
+    const daysLeft = Math.max(0, VOTE_PERIOD_DAYS - Math.floor(elapsedDays));
+
+    const createdStr = createdDate ? formatDate(proposal.created_at) : "Unknown date";
+    const yesVotes = proposal.yes_votes || 0;
+    const noVotes = proposal.no_votes || 0;
+
+    const title = proposal.title || "(No Title)";
+    const fullText = proposal.text || "(No description)";
+    
+    const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
+    const userVote = actor ? getUserVote(proposal.id, actor) : null;
+
+    const votersHtml = votersForProposal.length > 0
+      ? '<div class="voters-container">' +
+        votersForProposal.map(v => {
+          const isCurrentUser = actor && v.voter === actor;
+          const highlightClass = isCurrentUser ? 'style="background-color: #444; border: 2px solid #ffcc00;"' : '';
+          return `
+            <div class="voter-entry" ${highlightClass}>
+              <div class="voter-name">${v.voter}${isCurrentUser ? ' (You)' : ''}</div>
+              <div class="voter-vote ${v.vote === 'yes' ? 'vote-yes' : 'vote-no'}">${v.vote.toUpperCase()}</div>
+              <div class="voter-weight">Weight: ${v.weight}</div>
+              <div class="voter-pda">${v.pda_balance ? Number(v.pda_balance).toLocaleString() + " PDA" : "N/A"}</div>
+            </div>`;
+        }).join('') +
+        '</div>'
+      : '<div style="font-style:italic;color:#777;margin-top:6px;">No votes yet.</div>';
+
+    let statusClass = isActive ? "status-active" : "status-closed";
+    let statusText = isActive ? "Active" : "Closed";
+    let daysLeftDisplay = isActive
+      ? `<span class="status-timer">⏰ ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</span>`
+      : "";
+
+    let userVoteStatus = "";
+    if (userVote && isActive) {
+      userVoteStatus = `<div style="background: #333; color: #ffcc00; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem; margin-top: 4px;">✅ You voted: ${userVote.vote.toUpperCase()}</div>`;
+    }
+
+    const container = document.createElement("div");
+    container.className = "proposal";
+    
+    if (userVote && isActive) {
+      container.classList.add("already-voted");
+    }
+
+    container.innerHTML = `
+      <div class="proposal-header">
+        <div>
+          <div class="proposal-creator">📝 Proposed by <strong>${proposal.proposer}</strong> on <em>${createdStr}</em></div>
+          <div class="proposal-title" title="${title}">${title}</div>
+          ${userVoteStatus}
+        </div>
+        <div class="proposal-status ${statusClass}">${statusText}${daysLeftDisplay}</div>
+      </div>
+      <div class="proposal-summary" style="max-height: 3em; overflow: hidden; white-space: pre-wrap;">${fullText}</div>
+      <div class="read-toggle" style="user-select:none; cursor:pointer;">🔍 Read More</div>
+      <strong>Votes:</strong> Yes: ${yesVotes} | No: ${noVotes}
+      <div><strong>Voters:</strong></div>
+      ${votersHtml}
+    `;
+
+    const readToggle = container.querySelector(".read-toggle");
+    const summaryDiv = container.querySelector(".proposal-summary");
+    readToggle.onclick = () => {
+      if (summaryDiv.style.maxHeight === "none") {
+        summaryDiv.style.maxHeight = "3em";
+        summaryDiv.style.overflow = "hidden";
+        readToggle.textContent = "🔍 Read More";
+      } else {
+        summaryDiv.style.maxHeight = "none";
+        summaryDiv.style.overflow = "auto";
+        readToggle.textContent = "⬅️ Collapse";
+      }
+    };
+
+    if (isActive && !userVote) {
+      container.style.cursor = "pointer";
+      container.title = "Click to select this proposal for voting";
+      container.onclick = () => selectProposalForVoting(proposal);
+    } else if (userVote) {
+      container.style.cursor = "not-allowed";
+      container.title = `You have already voted "${userVote.vote}" on this proposal`;
+    }
+
+    return container;
   }
 
   function selectProposalForVoting(proposal) {
@@ -659,43 +684,55 @@
     return 0;
   }
 
-  // FIXED: Main initialization with detailed error reporting
+  // FIXED: Initialize with offline mode fallback
   async function initialize() {
     try {
-      console.log("🚀 Initializing governance system...");
+      console.log("🚀 Starting governance system...");
       
       statusMsg.innerText = "🔍 Connecting to Proton mainnet...";
+      
       const endpointWorking = await findWorkingEndpoint();
       if (!endpointWorking) {
-        statusMsg.innerText = "❌ Cannot connect to any Proton mainnet endpoint.\nPlease check your internet connection.";
-        retryBtn.style.display = "inline-block";
+        // Enter offline mode
+        isOfflineMode = true;
+        statusMsg.innerText = "⚠️ Network connection issues detected.\n📄 You can still create proposals!";
+        offlineNotice.style.display = "block";
+        proposalForm.style.display = "block";
+        renderProposals(); // Show empty state
         return;
       }
 
       statusMsg.innerText = `✅ Connected to ${currentEndpoint}\n⏳ Loading governance data...`;
       
-      // Load data with detailed error reporting
       try {
-        await loadProposals();
-        await loadVotes();
+        await loadGovernanceData();
         
+        isOfflineMode = false;
+        offlineNotice.style.display = "none";
         renderProposals();
-        statusMsg.innerText = `✅ Loaded ${proposals.length} proposals and ${votes.length} votes\n📄 Connect wallet to participate in governance.`;
-        proposalForm.style.display = "block";
+        
+        if (proposals.length === 0) {
+          statusMsg.innerText = `✅ Connected successfully!\n📝 No proposals yet. Create the first one!`;
+        } else {
+          statusMsg.innerText = `✅ Loaded ${proposals.length} proposals and ${votes.length} votes\n📄 Connect wallet to participate in governance.`;
+        }
         
       } catch (dataErr) {
-        console.error("Data loading error:", dataErr);
-        statusMsg.innerText = `❌ Error loading governance data:\n${dataErr.message}\n\n🔧 Contract "${VOTE_CONTRACT}" exists but tables may be empty or inaccessible.`;
-        retryBtn.style.display = "inline-block";
+        console.error("Data loading failed:", dataErr);
         
-        // Still show proposal form
-        proposalForm.style.display = "block";
+        // Enter offline mode for proposal creation
+        isOfflineMode = true;
+        statusMsg.innerText = `⚠️ Could not load existing proposals.\n📄 You can still create new proposals!`;
+        offlineNotice.style.display = "block";
+        renderProposals(); // Show empty state
       }
       
+      // Always show proposal form
+      proposalForm.style.display = "block";
+      
     } catch (err) {
-      console.error("Critical initialization error:", err);
-      statusMsg.innerText = `❌ System initialization failed:\n${err.message}`;
-      retryBtn.style.display = "inline-block";
+      console.error("Critical error:", err);
+      statusMsg.innerText = `❌ System error: ${err.message}\n📄 You can still try creating proposals.`;
       proposalForm.style.display = "block";
     }
   }
@@ -707,10 +744,11 @@
 
   retryBtn.addEventListener("click", () => {
     retryBtn.style.display = "none";
+    offlineNotice.style.display = "none";
     initialize();
   });
 
-  // Proposal submission
+  // Proposal submission - works even in offline mode
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -777,10 +815,14 @@
       proposalTitleEl.value = "";
       proposalTextEl.value = "";
 
-      // Reload data
-      await loadProposals();
-      await loadVotes();
-      renderProposals();
+      // Try to reload data, but don't fail if it doesn't work
+      try {
+        await loadGovernanceData();
+        renderProposals();
+      } catch (reloadErr) {
+        statusMsg.innerText = "✅ Proposal submitted successfully!\n⚠️ Refresh page to see updated proposals.";
+      }
+      
     } catch (err) {
       console.error("Proposal submission error:", err);
       statusMsg.innerText = "❌ Proposal submission failed: " + err.message;
@@ -836,9 +878,14 @@
       voteForm.style.display = "none";
       selectedProposal = null;
 
-      await loadVotes();
-      await loadProposals();
-      renderProposals();
+      // Try to reload data
+      try {
+        await loadGovernanceData();
+        renderProposals();
+      } catch (reloadErr) {
+        statusMsg.innerText = statusMsg.innerText + "\n⚠️ Refresh page to see updated votes.";
+      }
+      
     } catch (err) {
       console.error("Vote error:", err);
       statusMsg.innerText = "❌ Vote failed: " + err.message;

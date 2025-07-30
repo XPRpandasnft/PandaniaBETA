@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Pandania Governance Voting</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      max-width: 850px;
+      margin: auto;
+      padding: 2rem;
+    }
+    h1 {
+      color: yellow;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    button.green-button {
+      background: green;
+      color: yellow;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button.green-button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+    #status-msg, #wallet-display {
+      text-align: center;
+      margin-top: 1rem;
+      font-weight: bold;
+      color: #ffcc00;
+      white-space: pre-line;
+    }
+    #home-btn {
+      background: darkblue;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+    
+    textarea {
+      width: 100%;
+      height: 150px;
+      resize: vertical;
+      font-size: 15px;
+      margin-bottom: 1rem;
+    }
+    
+    label {
+      font-size: 15px;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    
+    /* Proposal container styling */
+    .proposal {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border-radius: 10px;
+      background-color: #111;
+    }
+    .proposal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .proposal-status {
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-active {
+      background-color: #1c6f1c; /* green */
+      color: #b0ffb0;
+    }
+    .status-closed {
+      background-color: #8b0000; /* red */
+      color: #ff8b8b;
+    }
+    .status-timer {
+      color: purple;
+      font-weight: bold;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+    }
+    .proposal-creator {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 0.3rem;
+    }
+    .proposal-title {
+      font-weight: bold;
+      font-size: 1.15rem;
+      margin-bottom: 0.6rem;
+      color: yellow;
+      word-wrap: break-word;
+    }
+    .proposal-summary {
+      margin-bottom: 0.8rem;
+    }
+    .read-toggle {
+      color: #76baff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    /* Voter list box */
+    .voters-container {
+      background: #222;
+      border-radius: 10px;
+      padding: 0.5rem 1rem;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 0.8rem;
+    }
+    .voter-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #ddd;
+    }
+    .voter-entry:last-child {
+      border-bottom: none;
+    }
+    .voter-name {
+      font-weight: 600;
+      color: #aaddff;
+      word-wrap: break-word;
+      max-width: 180px;
+    }
+    .voter-vote {
+      font-weight: bold;
+      padding: 0 10px;
+      border-radius: 4px;
+      min-width: 30px;
+      text-align: center;
+    }
+    .vote-yes {
+      background-color: #3a9d3a;
+      color: #c6ffc6;
+    }
+    .vote-no {
+      background-color: #b93a3a;
+      color: #ffc6c6;
+    }
+    .voter-weight, .voter-pda {
+      color: #bbb;
+      min-width: 60px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Separator Titles */
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid yellow;
+      padding-bottom: 6px;
+      color: yellow;
+    }
+
+    /* Already voted indicator */
+    .already-voted {
+      background-color: #444;
+      color: #aaa;
+      cursor: not-allowed !important;
+      opacity: 0.6;
+    }
+
+    .vote-status {
+      background-color: #333;
+      color: #ffcc00;
+      padding: 8px 12px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-weight: bold;
+      text-align: center;
+    }
+
+  </style>
+</head>
+
+<body>
+  <h1>🐼 Pandania Governance Voting</h1>
+  <p style="text-align:center;">
+    View active and closed proposals below.<br/>
+    Create a proposal or vote by connecting your wallet only at the time of action.<br/>
+    Proposals are open for voting for 7 days, then move to closed status.<br/>
+    Your vote weight depends on your PDA token holdings.
+  </p>
+
+  <div style="text-align:center;">
+    <button id="home-btn">🏠 Home</button>
+  </div>
+
+  <div id="wallet-display" style="margin-bottom: 8px;"></div>
+  <div id="status-msg">⏳ Loading proposals...</div>
+
+  <!-- Proposal Creation Form -->
+  <form id="proposal-form" style="display:none;">
+    <h2>Create New Proposal</h2>
+    <label for="proposal-title"><strong>Proposal Title (max 15 words):</strong></label>
+    <textarea id="proposal-title" name="proposal-title" placeholder="Enter proposal title..." rows="2" maxlength="150" required></textarea>
+
+    <label for="proposal-text"><strong>Proposal Text (max 2000 words):</strong></label>
+    <textarea id="proposal-text" name="proposal-text" placeholder="Write your proposal here..." required></textarea>
+
+    <button id="submit-proposal" class="green-button" type="submit">📜 Submit Proposal (Pay 250,000 PDA fee)</button>
+  </form>
+
+  <!-- Active Proposals Section -->
+  <div id="active-proposals-section">
+    <h2 class="section-title">🟢 Active Proposals</h2>
+    <div id="active-proposals-list"></div>
+  </div>
+
+  <!-- Closed Proposals Section -->
+  <div id="closed-proposals-section">
+    <h2 class="section-title">🔴 Closed Proposals</h2>
+    <div id="closed-proposals-list"></div>
+  </div>
+
+  <!-- Voting UI for one active proposal -->
+  <form id="vote-form" style="display:none;">
+    <h2>Vote on Proposal</h2>
+    <p><strong>Selected Proposal:</strong> <span id="selected-proposal-title"></span></p>
+    
+    <!-- Vote status indicator -->
+    <div id="vote-status" class="vote-status" style="display:none;"></div>
+
+    <div id="vote-options">
+      <p><strong>Your Vote:</strong></p>
+      <label><input type="radio" name="vote_choice" value="yes" required /> Yes</label>
+      <label><input type="radio" name="vote_choice" value="no" required /> No</label><br/>
+
+      <button type="submit" class="green-button" id="vote-submit-btn">🗳️ Submit Vote</button>
+    </div>
+  </form>
+
+<script>
+  // ========== MAINNET CONFIGURATION ==========
+  const PDA_CONTRACT = "xprpandas";
+  const PDA_SYMBOL = "PDA";
+  const VOTE_CONTRACT = "pandadao";
+
+  const VOTE_PERIOD_DAYS = 7;
+  const MS_PER_DAY = 86400000;
+
+  const FEE_TOTAL = 250000;
+  const FEE_HALF = FEE_TOTAL / 2;
+  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(4) + " PDA";
+
+  const BURN_ACCOUNT = "token.burn";
+  const XPRPANDAS_ACCOUNT = "xprpandas"; // Fee recipient account
+
+  // 🔧 UPDATED: Mainnet endpoints
+  const MAINNET_ENDPOINTS = [
+    "https://proton.greymass.com",
+    "https://api.protonchain.com",
+    "https://proton-api.eosrio.io"
+  ];
+
+  let currentEndpoint = MAINNET_ENDPOINTS[0];
+  let session = null;
+  let actor = null;
+  let voteWeight = 0;
+  let proposals = [];
+  let votes = [];
+
+  // HTML Elements
+  const homeBtn = document.getElementById("home-btn");
+  const statusMsg = document.getElementById("status-msg");
+  const walletDisplay = document.getElementById("wallet-display");
+  const proposalForm = document.getElementById("proposal-form");
+  const proposalTitleEl = document.getElementById("proposal-title");
+  const proposalTextEl = document.getElementById("proposal-text");
+
+  const activeProposalsSection = document.getElementById("active-proposals-section");
+  const closedProposalsSection = document.getElementById("closed-proposals-section");
+  const activeProposalsList = document.getElementById("active-proposals-list");
+  const closedProposalsList = document.getElementById("closed-proposals-list");
+
+  const voteForm = document.getElementById("vote-form");
+  const selectedProposalTitle = document.getElementById("selected-proposal-title");
+  const voteStatusDiv = document.getElementById("vote-status");
+  const voteOptionsDiv = document.getElementById("vote-options");
+  const voteSubmitBtn = document.getElementById("vote-submit-btn");
+
+  let selectedProposal = null;
+
+  // Format timestamp into readable format (convert from seconds to milliseconds)
+  function formatDate(timestamp) {
+    const d = new Date(parseInt(timestamp) * 1000);
+    return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+  }
+
+  // Check if current user has already voted on a specific proposal
+  function hasUserVoted(proposalId, userAccount) {
+    if (!userAccount) return false;
+    return votes.some(v => v.proposal_id == proposalId && v.voter === userAccount);
+  }
+
+  // Get user's existing vote for a proposal
+  function getUserVote(proposalId, userAccount) {
+    if (!userAccount) return null;
+    return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
+  }
+
+  // 🔧 UPDATED: Find working mainnet endpoint
+  async function findWorkingEndpoint() {
+    for (const endpoint of MAINNET_ENDPOINTS) {
+      try {
+        const response = await fetch(`${endpoint}/v1/chain/get_info`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        if (response.ok) {
+          currentEndpoint = endpoint;
+          return true;
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+    return false;
+  }
+
+  // Load proposals from chain
+  async function loadProposals() {
+    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: VOTE_CONTRACT,
+        scope: VOTE_CONTRACT,
+        table: "proposals",
+        limit: 100
+      })
+    });
+    const data = await res.json();
+    proposals = data.rows || [];
+  }
+
+  // Load votes from chain
+  async function loadVotes() {
+    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: VOTE_CONTRACT,
+        scope: VOTE_CONTRACT,
+        table: "votes",
+        limit: 1000
+      })
+    });
+    const data = await res.json();
+    votes = data.rows || [];
+  }
+
+  // Render active and closed proposals with proper timestamp conversion
+  function renderProposals() {
+    const now = Date.now();
+
+    let activeProps = [];
+    let closedProps = [];
+
+    proposals.forEach(p => {
+      // Convert contract timestamp from seconds to milliseconds
+      const proposalDate = p.created_at ? parseInt(p.created_at) * 1000 : 0;
+      const elapsedDays = (now - proposalDate) / MS_PER_DAY;
+      if (elapsedDays <= VOTE_PERIOD_DAYS) {
+        activeProps.push(p);
+      } else {
+        closedProps.push(p);
+      }
+    });
+
+    activeProposalsList.innerHTML = "";
+    closedProposalsList.innerHTML = "";
+
+    function renderProposal(proposal, isActive) {
+      // Convert from seconds to milliseconds
+      const createdDate = proposal.created_at ? parseInt(proposal.created_at) * 1000 : 0;
+      const nowTime = new Date().getTime();
+      const elapsedDays = (nowTime - createdDate) / MS_PER_DAY;
+      const daysLeft = Math.max(0, VOTE_PERIOD_DAYS - Math.floor(elapsedDays));
+
+      const createdStr = createdDate ? formatDate(proposal.created_at) : "Unknown date";
+      const yesVotes = proposal.yes_votes || 0;
+      const noVotes = proposal.no_votes || 0;
+
+      const title = proposal.title ? proposal.title : "(No Title)";
+      const fullText = proposal.text || "(No description)";
+      
+      // Filter votes by proposal ID
+      const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
+
+      // Check if current user has voted and highlight their vote
+      const userVote = actor ? getUserVote(proposal.id, actor) : null;
+
+      const votersHtml = votersForProposal.length > 0
+        ? '<div class="voters-container">' +
+          votersForProposal.map(v => {
+            const isCurrentUser = actor && v.voter === actor;
+            const highlightClass = isCurrentUser ? 'style="background-color: #444; border: 2px solid #ffcc00;"' : '';
+            return `
+              <div class="voter-entry" ${highlightClass}>
+                <div class="voter-name">${v.voter}${isCurrentUser ? ' (You)' : ''}</div>
+                <div class="voter-vote ${v.vote === 'yes' ? 'vote-yes' : 'vote-no'}">${v.vote.toUpperCase()}</div>
+                <div class="voter-weight">Weight: ${v.weight}</div>
+                <div class="voter-pda">${v.pda_balance ? Number(v.pda_balance).toLocaleString() + " PDA" : "N/A"}</div>
+              </div>`;
+          }).join('') +
+          '</div>'
+        : '<div style="font-style:italic;color:#777;margin-top:6px;">No votes yet.</div>';
+
+      let statusClass = isActive ? "status-active" : "status-closed";
+      let statusText = isActive ? "Active" : "Closed";
+      let daysLeftDisplay = isActive
+        ? `<span class="status-timer">⏰ ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</span>`
+        : "";
+
+      // Add vote status for current user
+      let userVoteStatus = "";
+      if (userVote && isActive) {
+        userVoteStatus = `<div style="background: #333; color: #ffcc00; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem; margin-top: 4px;">✅ You voted: ${userVote.vote.toUpperCase()}</div>`;
+      }
+
+      const container = document.createElement("div");
+      container.className = "proposal";
+      
+      // Add visual indicator if user already voted
+      if (userVote && isActive) {
+        container.classList.add("already-voted");
+      }
+
+      container.innerHTML = `
+        <div class="proposal-header">
+          <div>
+            <div class="proposal-creator">📝 Proposed by <strong>${proposal.proposer}</strong> on <em>${createdStr}</em></div>
+            <div class="proposal-title" title="${title}">${title}</div>
+            ${userVoteStatus}
+          </div>
+          <div class="proposal-status ${statusClass}">${statusText}${daysLeftDisplay}</div>
+        </div>
+        <div class="proposal-summary" style="max-height: 3em; overflow: hidden; white-space: pre-wrap;">${fullText}</div>
+        <div class="read-toggle" style="user-select:none; cursor:pointer;">🔍 Read More</div>
+        <strong>Votes:</strong> Yes: ${yesVotes} | No: ${noVotes}
+        <div><strong>Voters:</strong></div>
+        ${votersHtml}
+      `;
+
+      const readToggle = container.querySelector(".read-toggle");
+      const summaryDiv = container.querySelector(".proposal-summary");
+      readToggle.onclick = () => {
+        if (summaryDiv.style.maxHeight === "none") {
+          summaryDiv.style.maxHeight = "3em";
+          summaryDiv.style.overflow = "hidden";
+          readToggle.textContent = "🔍 Read More";
+        } else {
+          summaryDiv.style.maxHeight = "none";
+          summaryDiv.style.overflow = "auto";
+          readToggle.textContent = "⬅️ Collapse";
+        }
+      };
+
+      if (isActive) {
+        // Only allow clicking if user hasn't voted yet
+        if (!userVote) {
+          container.style.cursor = "pointer";
+          container.title = "Click to select this proposal for voting";
+          container.onclick = () => selectProposalForVoting(proposal);
+        } else {
+          container.style.cursor = "not-allowed";
+          container.title = `You have already voted "${userVote.vote}" on this proposal`;
+        }
+      }
+
+      return container;
+    }
+
+    // Add message when no proposals exist
+    if (proposals.length === 0) {
+      const noProposalsMsg = document.createElement("div");
+      noProposalsMsg.style.textAlign = "center";
+      noProposalsMsg.style.color = "#888";
+      noProposalsMsg.style.fontStyle = "italic";
+      noProposalsMsg.style.padding = "2rem";
+      noProposalsMsg.innerHTML = "📝 No proposals yet. Create the first one!";
+      activeProposalsList.appendChild(noProposalsMsg);
+    } else {
+      activeProps.forEach(p => {
+        activeProposalsList.appendChild(renderProposal(p, true));
+      });
+      closedProps.forEach(p => {
+        closedProposalsList.appendChild(renderProposal(p, false));
+      });
+
+      // Show empty message for sections with no proposals
+      if (activeProps.length === 0) {
+        const noActiveMsg = document.createElement("div");
+        noActiveMsg.style.textAlign = "center";
+        noActiveMsg.style.color = "#888";
+        noActiveMsg.style.fontStyle = "italic";
+        noActiveMsg.innerHTML = "No active proposals at the moment.";
+        activeProposalsList.appendChild(noActiveMsg);
+      }
+
+      if (closedProps.length === 0) {
+        const noClosedMsg = document.createElement("div");
+        noClosedMsg.style.textAlign = "center";
+        noClosedMsg.style.color = "#888";
+        noClosedMsg.style.fontStyle = "italic";
+        noClosedMsg.innerHTML = "No closed proposals yet.";
+        closedProposalsList.appendChild(noClosedMsg);
+      }
+    }
+  }
+
+  // Select proposal for voting UI with duplicate vote checking
+  function selectProposalForVoting(proposal) {
+    selectedProposal = proposal;
+    selectedProposalTitle.textContent = proposal.title || `Proposal ${proposal.id}`;
+    
+    // Check if user has already voted
+    if (actor && hasUserVoted(proposal.id, actor)) {
+      const existingVote = getUserVote(proposal.id, actor);
+      voteStatusDiv.innerHTML = `❌ You have already voted "${existingVote.vote.toUpperCase()}" on this proposal.`;
+      voteStatusDiv.style.display = "block";
+      voteOptionsDiv.style.display = "none";
+    } else {
+      voteStatusDiv.style.display = "none";
+      voteOptionsDiv.style.display = "block";
+    }
+    
+    voteForm.style.display = "block";
+  }
+
+  // Connect wallet if not connected yet
+  async function connectWalletIfNeeded() {
+    if (session && actor) return true;
+
+    try {
+      const { session: newSession } = await ProtonWebSDK({
+        linkOptions: { 
+          endpoints: [currentEndpoint]
+        },
+        selectorOptions: {
+          appName: "Pandania Vote",
+          appLogo: "https://bloks.io/favicon.png"
+        },
+        transportOptions: { 
+          requestAccount: "pandadao"
+        }
+      });
+
+      session = newSession;
+      actor = session.auth.actor;
+      walletDisplay.innerText = `✅ Connected: ${actor}`;
+
+      // Get PDA balance and vote weight
+      const balance = await getPdaBalance(actor);
+      voteWeight = calcVoteWeight(balance);
+
+      if (voteWeight === 0) {
+        statusMsg.innerText = `❌ You need at least 555,555 PDA to participate (you have ${balance.toLocaleString()})`;
+        return false;
+      }
+
+      statusMsg.innerText = `✅ You hold ${balance.toLocaleString()} PDA → Vote Weight = ${voteWeight}`;
+      
+      // Re-render proposals to show user's vote status
+      renderProposals();
+      
+      return true;
+    } catch (err) {
+      console.error("Wallet connection error:", err);
+      statusMsg.innerText = "❌ Wallet connection failed: " + err.message;
+      return false;
+    }
+  }
+
+  // PDA balance for given account
+  async function getPdaBalance(account) {
+    try {
+      const response = await fetch(`${currentEndpoint}/v1/chain/get_currency_balance`, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: PDA_CONTRACT,
+          account: account,
+          symbol: PDA_SYMBOL
+        })
+      });
+      const balances = await response.json();
+      return balances.length ? parseFloat(balances[0].split(" ")[0]) : 0;
+    } catch (err) {
+      return 0;
+    }
+  }
+
+  // Calculate vote weight by tier
+  function calcVoteWeight(amount) {
+    if (amount >= 10000000) return 10;
+    if (amount >= 5000000) return 6;
+    if (amount >= 1000000) return 3;
+    if (amount >= 555555) return 1;
+    return 0;
+  }
+
+  // Initialize with proper error handling
+  async function initialize() {
+    try {
+      // Find working endpoint
+      const endpointWorking = await findWorkingEndpoint();
+      if (!endpointWorking) {
+        statusMsg.innerText = "❌ Cannot connect to mainnet"; // 🔧 UPDATED: mainnet instead of testnet
+        return;
+      }
+
+      await loadProposals();
+      await loadVotes();
+      renderProposals();
+      
+      statusMsg.innerText = "📃 Proposals loaded. Connect wallet to create or vote.";
+      proposalForm.style.display = "block";
+      
+    } catch (err) {
+      console.error("Initialization error:", err);
+      statusMsg.innerText = `❌ Failed to load proposals: ${err.message}`;
+      proposalForm.style.display = "block";
+    }
+  }
+
+  // Home button navigates to main frontend
+  homeBtn.addEventListener("click", () => {
+    window.location.href = "/";
+  });
+
+  // Submit proposal event - Bundle all actions into ONE transaction
+  proposalForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Connect wallet if needed
+    const connected = await connectWalletIfNeeded();
+    if (!connected) return;
+
+    const title = proposalTitleEl.value.trim();
+    const text = proposalTextEl.value.trim();
+
+    if (!title) {
+      alert("Proposal title cannot be empty.");
+      return;
+    }
+    if (!text) {
+      alert("Proposal text cannot be empty.");
+      return;
+    }
+    if (title.split(/\s+/).length > 15) {
+      alert("Proposal title is too long! Maximum 15 words allowed.");
+      return;
+    }
+    if (text.split(/\s+/).length > 2000) {
+      alert("Proposal text too long! Maximum 2000 words allowed.");
+      return;
+    }
+
+    statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
+
+    try {
+      // Bundle ALL actions into ONE transaction
+      await session.transact({
+        actions: [
+          // Action 1: Transfer half fee to token.burn
+          {
+            account: PDA_CONTRACT,
+            name: "transfer",
+            authorization: [{
+              actor,
+              permission: "active",
+            }],
+            data: {
+              from: actor,
+              to: BURN_ACCOUNT,
+              quantity: FEE_QUANTITY_STR_HALF,
+              memo: "Proposal fee burn"
+            }
+          },
+          // Action 2: Transfer half fee to xprpandas
+          {
+            account: PDA_CONTRACT,
+            name: "transfer",
+            authorization: [{
+              actor,
+              permission: "active",
+            }],
+            data: {
+              from: actor,
+              to: XPRPANDAS_ACCOUNT,
+              quantity: FEE_QUANTITY_STR_HALF,
+              memo: "Proposal fee"
+            }
+          },
+          // Action 3: Create proposal
+          {
+            account: VOTE_CONTRACT,
+            name: "createprop",
+            authorization: [{ actor, permission: "active" }],
+            data: {
+              proposer: actor,
+              title: title,
+              text: text,
+            }
+          }
+        ]
+      });
+
+      statusMsg.innerText = "✅ Proposal submitted successfully!";
+      proposalTitleEl.value = "";
+      proposalTextEl.value = "";
+
+      // Reload data
+      await loadProposals();
+      await loadVotes();
+      renderProposals();
+    } catch (err) {
+      console.error("Proposal submission error:", err);
+      statusMsg.innerText = "❌ Proposal submission failed: " + err.message;
+    }
+  });
+
+  // Submit vote event with duplicate vote prevention
+  voteForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Connect wallet if needed
+    const connected = await connectWalletIfNeeded();
+    if (!connected) return;
+
+    if (!selectedProposal) {
+      alert("Please select an active proposal by clicking on it.");
+      return;
+    }
+
+    // Double-check if user has already voted (frontend validation)
+    if (hasUserVoted(selectedProposal.id, actor)) {
+      const existingVote = getUserVote(selectedProposal.id, actor);
+      alert(`You have already voted "${existingVote.vote.toUpperCase()}" on this proposal!`);
+      voteForm.style.display = "none";
+      selectedProposal = null;
+      return;
+    }
+
+    const choice = document.querySelector('input[name="vote_choice"]:checked');
+    if (!choice) {
+      alert("Please select your vote choice (Yes or No).");
+      return;
+    }
+
+    statusMsg.innerText = `🕐 Submitting vote...`;
+
+    try {
+      await session.transact({
+        actions: [{
+          account: VOTE_CONTRACT,
+          name: "vote",
+          authorization: [{ actor, permission: "active" }],
+          data: {
+            voter: actor,
+            proposalId: selectedProposal.id,
+            voteChoice: choice.value,
+            weight: voteWeight,
+            pdaBalance: Math.floor(voteWeight * 555555)
+          }
+        }]
+      });
+
+      statusMsg.innerText = `✅ Vote cast for "${selectedProposal.title || selectedProposal.id}" with choice "${choice.value}" and weight ${voteWeight}`;
+
+      voteForm.style.display = "none";
+      selectedProposal = null;
+
+      // Reload data
+      await loadVotes();
+      await loadProposals();
+      renderProposals();
+    } catch (err) {
+      console.error("Vote error:", err);
+      statusMsg.innerText = "❌ Vote failed: " + err.message;
+    }
+  });
+
+  // Initialize page
+  initialize();
+</script>
+</body>
+</html>

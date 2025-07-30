@@ -302,16 +302,9 @@
   const BURN_ACCOUNT = "token.burn";
   const XPRPANDAS_ACCOUNT = "xprpandas";
 
-  // FIXED: Use CORS proxy for API calls
-  const CORS_PROXIES = [
-    "https://corsproxy.io/?",
-    "https://api.allorigins.win/raw?url=",
-    "https://cors-anywhere.herokuapp.com/"
-  ];
-
+  // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
   
-  let currentProxy = 0;
   let session = null;
   let actor = null;
   let voteWeight = 0;
@@ -353,7 +346,7 @@
     return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // FIXED: Try different CORS proxy methods
+  // Try different CORS proxy methods
   async function makeProxiedRequest(endpoint, data) {
     const targetUrl = `${endpoint}/v1/chain/get_table_rows`;
     
@@ -612,6 +605,7 @@
     voteForm.style.display = "block";
   }
 
+  // FIXED: Updated wallet connection with proper PDA logo
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -622,7 +616,17 @@
         },
         selectorOptions: {
           appName: "Pandania Vote",
-          appLogo: "https://bloks.io/favicon.png"
+          appLogo: "images/x-icon/pda-xprpanda-65x65.png", // FIXED: Using proper PDA logo
+          customStyleOptions: {
+            modalBackgroundColor: "#F4F7FA",
+            logoBackgroundColor: "indigo",
+            isLogoRound: true,
+            optionBackgroundColor: "white",
+            optionFontColor: "black",
+            primaryFontColor: "black",
+            secondaryFontColor: "#6B727F",
+            linkColor: "#752EEB"
+          }
         },
         transportOptions: { 
           requestAccount: "pandadao"

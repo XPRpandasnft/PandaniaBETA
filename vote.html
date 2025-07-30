@@ -88,11 +88,11 @@
       gap: 6px;
     }
     .status-active {
-      background-color: #1c6f1c; /* green */
+      background-color: #1c6f1c;
       color: #b0ffb0;
     }
     .status-closed {
-      background-color: #8b0000; /* red */
+      background-color: #8b0000;
       color: #ff8b8b;
     }
     .status-timer {
@@ -122,7 +122,6 @@
       font-size: 0.9rem;
       user-select: none;
     }
-    /* Voter list box */
     .voters-container {
       background: #222;
       border-radius: 10px;
@@ -170,7 +169,6 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Separator Titles */
     .section-title {
       font-size: 1.4rem;
       font-weight: bold;
@@ -181,7 +179,6 @@
       color: yellow;
     }
 
-    /* Already voted indicator */
     .already-voted {
       background-color: #444;
       color: #aaa;
@@ -199,6 +196,18 @@
       text-align: center;
     }
 
+    .retry-btn {
+      background: #444;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 0.5rem;
+    }
+    .retry-btn:hover {
+      background: #555;
+    }
   </style>
 </head>
 
@@ -213,6 +222,7 @@
 
   <div style="text-align:center;">
     <button id="home-btn">🏠 Home</button>
+    <button id="retry-btn" class="retry-btn" style="display: none;">🔄 Retry Loading</button>
   </div>
 
   <div id="wallet-display" style="margin-bottom: 8px;"></div>
@@ -247,7 +257,6 @@
     <h2>Vote on Proposal</h2>
     <p><strong>Selected Proposal:</strong> <span id="selected-proposal-title"></span></p>
     
-    <!-- Vote status indicator -->
     <div id="vote-status" class="vote-status" style="display:none;"></div>
 
     <div id="vote-options">
@@ -260,7 +269,7 @@
   </form>
 
 <script>
-  // ========== MAINNET CONFIGURATION ==========
+  // Contract configuration
   const PDA_CONTRACT = "xprpandas";
   const PDA_SYMBOL = "PDA";
   const VOTE_CONTRACT = "pandadao";
@@ -273,13 +282,13 @@
   const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(4) + " PDA";
 
   const BURN_ACCOUNT = "token.burn";
-  const XPRPANDAS_ACCOUNT = "xprpandas"; // Fee recipient account
+  const XPRPANDAS_ACCOUNT = "xprpandas";
 
-  // 🔧 UPDATED: Mainnet endpoints
+  // FIXED: More reliable endpoints in better order
   const MAINNET_ENDPOINTS = [
     "https://proton.greymass.com",
-    "https://api.protonchain.com",
-    "https://proton-api.eosrio.io"
+    "https://api.protonchain.com", 
+    "https://proton.eosusa.news"
   ];
 
   let currentEndpoint = MAINNET_ENDPOINTS[0];
@@ -291,14 +300,13 @@
 
   // HTML Elements
   const homeBtn = document.getElementById("home-btn");
+  const retryBtn = document.getElementById("retry-btn");
   const statusMsg = document.getElementById("status-msg");
   const walletDisplay = document.getElementById("wallet-display");
   const proposalForm = document.getElementById("proposal-form");
   const proposalTitleEl = document.getElementById("proposal-title");
   const proposalTextEl = document.getElementById("proposal-text");
 
-  const activeProposalsSection = document.getElementById("active-proposals-section");
-  const closedProposalsSection = document.getElementById("closed-proposals-section");
   const activeProposalsList = document.getElementById("active-proposals-list");
   const closedProposalsList = document.getElementById("closed-proposals-list");
 
@@ -306,90 +314,129 @@
   const selectedProposalTitle = document.getElementById("selected-proposal-title");
   const voteStatusDiv = document.getElementById("vote-status");
   const voteOptionsDiv = document.getElementById("vote-options");
-  const voteSubmitBtn = document.getElementById("vote-submit-btn");
 
   let selectedProposal = null;
 
-  // Format timestamp into readable format (convert from seconds to milliseconds)
+  // Format timestamp
   function formatDate(timestamp) {
     const d = new Date(parseInt(timestamp) * 1000);
     return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   }
 
-  // Check if current user has already voted on a specific proposal
+  // Check if user voted
   function hasUserVoted(proposalId, userAccount) {
     if (!userAccount) return false;
     return votes.some(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // Get user's existing vote for a proposal
+  // Get user's vote
   function getUserVote(proposalId, userAccount) {
     if (!userAccount) return null;
     return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // 🔧 UPDATED: Find working mainnet endpoint
+  // FIXED: Better endpoint testing with more detailed error info
   async function findWorkingEndpoint() {
-    for (const endpoint of MAINNET_ENDPOINTS) {
+    console.log("Testing Proton mainnet endpoints...");
+    
+    for (let i = 0; i < MAINNET_ENDPOINTS.length; i++) {
+      const endpoint = MAINNET_ENDPOINTS[i];
       try {
+        console.log(`Testing: ${endpoint}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
         const response = await fetch(`${endpoint}/v1/chain/get_info`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
+          const info = await response.json();
           currentEndpoint = endpoint;
+          console.log(`✅ Using endpoint: ${endpoint}`, info);
           return true;
+        } else {
+          console.log(`❌ ${endpoint} returned: ${response.status} ${response.statusText}`);
         }
       } catch (err) {
-        continue;
+        console.log(`❌ ${endpoint} failed:`, err.name, err.message);
       }
     }
+    
+    console.log("❌ No working endpoints found");
     return false;
   }
 
-  // Load proposals from chain
+  // FIXED: Better error handling for table loading
+  async function makeTableRequest(table, limit = 100) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    
+    try {
+      const response = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: VOTE_CONTRACT,
+          scope: VOTE_CONTRACT,
+          table: table,
+          limit: limit
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${response.statusText}\nResponse: ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data;
+      
+    } catch (err) {
+      clearTimeout(timeoutId);
+      
+      if (err.name === 'AbortError') {
+        throw new Error(`Request timeout for table "${table}"`);
+      }
+      
+      throw new Error(`Failed to load ${table}: ${err.message}`);
+    }
+  }
+
+  // Load proposals with better error info
   async function loadProposals() {
-    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: VOTE_CONTRACT,
-        scope: VOTE_CONTRACT,
-        table: "proposals",
-        limit: 100
-      })
-    });
-    const data = await res.json();
+    console.log(`Loading proposals from ${VOTE_CONTRACT}...`);
+    const data = await makeTableRequest("proposals");
     proposals = data.rows || [];
+    console.log(`✅ Loaded ${proposals.length} proposals:`, proposals);
+    return proposals;
   }
 
-  // Load votes from chain
+  // Load votes with better error info  
   async function loadVotes() {
-    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: VOTE_CONTRACT,
-        scope: VOTE_CONTRACT,
-        table: "votes",
-        limit: 1000
-      })
-    });
-    const data = await res.json();
+    console.log(`Loading votes from ${VOTE_CONTRACT}...`);
+    const data = await makeTableRequest("votes", 1000);
     votes = data.rows || [];
+    console.log(`✅ Loaded ${votes.length} votes:`, votes);
+    return votes;
   }
 
-  // Render active and closed proposals with proper timestamp conversion
+  // Render proposals
   function renderProposals() {
     const now = Date.now();
-
     let activeProps = [];
     let closedProps = [];
 
     proposals.forEach(p => {
-      // Convert contract timestamp from seconds to milliseconds
       const proposalDate = p.created_at ? parseInt(p.created_at) * 1000 : 0;
       const elapsedDays = (now - proposalDate) / MS_PER_DAY;
       if (elapsedDays <= VOTE_PERIOD_DAYS) {
@@ -403,7 +450,6 @@
     closedProposalsList.innerHTML = "";
 
     function renderProposal(proposal, isActive) {
-      // Convert from seconds to milliseconds
       const createdDate = proposal.created_at ? parseInt(proposal.created_at) * 1000 : 0;
       const nowTime = new Date().getTime();
       const elapsedDays = (nowTime - createdDate) / MS_PER_DAY;
@@ -413,13 +459,10 @@
       const yesVotes = proposal.yes_votes || 0;
       const noVotes = proposal.no_votes || 0;
 
-      const title = proposal.title ? proposal.title : "(No Title)";
+      const title = proposal.title || "(No Title)";
       const fullText = proposal.text || "(No description)";
       
-      // Filter votes by proposal ID
       const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
-
-      // Check if current user has voted and highlight their vote
       const userVote = actor ? getUserVote(proposal.id, actor) : null;
 
       const votersHtml = votersForProposal.length > 0
@@ -444,7 +487,6 @@
         ? `<span class="status-timer">⏰ ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</span>`
         : "";
 
-      // Add vote status for current user
       let userVoteStatus = "";
       if (userVote && isActive) {
         userVoteStatus = `<div style="background: #333; color: #ffcc00; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem; margin-top: 4px;">✅ You voted: ${userVote.vote.toUpperCase()}</div>`;
@@ -453,7 +495,6 @@
       const container = document.createElement("div");
       container.className = "proposal";
       
-      // Add visual indicator if user already voted
       if (userVote && isActive) {
         container.classList.add("already-voted");
       }
@@ -488,22 +529,18 @@
         }
       };
 
-      if (isActive) {
-        // Only allow clicking if user hasn't voted yet
-        if (!userVote) {
-          container.style.cursor = "pointer";
-          container.title = "Click to select this proposal for voting";
-          container.onclick = () => selectProposalForVoting(proposal);
-        } else {
-          container.style.cursor = "not-allowed";
-          container.title = `You have already voted "${userVote.vote}" on this proposal`;
-        }
+      if (isActive && !userVote) {
+        container.style.cursor = "pointer";
+        container.title = "Click to select this proposal for voting";
+        container.onclick = () => selectProposalForVoting(proposal);
+      } else if (userVote) {
+        container.style.cursor = "not-allowed";
+        container.title = `You have already voted "${userVote.vote}" on this proposal`;
       }
 
       return container;
     }
 
-    // Add message when no proposals exist
     if (proposals.length === 0) {
       const noProposalsMsg = document.createElement("div");
       noProposalsMsg.style.textAlign = "center";
@@ -520,7 +557,6 @@
         closedProposalsList.appendChild(renderProposal(p, false));
       });
 
-      // Show empty message for sections with no proposals
       if (activeProps.length === 0) {
         const noActiveMsg = document.createElement("div");
         noActiveMsg.style.textAlign = "center";
@@ -541,12 +577,10 @@
     }
   }
 
-  // Select proposal for voting UI with duplicate vote checking
   function selectProposalForVoting(proposal) {
     selectedProposal = proposal;
     selectedProposalTitle.textContent = proposal.title || `Proposal ${proposal.id}`;
     
-    // Check if user has already voted
     if (actor && hasUserVoted(proposal.id, actor)) {
       const existingVote = getUserVote(proposal.id, actor);
       voteStatusDiv.innerHTML = `❌ You have already voted "${existingVote.vote.toUpperCase()}" on this proposal.`;
@@ -560,7 +594,6 @@
     voteForm.style.display = "block";
   }
 
-  // Connect wallet if not connected yet
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -582,7 +615,6 @@
       actor = session.auth.actor;
       walletDisplay.innerText = `✅ Connected: ${actor}`;
 
-      // Get PDA balance and vote weight
       const balance = await getPdaBalance(actor);
       voteWeight = calcVoteWeight(balance);
 
@@ -592,10 +624,7 @@
       }
 
       statusMsg.innerText = `✅ You hold ${balance.toLocaleString()} PDA → Vote Weight = ${voteWeight}`;
-      
-      // Re-render proposals to show user's vote status
       renderProposals();
-      
       return true;
     } catch (err) {
       console.error("Wallet connection error:", err);
@@ -604,7 +633,6 @@
     }
   }
 
-  // PDA balance for given account
   async function getPdaBalance(account) {
     try {
       const response = await fetch(`${currentEndpoint}/v1/chain/get_currency_balance`, {
@@ -623,7 +651,6 @@
     }
   }
 
-  // Calculate vote weight by tier
   function calcVoteWeight(amount) {
     if (amount >= 10000000) return 10;
     if (amount >= 5000000) return 6;
@@ -632,52 +659,69 @@
     return 0;
   }
 
-  // Initialize with proper error handling
+  // FIXED: Main initialization with detailed error reporting
   async function initialize() {
     try {
-      // Find working endpoint
+      console.log("🚀 Initializing governance system...");
+      
+      statusMsg.innerText = "🔍 Connecting to Proton mainnet...";
       const endpointWorking = await findWorkingEndpoint();
       if (!endpointWorking) {
-        statusMsg.innerText = "❌ Cannot connect to mainnet"; // 🔧 UPDATED: mainnet instead of testnet
+        statusMsg.innerText = "❌ Cannot connect to any Proton mainnet endpoint.\nPlease check your internet connection.";
+        retryBtn.style.display = "inline-block";
         return;
       }
 
-      await loadProposals();
-      await loadVotes();
-      renderProposals();
+      statusMsg.innerText = `✅ Connected to ${currentEndpoint}\n⏳ Loading governance data...`;
       
-      statusMsg.innerText = "📃 Proposals loaded. Connect wallet to create or vote.";
-      proposalForm.style.display = "block";
+      // Load data with detailed error reporting
+      try {
+        await loadProposals();
+        await loadVotes();
+        
+        renderProposals();
+        statusMsg.innerText = `✅ Loaded ${proposals.length} proposals and ${votes.length} votes\n📄 Connect wallet to participate in governance.`;
+        proposalForm.style.display = "block";
+        
+      } catch (dataErr) {
+        console.error("Data loading error:", dataErr);
+        statusMsg.innerText = `❌ Error loading governance data:\n${dataErr.message}\n\n🔧 Contract "${VOTE_CONTRACT}" exists but tables may be empty or inaccessible.`;
+        retryBtn.style.display = "inline-block";
+        
+        // Still show proposal form
+        proposalForm.style.display = "block";
+      }
       
     } catch (err) {
-      console.error("Initialization error:", err);
-      statusMsg.innerText = `❌ Failed to load proposals: ${err.message}`;
+      console.error("Critical initialization error:", err);
+      statusMsg.innerText = `❌ System initialization failed:\n${err.message}`;
+      retryBtn.style.display = "inline-block";
       proposalForm.style.display = "block";
     }
   }
 
-  // Home button navigates to main frontend
+  // Event Listeners
   homeBtn.addEventListener("click", () => {
     window.location.href = "/";
   });
 
-  // Submit proposal event - Bundle all actions into ONE transaction
+  retryBtn.addEventListener("click", () => {
+    retryBtn.style.display = "none";
+    initialize();
+  });
+
+  // Proposal submission
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    // Connect wallet if needed
     const connected = await connectWalletIfNeeded();
     if (!connected) return;
 
     const title = proposalTitleEl.value.trim();
     const text = proposalTextEl.value.trim();
 
-    if (!title) {
-      alert("Proposal title cannot be empty.");
-      return;
-    }
-    if (!text) {
-      alert("Proposal text cannot be empty.");
+    if (!title || !text) {
+      alert("Both title and text are required.");
       return;
     }
     if (title.split(/\s+/).length > 15) {
@@ -692,17 +736,12 @@
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // Bundle ALL actions into ONE transaction
       await session.transact({
         actions: [
-          // Action 1: Transfer half fee to token.burn
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{
-              actor,
-              permission: "active",
-            }],
+            authorization: [{ actor, permission: "active" }],
             data: {
               from: actor,
               to: BURN_ACCOUNT,
@@ -710,14 +749,10 @@
               memo: "Proposal fee burn"
             }
           },
-          // Action 2: Transfer half fee to xprpandas
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{
-              actor,
-              permission: "active",
-            }],
+            authorization: [{ actor, permission: "active" }],
             data: {
               from: actor,
               to: XPRPANDAS_ACCOUNT,
@@ -725,7 +760,6 @@
               memo: "Proposal fee"
             }
           },
-          // Action 3: Create proposal
           {
             account: VOTE_CONTRACT,
             name: "createprop",
@@ -753,11 +787,10 @@
     }
   });
 
-  // Submit vote event with duplicate vote prevention
+  // Vote submission
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    // Connect wallet if needed
     const connected = await connectWalletIfNeeded();
     if (!connected) return;
 
@@ -766,7 +799,6 @@
       return;
     }
 
-    // Double-check if user has already voted (frontend validation)
     if (hasUserVoted(selectedProposal.id, actor)) {
       const existingVote = getUserVote(selectedProposal.id, actor);
       alert(`You have already voted "${existingVote.vote.toUpperCase()}" on this proposal!`);
@@ -804,7 +836,6 @@
       voteForm.style.display = "none";
       selectedProposal = null;
 
-      // Reload data
       await loadVotes();
       await loadProposals();
       renderProposals();
@@ -814,7 +845,7 @@
     }
   });
 
-  // Initialize page
+  // Initialize
   initialize();
 </script>
 </body>

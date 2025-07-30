@@ -199,6 +199,18 @@
       text-align: center;
     }
 
+    /* Debug info styling */
+    .debug-info {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
   </style>
 </head>
 
@@ -217,6 +229,19 @@
 
   <div id="wallet-display" style="margin-bottom: 8px;"></div>
   <div id="status-msg">⏳ Loading proposals...</div>
+
+  <!-- Debug Info Section (can be hidden in production) -->
+  <div id="debug-info" class="debug-info" style="display: none;">
+    <h3>🔧 Debug Information</h3>
+    <div id="debug-content"></div>
+  </div>
+
+  <!-- Toggle Debug Button -->
+  <div style="text-align: center; margin: 1rem 0;">
+    <button id="toggle-debug" style="background: #333; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+      🔧 Show Debug Info
+    </button>
+  </div>
 
   <!-- Proposal Creation Form -->
   <form id="proposal-form" style="display:none;">
@@ -273,7 +298,7 @@
   const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(4) + " PDA";
 
   const BURN_ACCOUNT = "token.burn";
-  const XPRPANDAS_ACCOUNT = "xprpandas"; // Fee recipient account
+  const XPRPANDAS_ACCOUNT = "xprpandas";
 
   // 🔧 UPDATED: Mainnet endpoints
   const MAINNET_ENDPOINTS = [
@@ -288,6 +313,7 @@
   let voteWeight = 0;
   let proposals = [];
   let votes = [];
+  let debugMode = false;
 
   // HTML Elements
   const homeBtn = document.getElementById("home-btn");
@@ -308,7 +334,36 @@
   const voteOptionsDiv = document.getElementById("vote-options");
   const voteSubmitBtn = document.getElementById("vote-submit-btn");
 
+  const debugInfo = document.getElementById("debug-info");
+  const debugContent = document.getElementById("debug-content");
+  const toggleDebugBtn = document.getElementById("toggle-debug");
+
   let selectedProposal = null;
+
+  // Debug logging function
+  function logDebug(message, data = null) {
+    console.log(message, data);
+    if (debugMode) {
+      const timestamp = new Date().toLocaleTimeString();
+      let debugMsg = `[${timestamp}] ${message}`;
+      if (data) {
+        debugMsg += `\n${JSON.stringify(data, null, 2)}`;
+      }
+      debugContent.innerHTML = debugMsg + '\n\n' + debugContent.innerHTML;
+    }
+  }
+
+  // Toggle debug visibility
+  toggleDebugBtn.addEventListener("click", () => {
+    debugMode = !debugMode;
+    if (debugMode) {
+      debugInfo.style.display = "block";
+      toggleDebugBtn.textContent = "🔧 Hide Debug Info";
+    } else {
+      debugInfo.style.display = "none";
+      toggleDebugBtn.textContent = "🔧 Show Debug Info";
+    }
+  });
 
   // Format timestamp into readable format (convert from seconds to milliseconds)
   function formatDate(timestamp) {
@@ -328,57 +383,123 @@
     return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // 🔧 UPDATED: Find working mainnet endpoint
+  // 🔧 UPDATED: Find working mainnet endpoint with better error handling
   async function findWorkingEndpoint() {
-    for (const endpoint of MAINNET_ENDPOINTS) {
+    logDebug("Testing mainnet endpoints...");
+    
+    for (let i = 0; i < MAINNET_ENDPOINTS.length; i++) {
+      const endpoint = MAINNET_ENDPOINTS[i];
       try {
+        logDebug(`Testing endpoint: ${endpoint}`);
+        
         const response = await fetch(`${endpoint}/v1/chain/get_info`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
         });
+        
         if (response.ok) {
+          const info = await response.json();
           currentEndpoint = endpoint;
+          logDebug(`✅ Working endpoint found: ${endpoint}`, info);
           return true;
+        } else {
+          logDebug(`❌ Endpoint ${endpoint} returned status: ${response.status}`);
         }
       } catch (err) {
+        logDebug(`❌ Endpoint ${endpoint} failed:`, err.message);
         continue;
       }
     }
+    
+    logDebug("❌ No working endpoints found");
     return false;
   }
 
-  // Load proposals from chain
+  // Load proposals from chain with better error handling
   async function loadProposals() {
-    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: VOTE_CONTRACT,
-        scope: VOTE_CONTRACT,
-        table: "proposals",
-        limit: 100
-      })
-    });
-    const data = await res.json();
-    proposals = data.rows || [];
+    try {
+      logDebug(`Loading proposals from contract: ${VOTE_CONTRACT}`);
+      
+      const response = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: VOTE_CONTRACT,
+          scope: VOTE_CONTRACT,
+          table: "proposals",
+          limit: 100
+        }),
+        signal: AbortSignal.timeout(15000) // 15 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      proposals = data.rows || [];
+      
+      logDebug(`✅ Loaded ${proposals.length} proposals`, data);
+      return true;
+      
+    } catch (err) {
+      logDebug(`❌ Failed to load proposals:`, err.message);
+      
+      // Check if contract exists
+      try {
+        const accountResponse = await fetch(`${currentEndpoint}/v1/chain/get_account`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account_name: VOTE_CONTRACT })
+        });
+        
+        if (accountResponse.ok) {
+          logDebug(`✅ Contract ${VOTE_CONTRACT} exists on chain`);
+        } else {
+          logDebug(`❌ Contract ${VOTE_CONTRACT} does not exist on chain`);
+        }
+      } catch (accountErr) {
+        logDebug(`❌ Could not check if contract exists:`, accountErr.message);
+      }
+      
+      throw err;
+    }
   }
 
-  // Load votes from chain
+  // Load votes from chain with better error handling
   async function loadVotes() {
-    const res = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: VOTE_CONTRACT,
-        scope: VOTE_CONTRACT,
-        table: "votes",
-        limit: 1000
-      })
-    });
-    const data = await res.json();
-    votes = data.rows || [];
+    try {
+      logDebug(`Loading votes from contract: ${VOTE_CONTRACT}`);
+      
+      const response = await fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: VOTE_CONTRACT,
+          scope: VOTE_CONTRACT,
+          table: "votes",
+          limit: 1000
+        }),
+        signal: AbortSignal.timeout(15000) // 15 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      votes = data.rows || [];
+      
+      logDebug(`✅ Loaded ${votes.length} votes`, data);
+      return true;
+      
+    } catch (err) {
+      logDebug(`❌ Failed to load votes:`, err.message);
+      throw err;
+    }
   }
 
   // Render active and closed proposals with proper timestamp conversion
@@ -632,26 +753,60 @@
     return 0;
   }
 
-  // Initialize with proper error handling
+  // Initialize with proper error handling and better feedback
   async function initialize() {
     try {
+      logDebug("🚀 Starting initialization...");
+      
       // Find working endpoint
+      statusMsg.innerText = "🔍 Connecting to Proton mainnet...";
       const endpointWorking = await findWorkingEndpoint();
       if (!endpointWorking) {
-        statusMsg.innerText = "❌ Cannot connect to mainnet"; // 🔧 UPDATED: mainnet instead of testnet
+        statusMsg.innerText = "❌ Cannot connect to Proton mainnet. Please try again later.";
+        logDebug("❌ No working endpoints found");
         return;
       }
 
-      await loadProposals();
-      await loadVotes();
-      renderProposals();
+      statusMsg.innerText = `✅ Connected to ${currentEndpoint}\n⏳ Loading governance data...`;
       
-      statusMsg.innerText = "📃 Proposals loaded. Connect wallet to create or vote.";
+      // Try to load proposals and votes
+      let proposalsLoaded = false;
+      let votesLoaded = false;
+      
+      try {
+        await loadProposals();
+        proposalsLoaded = true;
+      } catch (err) {
+        logDebug("❌ Failed to load proposals, but continuing...", err.message);
+      }
+      
+      try {
+        await loadVotes(); 
+        votesLoaded = true;
+      } catch (err) {
+        logDebug("❌ Failed to load votes, but continuing...", err.message);
+      }
+
+      // Show results
+      if (proposalsLoaded && votesLoaded) {
+        renderProposals();
+        statusMsg.innerText = `✅ Loaded ${proposals.length} proposals and ${votes.length} votes\n📄 Connect wallet to participate in governance.`;
+      } else if (proposalsLoaded) {
+        renderProposals();
+        statusMsg.innerText = `⚠️ Loaded ${proposals.length} proposals but failed to load votes\n📄 You can still view proposals and create new ones.`;
+      } else {
+        statusMsg.innerText = `⚠️ Could not load proposals from contract "${VOTE_CONTRACT}"\n🔧 The governance system may not be deployed yet.\n📄 You can still try to create proposals.`;
+      }
+      
+      // Always show the proposal form
       proposalForm.style.display = "block";
       
     } catch (err) {
       console.error("Initialization error:", err);
-      statusMsg.innerText = `❌ Failed to load proposals: ${err.message}`;
+      logDebug("❌ Critical initialization error:", err.message);
+      statusMsg.innerText = `❌ System error: ${err.message}\n🔧 Please check debug info or try again later.`;
+      
+      // Still show proposal form in case the issue is just with data loading
       proposalForm.style.display = "block";
     }
   }
@@ -690,6 +845,7 @@
     }
 
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
+    logDebug("Submitting proposal...", { title, text, actor });
 
     try {
       // Bundle ALL actions into ONE transaction
@@ -740,6 +896,7 @@
       });
 
       statusMsg.innerText = "✅ Proposal submitted successfully!";
+      logDebug("✅ Proposal submitted successfully");
       proposalTitleEl.value = "";
       proposalTextEl.value = "";
 
@@ -749,6 +906,7 @@
       renderProposals();
     } catch (err) {
       console.error("Proposal submission error:", err);
+      logDebug("❌ Proposal submission failed:", err.message);
       statusMsg.innerText = "❌ Proposal submission failed: " + err.message;
     }
   });
@@ -782,6 +940,7 @@
     }
 
     statusMsg.innerText = `🕐 Submitting vote...`;
+    logDebug("Submitting vote...", { proposal: selectedProposal.id, choice: choice.value, actor });
 
     try {
       await session.transact({
@@ -800,6 +959,7 @@
       });
 
       statusMsg.innerText = `✅ Vote cast for "${selectedProposal.title || selectedProposal.id}" with choice "${choice.value}" and weight ${voteWeight}`;
+      logDebug("✅ Vote submitted successfully");
 
       voteForm.style.display = "none";
       selectedProposal = null;
@@ -810,6 +970,7 @@
       renderProposals();
     } catch (err) {
       console.error("Vote error:", err);
+      logDebug("❌ Vote failed:", err.message);
       statusMsg.innerText = "❌ Vote failed: " + err.message;
     }
   });

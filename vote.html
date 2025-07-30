@@ -195,6 +195,15 @@
       text-align: center;
     }
 
+    .cors-notice {
+      background: #2a2a00;
+      border: 2px solid #ffcc00;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
     .retry-btn {
       background: #444;
       color: #fff;
@@ -206,15 +215,6 @@
     }
     .retry-btn:hover {
       background: #555;
-    }
-
-    .offline-notice {
-      background: #333;
-      border: 2px solid #666;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin: 1rem 0;
-      text-align: center;
     }
   </style>
 </head>
@@ -230,19 +230,19 @@
 
   <div style="text-align:center;">
     <button id="home-btn">🏠 Home</button>
-    <button id="retry-btn" class="retry-btn" style="display: none;">🔄 Retry Loading</button>
+    <button id="retry-btn" class="retry-btn" style="display: none;">🔄 Try Different Method</button>
   </div>
 
   <div id="wallet-display" style="margin-bottom: 8px;"></div>
   <div id="status-msg">⏳ Loading proposals...</div>
 
-  <!-- Offline Notice -->
-  <div id="offline-notice" class="offline-notice" style="display: none;">
-    <h3>📡 Governance Data Unavailable</h3>
-    <p>Unable to load existing proposals due to network issues.<br/>
-    <strong>You can still create new proposals!</strong></p>
-    <p style="font-size: 0.9rem; color: #aaa;">
-      New proposals will appear once the network connection is restored.
+  <!-- CORS Notice -->
+  <div id="cors-notice" class="cors-notice" style="display: none;">
+    <h3>🌐 Network Configuration Issue</h3>
+    <p>Unable to load existing proposals due to browser security settings (CORS).<br/>
+    <strong>Good news: You can still create new proposals!</strong></p>
+    <p style="font-size: 0.9rem; color: #ccc;">
+      New proposals will appear in blockchain explorers and other interfaces immediately.
     </p>
   </div>
 
@@ -302,21 +302,21 @@
   const BURN_ACCOUNT = "token.burn";
   const XPRPANDAS_ACCOUNT = "xprpandas";
 
-  // FIXED: Try different endpoint patterns for better connectivity
-  const MAINNET_ENDPOINTS = [
-    "https://proton.greymass.com",
-    "https://api.protonchain.com",
-    "https://proton.eosusa.news",
-    "https://proton-api.eosrio.io"
+  // FIXED: Use CORS proxy for API calls
+  const CORS_PROXIES = [
+    "https://corsproxy.io/?",
+    "https://api.allorigins.win/raw?url=",
+    "https://cors-anywhere.herokuapp.com/"
   ];
 
-  let currentEndpoint = MAINNET_ENDPOINTS[0];
+  const PROTON_ENDPOINT = "https://proton.greymass.com";
+  
+  let currentProxy = 0;
   let session = null;
   let actor = null;
   let voteWeight = 0;
   let proposals = [];
   let votes = [];
-  let isOfflineMode = false;
 
   // HTML Elements
   const homeBtn = document.getElementById("home-btn");
@@ -326,7 +326,7 @@
   const proposalForm = document.getElementById("proposal-form");
   const proposalTitleEl = document.getElementById("proposal-title");
   const proposalTextEl = document.getElementById("proposal-text");
-  const offlineNotice = document.getElementById("offline-notice");
+  const corsNotice = document.getElementById("cors-notice");
 
   const activeProposalsList = document.getElementById("active-proposals-list");
   const closedProposalsList = document.getElementById("closed-proposals-list");
@@ -353,110 +353,103 @@
     return votes.find(v => v.proposal_id == proposalId && v.voter === userAccount);
   }
 
-  // FIXED: More robust endpoint testing with fallbacks
-  async function findWorkingEndpoint() {
-    console.log("Testing endpoints...");
+  // FIXED: Try different CORS proxy methods
+  async function makeProxiedRequest(endpoint, data) {
+    const targetUrl = `${endpoint}/v1/chain/get_table_rows`;
     
-    for (const endpoint of MAINNET_ENDPOINTS) {
-      try {
-        console.log(`Testing: ${endpoint}`);
-        
-        // Test with a simple get_info call first
-        const testResponse = await Promise.race([
-          fetch(`${endpoint}/v1/chain/get_info`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-          }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-          )
-        ]);
-        
-        if (testResponse.ok) {
-          currentEndpoint = endpoint;
-          console.log(`✅ Working endpoint: ${endpoint}`);
-          return true;
-        }
-      } catch (err) {
-        console.log(`❌ ${endpoint} failed:`, err.message);
+    // Method 1: Try corsproxy.io
+    try {
+      console.log("Trying corsproxy.io...");
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      
+      if (response.ok) {
+        return await response.json();
       }
+    } catch (err) {
+      console.log("corsproxy.io failed:", err.message);
     }
-    
-    return false;
+
+    // Method 2: Try allorigins
+    try {
+      console.log("Trying allorigins...");
+      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, {
+        method: "GET"
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        return JSON.parse(result.contents);
+      }
+    } catch (err) {
+      console.log("allorigins failed:", err.message);
+    }
+
+    // Method 3: Direct call (might work in some browsers/networks)
+    try {
+      console.log("Trying direct call...");
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(data),
+        mode: 'cors'
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.log("Direct call failed:", err.message);
+    }
+
+    throw new Error("All proxy methods failed");
   }
 
-  // FIXED: Graceful data loading with offline fallback
-  async function loadGovernanceData() {
-    try {
-      console.log(`Attempting to load data from ${currentEndpoint}...`);
-      
-      // Try to load proposals
-      const proposalsResponse = await Promise.race([
-        fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: VOTE_CONTRACT,
-            scope: VOTE_CONTRACT,
-            table: "proposals",
-            limit: 100
-          })
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        )
-      ]);
+  // Load proposals with CORS proxy
+  async function loadProposals() {
+    console.log("Loading proposals...");
+    
+    const data = await makeProxiedRequest(PROTON_ENDPOINT, {
+      json: true,
+      code: VOTE_CONTRACT,
+      scope: VOTE_CONTRACT,
+      table: "proposals",
+      limit: 100
+    });
+    
+    proposals = data.rows || [];
+    console.log(`✅ Loaded ${proposals.length} proposals`);
+    return proposals;
+  }
 
-      if (proposalsResponse.ok) {
-        const proposalsData = await proposalsResponse.json();
-        proposals = proposalsData.rows || [];
-        console.log(`✅ Loaded ${proposals.length} proposals`);
-      } else {
-        throw new Error(`Proposals API returned ${proposalsResponse.status}`);
-      }
-
-      // Try to load votes
-      const votesResponse = await Promise.race([
-        fetch(`${currentEndpoint}/v1/chain/get_table_rows`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: VOTE_CONTRACT,
-            scope: VOTE_CONTRACT,
-            table: "votes", 
-            limit: 1000
-          })
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        )
-      ]);
-
-      if (votesResponse.ok) {
-        const votesData = await votesResponse.json();
-        votes = votesData.rows || [];
-        console.log(`✅ Loaded ${votes.length} votes`);
-      } else {
-        console.log(`⚠️ Votes API returned ${votesResponse.status}, but continuing...`);
-        votes = []; // Continue with empty votes
-      }
-
-      return true;
-
-    } catch (err) {
-      console.error("Data loading failed:", err);
-      throw err;
-    }
+  // Load votes with CORS proxy
+  async function loadVotes() {
+    console.log("Loading votes...");
+    
+    const data = await makeProxiedRequest(PROTON_ENDPOINT, {
+      json: true,
+      code: VOTE_CONTRACT,
+      scope: VOTE_CONTRACT,
+      table: "votes",
+      limit: 1000
+    });
+    
+    votes = data.rows || [];
+    console.log(`✅ Loaded ${votes.length} votes`);
+    return votes;
   }
 
   function renderProposals() {
     if (proposals.length === 0) {
-      // Show empty state
       activeProposalsList.innerHTML = `
         <div style="text-align: center; color: #888; font-style: italic; padding: 2rem;">
-          📝 No proposals yet. ${isOfflineMode ? 'Create the first one!' : 'Be the first to create one!'}
+          📝 No proposals yet. Be the first to create one!
         </div>
       `;
       closedProposalsList.innerHTML = `
@@ -625,7 +618,7 @@
     try {
       const { session: newSession } = await ProtonWebSDK({
         linkOptions: { 
-          endpoints: [currentEndpoint]
+          endpoints: [PROTON_ENDPOINT]
         },
         selectorOptions: {
           appName: "Pandania Vote",
@@ -660,7 +653,8 @@
 
   async function getPdaBalance(account) {
     try {
-      const response = await fetch(`${currentEndpoint}/v1/chain/get_currency_balance`, {
+      // Use direct call for balance check (usually works)
+      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_currency_balance`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -672,6 +666,7 @@
       const balances = await response.json();
       return balances.length ? parseFloat(balances[0].split(" ")[0]) : 0;
     } catch (err) {
+      console.log("Balance check failed, defaulting to 0");
       return 0;
     }
   }
@@ -684,31 +679,18 @@
     return 0;
   }
 
-  // FIXED: Initialize with offline mode fallback
+  // Initialize with CORS handling
   async function initialize() {
     try {
       console.log("🚀 Starting governance system...");
       
-      statusMsg.innerText = "🔍 Connecting to Proton mainnet...";
-      
-      const endpointWorking = await findWorkingEndpoint();
-      if (!endpointWorking) {
-        // Enter offline mode
-        isOfflineMode = true;
-        statusMsg.innerText = "⚠️ Network connection issues detected.\n📄 You can still create proposals!";
-        offlineNotice.style.display = "block";
-        proposalForm.style.display = "block";
-        renderProposals(); // Show empty state
-        return;
-      }
-
-      statusMsg.innerText = `✅ Connected to ${currentEndpoint}\n⏳ Loading governance data...`;
+      statusMsg.innerText = "🔍 Loading governance data...";
       
       try {
-        await loadGovernanceData();
+        await loadProposals();
+        await loadVotes();
         
-        isOfflineMode = false;
-        offlineNotice.style.display = "none";
+        corsNotice.style.display = "none";
         renderProposals();
         
         if (proposals.length === 0) {
@@ -718,12 +700,12 @@
         }
         
       } catch (dataErr) {
-        console.error("Data loading failed:", dataErr);
+        console.error("CORS/Data loading failed:", dataErr);
         
-        // Enter offline mode for proposal creation
-        isOfflineMode = true;
-        statusMsg.innerText = `⚠️ Could not load existing proposals.\n📄 You can still create new proposals!`;
-        offlineNotice.style.display = "block";
+        // Show CORS notice
+        statusMsg.innerText = `⚠️ Cannot load existing proposals due to browser security.\n📄 You can still create new proposals!`;
+        corsNotice.style.display = "block";
+        retryBtn.style.display = "inline-block";
         renderProposals(); // Show empty state
       }
       
@@ -733,6 +715,7 @@
     } catch (err) {
       console.error("Critical error:", err);
       statusMsg.innerText = `❌ System error: ${err.message}\n📄 You can still try creating proposals.`;
+      corsNotice.style.display = "block";
       proposalForm.style.display = "block";
     }
   }
@@ -744,11 +727,11 @@
 
   retryBtn.addEventListener("click", () => {
     retryBtn.style.display = "none";
-    offlineNotice.style.display = "none";
+    corsNotice.style.display = "none";
     initialize();
   });
 
-  // Proposal submission - works even in offline mode
+  // Proposal submission - this should work because it goes through wallet
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -811,16 +794,18 @@
         ]
       });
 
-      statusMsg.innerText = "✅ Proposal submitted successfully!";
+      statusMsg.innerText = "✅ Proposal submitted successfully!\n🔍 Check blockchain explorers or refresh page to see new proposal.";
       proposalTitleEl.value = "";
       proposalTextEl.value = "";
 
       // Try to reload data, but don't fail if it doesn't work
       try {
-        await loadGovernanceData();
+        await loadProposals();
+        await loadVotes();
         renderProposals();
       } catch (reloadErr) {
-        statusMsg.innerText = "✅ Proposal submitted successfully!\n⚠️ Refresh page to see updated proposals.";
+        // Ignore reload errors
+        console.log("Could not reload after submission, but that's okay");
       }
       
     } catch (err) {
@@ -880,10 +865,11 @@
 
       // Try to reload data
       try {
-        await loadGovernanceData();
+        await loadProposals();
+        await loadVotes();
         renderProposals();
       } catch (reloadErr) {
-        statusMsg.innerText = statusMsg.innerText + "\n⚠️ Refresh page to see updated votes.";
+        statusMsg.innerText = statusMsg.innerText + "\n🔍 Refresh page to see updated votes.";
       }
       
     } catch (err) {

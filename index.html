@@ -17,6 +17,7 @@
   <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
 
   <style>
+    /* Global Styles */
     html, body {
       background: #000 !important;
       margin: 0;
@@ -24,6 +25,8 @@
       color: white;
       font-family: sans-serif;
     }
+
+    /* Token Gate Styles */
     #gate-cover {
       display: flex;
       flex-direction: column;
@@ -33,7 +36,9 @@
       position: fixed;
       inset: 0;
       z-index: 9999;
+      padding: 1rem;
     }
+
     #connect-btn {
       background-color: #6b46c1;
       color: white;
@@ -43,16 +48,34 @@
       border-radius: 6px;
       cursor: pointer;
       margin-bottom: 2rem;
+      transition: all 0.3s ease;
+      min-width: 200px;
     }
+
     #connect-btn:hover {
       background-color: #553c9a;
+      transform: translateY(-2px);
     }
+
+    #connect-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #connect-btn.loading {
+      background-color: #553c9a;
+      animation: pulse 1.5s infinite;
+    }
+
     #gate-panda-gif {
       width: 200px;
       max-width: 80vw;
       margin-bottom: 2rem;
       filter: drop-shadow(0 4px 28px rgba(0,0,0,0.6));
+      border-radius: 12px;
     }
+
     #denied-message {
       display: none;
       background: #252525;
@@ -62,18 +85,126 @@
       color: #fff;
       text-align: center;
       font-size: 1.4rem;
+      max-width: 90vw;
+      margin-top: 1rem;
     }
+
     #denied-message .denied-title {
       color: #ff3939;
       font-size: 2rem;
       font-weight: bold;
       margin-bottom: 0.5rem;
+      margin-top: 0;
     }
-    body.unlocked #gate-cover { display: none !important; }
-    body.unlocked #main-content { display: block !important; }
-    #main-content { display: none; }
 
-    /* Buttons */
+    body.unlocked #gate-cover { 
+      display: none !important; 
+    }
+    
+    body.unlocked #main-content { 
+      display: block !important; 
+    }
+    
+    #main-content { 
+      display: none; 
+      min-height: 100vh;
+      background: #000;
+    }
+
+    /* Header Styles */
+    header {
+      background: #000;
+      padding: 1rem 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    header .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo img {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+    }
+
+    .menu {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .menu a {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: white;
+      text-decoration: none;
+      padding: 0.5rem;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .menu a:hover {
+      background-color: #333;
+    }
+
+    .menu img {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+    }
+
+    /* Main Section */
+    section.container {
+      padding: 2rem 1rem;
+    }
+
+    .hero-section {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .hero-panda {
+      width: 220px;
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+      filter: drop-shadow(0 4px 28px rgba(0,0,0,0.6));
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 2rem;
+      margin: 2rem 0 1rem 0;
+      text-align: center;
+    }
+
+    p {
+      line-height: 1.6;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
+    /* FIXED: Button Styles - No More Stretching */
     .green-button {
       display: inline-block;
       padding: 12px 28px;
@@ -84,12 +215,276 @@
       border-radius: 6px;
       cursor: pointer;
       text-decoration: none;
-      margin: 6px 0;
-      transition: background 0.2s;
+      margin: 6px 8px;
+      transition: all 0.3s ease;
+      text-align: center;
+      /* FIXED: Added max-width and width constraints to prevent stretching */
+      max-width: 300px;
+      width: auto;
+      white-space: nowrap;
+      word-break: keep-all;
     }
+
     .green-button:hover {
       background-color: darkgreen;
       color: #fff200;
+      transform: translateY(-2px);
+    }
+
+    /* Button Groups */
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    /* Token Section */
+    .token-section {
+      margin-bottom: 3rem;
+    }
+
+    .token-launch {
+      margin-top: 1.2rem;
+      font-weight: 500;
+    }
+
+    .token-icon-container {
+      text-align: center;
+      margin: 1.5rem 0;
+    }
+
+    .token-icon-container img {
+      width: 65px;
+      height: 65px;
+      border-radius: 8px;
+    }
+
+    /* Trading Section */
+    .trading-section {
+      margin: 2rem 0;
+      text-align: center;
+    }
+
+    .iframe-container {
+      position: relative;
+      width: 100%;
+      max-width: 445px;
+      margin: 0 auto 1.5rem auto;
+      background: #111;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .trading-iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+      display: block;
+    }
+
+    .or-text {
+      margin: 1rem 0;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    /* Token Info */
+    .token-info {
+      margin-top: 2rem;
+    }
+
+    .token-chart-container {
+      text-align: center;
+      margin: 1.5rem 0;
+    }
+
+    .token-chart-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+
+    /* FIXED: Donation Section - Proper Image Centering */
+    .donation-section {
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    .donation-main-image {
+      display: flex;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+
+    .donation-main-image img {
+      width: 180px;
+      height: auto;
+      border-radius: 8px;
+    }
+
+    /* FIXED: Properly centered donation images */
+    .donation-images {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin: 2rem 0;
+      flex-wrap: wrap;
+    }
+
+    .donation-images img {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      header .container {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .menu {
+        justify-content: center;
+        gap: 1rem;
+      }
+      
+      .menu a {
+        font-size: 0.8rem;
+        padding: 0.4rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+      }
+      
+      .hero-panda {
+        width: 180px;
+      }
+      
+      #gate-panda-gif {
+        width: 150px;
+      }
+      
+      #connect-btn {
+        font-size: 18px;
+        padding: 16px 28px;
+        min-width: 180px;
+      }
+      
+      #denied-message {
+        font-size: 1.2rem;
+        padding: 1rem;
+      }
+      
+      #denied-message .denied-title {
+        font-size: 1.5rem;
+      }
+      
+      /* Mobile button improvements */
+      .green-button {
+        font-size: 14px;
+        padding: 12px 20px;
+        margin: 4px 6px;
+        max-width: 280px;
+      }
+      
+      .button-group {
+        gap: 0.5rem;
+      }
+      
+      /* Mobile trading iframe */
+      .trading-iframe {
+        height: 500px;
+      }
+      
+      .iframe-container {
+        max-width: 100%;
+        margin: 0 auto 1rem auto;
+      }
+      
+      /* Mobile donation images */
+      .donation-images {
+        gap: 0.5rem;
+      }
+      
+      .donation-images img {
+        width: 120px;
+        height: 120px;
+      }
+      
+      .donation-main-image img {
+        width: 150px;
+      }
+      
+      .token-icon-container img {
+        width: 55px;
+        height: 55px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      section.container {
+        padding: 1.5rem 0.5rem;
+      }
+      
+      .container {
+        padding: 0 0.5rem;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
+      
+      .hero-panda {
+        width: 160px;
+      }
+      
+      .green-button {
+        font-size: 13px;
+        padding: 10px 16px;
+        max-width: 250px;
+      }
+      
+      .trading-iframe {
+        height: 450px;
+      }
+      
+      .donation-images img {
+        width: 100px;
+        height: 100px;
+      }
+      
+      .donation-main-image img {
+        width: 130px;
+      }
+      
+      .menu {
+        gap: 0.5rem;
+      }
+      
+      .menu a {
+        font-size: 0.75rem;
+        padding: 0.3rem;
+      }
+    }
+
+    /* Loading animation */
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
     }
   </style>
 </head>
@@ -130,42 +525,74 @@
     </header>
 
     <section class="container">
-      <center><img src="images/header/protonpanda-gif.gif" width="220" /></center>
-      <h1>🐼 Pandania NFT DaPP Portal</h1>
+      <!-- Hero Section -->
+      <div class="hero-section">
+        <img src="images/header/protonpanda-gif.gif" class="hero-panda" alt="Proton Panda" />
+        <h1>🐼 Pandania NFT DaPP Portal</h1>
+      </div>
 
-      <p>Launched on January 10th, 2022. One of the few OG NFT collections on XPR Network. Limited to 200 total NFTs.</p>
-      <p>NFT Rarity Breakdown: 80-Common | 50-Uncommon | 30-Epic | 25-Rare | 15-Ultra Rare</p>
+      <!-- Info Section -->
+      <div class="info-section">
+        <p>Launched on January 10th, 2022. One of the few OG NFT collections on XPR Network. Limited to 200 total NFTs.</p>
+        <p>NFT Rarity Breakdown: 80-Common | 50-Uncommon | 30-Epic | 25-Rare | 15-Ultra Rare</p>
 
-      <!-- Panda Collection Button -->
-      <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
+        <!-- Panda Collection Button -->
+        <div class="button-group">
+          <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
+          <!-- Governance Voting Button -->
+          <a href="vote.html" class="green-button">Governance Voting</a>
+        </div>
+      </div>
 
-      <!-- Governance Voting Button -->
-      <a href="vote.html" class="green-button">Governance Voting</a>
+      <!-- Token Section -->
+      <div class="token-section">
+        <p class="token-launch">Token Launched on June 1st, 2023.</p>
+        <div class="token-icon-container">
+          <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" />
+        </div>
 
-      <p style="margin-top: 1.2rem;">Token Launched on June 1st, 2023.</p>
-      <center><img src="images/x-icon/pda-xprpanda-65x65.png" /></center>
+        <h2>Buy PDA on Alcor Exchange</h2>
+        
+        <div class="trading-section">
+          <div class="iframe-container">
+            <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" class="trading-iframe" title="Alcor Exchange"></iframe>
+          </div>
+          
+          <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
+          <p class="or-text">Or</p>
+          <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
+        </div>
 
-      <h2>Buy PDA on Alcor Exchange</h2>
-      <iframe src="https://proton.alcor.exchange/trade/pda-xprpandas_xpr-eosio.token" width="445" height="600"></iframe>
-      <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
-      <p>Or</p>
-      <a href="https://blastpad.io/staking-pool?poolId=33" class="green-button" target="_blank">Stake PDA</a>
+        <div class="token-info">
+          <p>Total Capped Supply: 555,555,555 PDA. 100% Circulating.</p>
+          <div class="token-chart-container">
+            <img src="images/header/Token-Pi.png" alt="Token Distribution Chart" />
+          </div>
+          <p>Distribution: 65% Liquidity, 15% Community Wallet, 15% Founder, 5% Airdrop.</p>
+          
+          <div class="button-group">
+            <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">View on XPR Explorer</a>
+          </div>
 
-      <p>Total Capped Supply: 555,555,555 PDA. 100% Circulating.</p>
-      <img src="images/header/Token-Pi.png" />
-      <p>Distribution: 65% Liquidity, 15% Community Wallet, 15% Founder, 5% Airdrop.</p>
-      <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">View on XPR Explorer</a>
-      
-      <p>PDA is a Utility Token to empower a decentralized community on XPRNetwork.</p>
-      <a href="https://t.me/+lPYmNDvlKAFlNzRh" class="green-button" target="_blank">Join the #PandaFam</a>
+          <p>PDA is a Utility Token to empower a decentralized community on XPRNetwork.</p>
+          <a href="https://t.me/+lPYmNDvlKAFlNzRh" class="green-button" target="_blank">Join the #PandaFam</a>
+        </div>
+      </div>
 
-      <h2>$200 Donated So Far</h2>
-      <p>To the World Wildlife Foundation</p>
-      <img src="images/header/Conservation-planet.png" width="180">
-      <center>
-        <img src="images/header/Donation-Wwf.jpeg" width="150" />
-        <img src="images/header/Donation-Wwfl.png" width="150" />
-      </center>
+      <!-- FIXED: Donation Section with Proper Image Centering -->
+      <div class="donation-section">
+        <h2>$200 Donated So Far</h2>
+        <p>To the World Wildlife Foundation</p>
+        
+        <div class="donation-main-image">
+          <img src="images/header/Conservation-planet.png" alt="Conservation Planet">
+        </div>
+        
+        <div class="donation-images">
+          <img src="images/header/Donation-Wwf.jpeg" alt="WWF Donation 1" />
+          <img src="images/header/Donation-Wwfl.png" alt="WWF Donation 2" />
+        </div>
+      </div>
     </section>
   </div>
 
@@ -174,27 +601,46 @@
     window.addEventListener("DOMContentLoaded", () => {
       const connectBtn = document.getElementById("connect-btn");
       const deniedMessage = document.getElementById("denied-message");
+      let isLoading = false;
+      
       document.getElementById('main-content').style.display = "none";
       deniedMessage.style.display = "none";
 
       async function checkPDABalance(session) {
-        const response = await fetch("https://proton.greymass.com/v1/chain/get_currency_balance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: "xprpandas",
-            account: session.auth.actor,
-            symbol: "PDA"
-          }),
-        });
-        const balances = await response.json();
-        const balance = parseFloat((balances[0] || "0 PDA").split(" ")[0]);
-        return balance >= 555555;
+        try {
+          const response = await fetch("https://proton.greymass.com/v1/chain/get_currency_balance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code: "xprpandas",
+              account: session.auth.actor,
+              symbol: "PDA"
+            }),
+          });
+          const balances = await response.json();
+          const balance = parseFloat((balances[0] || "0 PDA").split(" ")[0]);
+          return balance >= 555555;
+        } catch (error) {
+          console.error('Error checking PDA balance:', error);
+          return false;
+        }
       }
 
       connectBtn.addEventListener("click", async () => {
+        if (isLoading) return;
+        
         deniedMessage.style.display = "none";
+        isLoading = true;
+        connectBtn.disabled = true;
+        connectBtn.classList.add('loading');
+        connectBtn.textContent = 'Connecting...';
+        
         try {
+          if (!window.ProtonWebSDK) {
+            alert("Proton SDK not loaded yet. Please try again.");
+            return;
+          }
+
           const { session } = await window.ProtonWebSDK({
             linkOptions: {
               endpoints: ["https://proton.greymass.com", "https://proton.eosusa.news"],
@@ -231,12 +677,14 @@
         } catch (err) {
           alert("Failed to connect wallet.");
           console.error(err);
+        } finally {
+          isLoading = false;
+          connectBtn.disabled = false;
+          connectBtn.classList.remove('loading');
+          connectBtn.textContent = 'Connect Wallet';
         }
       });
     });
   </script>
 </body>
 </html>
-
-
-

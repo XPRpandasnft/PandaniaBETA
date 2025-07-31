@@ -465,8 +465,8 @@
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
   
-  // FIXED: Global ProtonWeb instance
-  let protonWeb = null;
+  // FIXED: Back to original working approach
+  let protonSDK = null;
   let session = null;
   let actor = null;
   let voteWeight = 0;
@@ -767,18 +767,15 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Properly initialize ProtonWeb SDK and maintain session
-  async function initializeProtonSDK() {
-    if (!window.ProtonWebSDK) {
-      throw new Error("Proton SDK not loaded");
-    }
+  // FIXED: Back to original working wallet connection approach
+  async function connectWalletIfNeeded() {
+    if (session && actor) return true;
 
     try {
-      // Initialize the ProtonWeb instance
-      protonWeb = await window.ProtonWebSDK({
+      // FIXED: Use the original working ProtonWebSDK call that returns { session }
+      const result = await window.ProtonWebSDK({
         linkOptions: { 
-          endpoints: [PROTON_ENDPOINT],
-          restoreSession: true // Try to restore existing session
+          endpoints: [PROTON_ENDPOINT]
         },
         selectorOptions: {
           appName: "Pandania Vote",
@@ -796,43 +793,11 @@
         }
       });
 
-      // Check if there's an existing session
-      if (protonWeb.session && protonWeb.session.auth) {
-        session = protonWeb.session;
-        actor = session.auth.actor;
-        console.log("Restored existing session for:", actor);
-        return true;
-      }
-
-      console.log("ProtonWeb SDK initialized, no existing session");
-      return false;
-    } catch (err) {
-      console.error("Failed to initialize Proton SDK:", err);
-      throw err;
-    }
-  }
-
-  // FIXED: Updated wallet connection
-  async function connectWalletIfNeeded() {
-    if (session && actor) {
-      console.log("Already connected to:", actor);
-      return true;
-    }
-
-    try {
-      // Initialize SDK if not done already
-      if (!protonWeb) {
-        await initializeProtonSDK();
-      }
-
-      // If we still don't have a session, request login
-      if (!session || !actor) {
-        console.log("Requesting wallet connection...");
-        const result = await protonWeb.login();
-        session = result.session;
-        actor = session.auth.actor;
-      }
-
+      // FIXED: Store both the SDK instance and session
+      protonSDK = result; // Store the entire SDK result
+      session = result.session;
+      actor = session.auth.actor;
+      
       console.log("Connected wallet actor:", actor);
       walletDisplay.innerText = `✅ Connected: ${actor}`;
 
@@ -887,21 +852,6 @@
     try {
       console.log("🚀 Starting governance system...");
       
-      // Initialize Proton SDK
-      try {
-        await initializeProtonSDK();
-        if (session && actor) {
-          walletDisplay.innerText = `✅ Connected: ${actor}`;
-          const balance = await getPdaBalance(actor);
-          voteWeight = calcVoteWeight(balance);
-          if (voteWeight > 0) {
-            statusMsg.innerText = `✅ You hold ${balance.toLocaleString()} PDA → Vote Weight = ${voteWeight}`;
-          }
-        }
-      } catch (sdkErr) {
-        console.log("SDK initialization failed, but continuing...");
-      }
-
       statusMsg.innerText = "🔍 Loading governance data...";
       
       try {
@@ -949,7 +899,7 @@
     initialize();
   });
 
-  // FIXED: Proposal submission using proper ProtonWeb instance
+  // FIXED: Proposal submission using the stored SDK instance
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -978,8 +928,8 @@
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // FIXED: Use the proper ProtonWeb transact method  
-      const result = await protonWeb.transact({
+      // FIXED: Use the correct method from the stored SDK instance
+      const result = await protonSDK.transact({
         actions: [
           {
             account: PDA_CONTRACT,
@@ -1014,10 +964,6 @@
             }
           }
         ]
-      }, {
-        broadcast: true,
-        blocksBehind: 3,
-        expireSeconds: 30,
       });
 
       console.log("Transaction result:", result);
@@ -1041,7 +987,7 @@
     }
   });
 
-  // FIXED: Vote submission using proper ProtonWeb instance
+  // FIXED: Vote submission using the stored SDK instance
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1070,7 +1016,7 @@
     statusMsg.innerText = `🕐 Submitting vote...`;
 
     try {
-      const result = await protonWeb.transact({
+      const result = await protonSDK.transact({
         actions: [{
           account: VOTE_CONTRACT,
           name: "vote",
@@ -1083,10 +1029,6 @@
             pdaBalance: Math.floor(voteWeight * 555555)
           }
         }]
-      }, {
-        broadcast: true,
-        blocksBehind: 3,
-        expireSeconds: 30,
       });
 
       console.log("Vote transaction result:", result);

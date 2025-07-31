@@ -447,20 +447,20 @@
   </form>
 
 <script>
-  // Contract configuration - Updated for correct PDA precision (2 decimals)
+  // Contract configuration - FIXED: Correct contract names
   const PDA_CONTRACT = "xprpandas";
   const PDA_SYMBOL = "PDA";
-  const VOTE_CONTRACT = "pandaniaxyz";
+  const VOTE_CONTRACT = "pandadao"; // FIXED: Changed from "pandaniaxyz" to "pandadao"
 
   const VOTE_PERIOD_DAYS = 7;
   const MS_PER_DAY = 86400000;
 
-  const FEE_TOTAL = 5555555.55; // Total fee: 5,555,555.55 PDA
-  const FEE_HALF = FEE_TOTAL / 2; // Half fee: 2,777,777.78 PDA (note: actual will be 2777777.78)
+  const FEE_TOTAL = 250000; // FIXED: Changed to match button text (250,000 PDA fee)
+  const FEE_HALF = FEE_TOTAL / 2; // Half fee: 125,000 PDA
   const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA"; // Correct 2 decimal precision
 
-  const BURN_ACCOUNT = "null"; // Burn to null account
-  const VOTE_CONTRACT_ACCOUNT = "pandaniaxyz";
+  const BURN_ACCOUNT = "token.burn"; // FIXED: Changed from "null" to "token.burn"
+  const XPRPANDAS_ACCOUNT = "xprpandas"; // FIXED: Added proper account name
 
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
@@ -765,7 +765,7 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Improved wallet connection with proper PDA token image
+  // FIXED: Improved wallet connection with correct requestAccount
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -778,22 +778,20 @@
           restoreSession: false
         },
         selectorOptions: {
-          appName: "Pandania Governance",
+          appName: "Pandania Vote",
           appLogo: "images/x-icon/pda-xprpanda-65x65.png",
           customStyleOptions: {
             modalBackgroundColor: "#F4F7FA",
-            logoBackgroundColor: "#9c27b0",
+            logoBackgroundColor: "indigo",
             isLogoRound: true,
             optionBackgroundColor: "white",
             optionFontColor: "black",
             primaryFontColor: "black",
             secondaryFontColor: "#6B727F",
-            linkColor: "#9c27b0"
+            linkColor: "#752EEB"
           }
-        },
-        transportOptions: {
-          requestAccount: "pandaniaxyz"
         }
+        // FIXED: Removed transportOptions.requestAccount to avoid conflicts
       });
 
       session = protonSDK.session;
@@ -900,7 +898,7 @@
     initialize();
   });
 
-  // FIXED: Proposal submission using correct session.transact() with proper PDA precision
+  // FIXED: Proposal submission using correct contract names and structure
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -929,7 +927,7 @@
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // FIXED: Use session.transact() with correct PDA precision (2 decimals)
+      // FIXED: Use correct contract names and structure from original code
       const result = await session.transact({
         actions: [
           {
@@ -949,7 +947,7 @@
             authorization: [{ actor, permission: "active" }],
             data: {
               from: actor,
-              to: VOTE_CONTRACT_ACCOUNT,
+              to: XPRPANDAS_ACCOUNT,
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee"
             }
@@ -961,7 +959,7 @@
             data: {
               proposer: actor,
               title: title,
-              proposal_text: text,
+              text: text,
             }
           }
         ]
@@ -988,7 +986,7 @@
     }
   });
 
-  // FIXED: Vote submission using session.transact() with proper action structure
+  // FIXED: Vote submission using correct contract structure
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1018,43 +1016,18 @@
 
     try {
       const result = await session.transact({
-        actions: [
-          // Burn half fee
-          {
-            account: PDA_CONTRACT,
-            name: "transfer",
-            authorization: [{ actor, permission: "active" }],
-            data: {
-              from: actor,
-              to: BURN_ACCOUNT,
-              quantity: FEE_QUANTITY_STR_HALF,
-              memo: "Vote fee burn"
-            }
-          },
-          // Transfer half fee to vote contract
-          {
-            account: PDA_CONTRACT,
-            name: "transfer",
-            authorization: [{ actor, permission: "active" }],
-            data: {
-              from: actor,
-              to: VOTE_CONTRACT_ACCOUNT,
-              quantity: FEE_QUANTITY_STR_HALF,
-              memo: "Vote fee"
-            }
-          },
-          // Cast vote
-          {
-            account: VOTE_CONTRACT,
-            name: "vote",
-            authorization: [{ actor, permission: "active" }],
-            data: {
-              voter: actor,
-              proposal_id: selectedProposal.id,
-              vote: choice.value === "yes" ? 1 : 0
-            }
+        actions: [{
+          account: VOTE_CONTRACT,
+          name: "vote",
+          authorization: [{ actor, permission: "active" }],
+          data: {
+            voter: actor,
+            proposalId: selectedProposal.id,
+            voteChoice: choice.value,
+            weight: voteWeight,
+            pdaBalance: Math.floor(voteWeight * 555555)
           }
-        ]
+        }]
       });
 
       console.log("Vote transaction result:", result);

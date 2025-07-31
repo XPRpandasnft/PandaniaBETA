@@ -15,11 +15,98 @@
       margin: auto;
       padding: 2rem;
     }
+    
+    /* Updated header with images */
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .header-pda-image {
+      width: 65px;
+      height: 65px;
+      border-radius: 8px;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    }
+    
     h1 {
       color: yellow;
       text-align: center;
-      margin-bottom: 1rem;
+      margin: 0;
+      font-size: 2.2rem;
     }
+    
+    /* Voting Tier Grid */
+    .voting-tier-container {
+      background: #1a1a1a;
+      border: 2px solid #444;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .voting-tier-title {
+      color: #ffcc00;
+      font-size: 1.3rem;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid #ffcc00;
+      padding-bottom: 0.5rem;
+    }
+    
+    .voting-tier-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 1px solid #666;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    
+    .tier-header {
+      background: #333;
+      color: #ffcc00;
+      font-weight: bold;
+      padding: 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid #666;
+    }
+    
+    .tier-cell {
+      padding: 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid #666;
+      background: #222;
+    }
+    
+    .tier-cell:nth-child(even) {
+      border-left: 1px solid #666;
+    }
+    
+    .tier-cell:last-child,
+    .tier-cell:nth-last-child(2) {
+      border-bottom: none;
+    }
+    
+    .tier-pda {
+      color: #aaddff;
+      font-weight: 500;
+    }
+    
+    .tier-votes {
+      color: #90ee90;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
     button.green-button {
       background: green;
       color: yellow;
@@ -51,12 +138,28 @@
       cursor: pointer;
     }
     
+    /* FIXED: Purple frames around textareas */
     textarea {
       width: 100%;
       height: 150px;
       resize: vertical;
       font-size: 15px;
       margin-bottom: 1rem;
+      border: 3px solid #8b46c1; /* Purple frame */
+      border-radius: 8px;
+      padding: 0.75rem;
+      background: #1a1a1a;
+      color: #fff;
+      outline: none;
+    }
+    
+    textarea:focus {
+      border-color: #a855f7; /* Lighter purple on focus */
+      box-shadow: 0 0 10px rgba(139, 70, 193, 0.3);
+    }
+    
+    textarea#proposal-title {
+      height: 80px; /* Smaller height for title */
     }
     
     label {
@@ -216,17 +319,74 @@
     .retry-btn:hover {
       background: #555;
     }
+    
+    /* Mobile responsiveness for header */
+    @media (max-width: 768px) {
+      .header-container {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .header-pda-image {
+        width: 50px;
+        height: 50px;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
+      
+      .voting-tier-container {
+        max-width: 100%;
+        padding: 1rem;
+      }
+      
+      .tier-cell {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <h1>🐼 Pandania Governance Voting</h1>
+  <!-- Updated header with PDA images on both sides -->
+  <div class="header-container">
+    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
+    <h1>Pandania Governance Voting</h1>
+    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
+  </div>
+  
   <p style="text-align:center;">
     View active and closed proposals below.<br/>
     Create a proposal or vote by connecting your wallet only at the time of action.<br/>
     Proposals are open for voting for 7 days, then move to closed status.<br/>
     Your vote weight depends on your PDA token holdings.
   </p>
+
+  <!-- Voting Tier Grid -->
+  <div class="voting-tier-container">
+    <div class="voting-tier-title">Voting Tiers</div>
+    <div class="voting-tier-grid">
+      <div class="tier-header">PDA Balance Range</div>
+      <div class="tier-header">Vote Weight</div>
+      
+      <div class="tier-cell tier-pda">10,000,000+ PDA</div>
+      <div class="tier-cell tier-votes">10 votes</div>
+      
+      <div class="tier-cell tier-pda">5,000,000+ PDA</div>
+      <div class="tier-cell tier-votes">6 votes</div>
+      
+      <div class="tier-cell tier-pda">1,000,000+ PDA</div>
+      <div class="tier-cell tier-votes">3 votes</div>
+      
+      <div class="tier-cell tier-pda">555,555+ PDA</div>
+      <div class="tier-cell tier-votes">1 vote</div>
+      
+      <div class="tier-cell tier-pda" style="color: #ff6b6b;">Less than 555,555</div>
+      <div class="tier-cell tier-votes" style="color: #ff6b6b;">0 votes</div>
+    </div>
+  </div>
 
   <div style="text-align:center;">
     <button id="home-btn">🏠 Home</button>
@@ -246,7 +406,7 @@
     </p>
   </div>
 
-  <!-- Proposal Creation Form -->
+  <!-- Proposal Creation Form with Purple Frames -->
   <form id="proposal-form" style="display:none;">
     <h2>Create New Proposal</h2>
     <label for="proposal-title"><strong>Proposal Title (max 15 words):</strong></label>
@@ -605,7 +765,7 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Updated wallet connection with proper PDA logo
+  // Updated wallet connection with proper PDA logo
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -616,7 +776,7 @@
         },
         selectorOptions: {
           appName: "Pandania Vote",
-          appLogo: "images/x-icon/pda-xprpanda-65x65.png", // FIXED: Using proper PDA logo
+          appLogo: "images/x-icon/pda-xprpanda-65x65.png",
           customStyleOptions: {
             modalBackgroundColor: "#F4F7FA",
             logoBackgroundColor: "indigo",
@@ -735,7 +895,7 @@
     initialize();
   });
 
-  // Proposal submission - this should work because it goes through wallet
+  // Proposal submission
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 

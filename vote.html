@@ -457,7 +457,8 @@
 
   const FEE_TOTAL = 250000;
   const FEE_HALF = FEE_TOTAL / 2;
-  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(4) + " PDA";
+  // FIXED: Changed from .toFixed(4) to .toFixed(2) for correct PDA precision
+  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA";
 
   const BURN_ACCOUNT = "token.burn";
   const XPRPANDAS_ACCOUNT = "xprpandas";

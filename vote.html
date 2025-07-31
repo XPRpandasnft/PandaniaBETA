@@ -457,7 +457,6 @@
 
   const FEE_TOTAL = 250000;
   const FEE_HALF = FEE_TOTAL / 2;
-  // FIXED: Changed from .toFixed(4) to .toFixed(2) for correct PDA precision
   const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA";
 
   const BURN_ACCOUNT = "token.burn";
@@ -766,7 +765,7 @@
     voteForm.style.display = "block";
   }
 
-  // Updated wallet connection with proper PDA logo
+  // FIXED: Updated wallet connection configuration
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -788,14 +787,15 @@
             secondaryFontColor: "#6B727F",
             linkColor: "#752EEB"
           }
-        },
-        transportOptions: { 
-          requestAccount: "pandadao"
         }
+        // FIXED: Removed problematic transportOptions
       });
 
       session = newSession;
       actor = session.auth.actor;
+      
+      // FIXED: Added debugging to verify actor is correct
+      console.log("Connected wallet actor:", actor);
       walletDisplay.innerText = `✅ Connected: ${actor}`;
 
       const balance = await getPdaBalance(actor);
@@ -896,7 +896,7 @@
     initialize();
   });
 
-  // Proposal submission
+  // FIXED: Proposal submission with debugging
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -919,6 +919,10 @@
       return;
     }
 
+    // FIXED: Added debugging logs
+    console.log("Submitting proposal with actor:", actor);
+    console.log("Fee amount:", FEE_QUANTITY_STR_HALF);
+    
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
@@ -927,10 +931,10 @@
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{ actor, permission: "active" }],
+            authorization: [{ actor, permission: "active" }], // actor should be user's account
             data: {
-              from: actor,
-              to: BURN_ACCOUNT,
+              from: actor, // user's account
+              to: BURN_ACCOUNT, // token.burn
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee burn"
             }
@@ -938,10 +942,10 @@
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{ actor, permission: "active" }],
+            authorization: [{ actor, permission: "active" }], // actor should be user's account
             data: {
-              from: actor,
-              to: XPRPANDAS_ACCOUNT,
+              from: actor, // user's account
+              to: XPRPANDAS_ACCOUNT, // xprpandas
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee"
             }
@@ -949,9 +953,9 @@
           {
             account: VOTE_CONTRACT,
             name: "createprop",
-            authorization: [{ actor, permission: "active" }],
+            authorization: [{ actor, permission: "active" }], // actor should be user's account
             data: {
-              proposer: actor,
+              proposer: actor, // user's account
               title: title,
               text: text,
             }

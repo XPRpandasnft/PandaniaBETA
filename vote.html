@@ -4,7 +4,7 @@
   <title>Pandania Governance Voting</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+  <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
 
   <style>
     body {
@@ -465,6 +465,8 @@
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
   
+  // FIXED: Global ProtonWeb instance
+  let protonWeb = null;
   let session = null;
   let actor = null;
   let voteWeight = 0;
@@ -765,14 +767,18 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Updated wallet connection configuration
-  async function connectWalletIfNeeded() {
-    if (session && actor) return true;
+  // FIXED: Properly initialize ProtonWeb SDK and maintain session
+  async function initializeProtonSDK() {
+    if (!window.ProtonWebSDK) {
+      throw new Error("Proton SDK not loaded");
+    }
 
     try {
-      const { session: newSession } = await ProtonWebSDK({
+      // Initialize the ProtonWeb instance
+      protonWeb = await window.ProtonWebSDK({
         linkOptions: { 
-          endpoints: [PROTON_ENDPOINT]
+          endpoints: [PROTON_ENDPOINT],
+          restoreSession: true // Try to restore existing session
         },
         selectorOptions: {
           appName: "Pandania Vote",
@@ -788,13 +794,45 @@
             linkColor: "#752EEB"
           }
         }
-        // FIXED: Removed problematic transportOptions
       });
 
-      session = newSession;
-      actor = session.auth.actor;
-      
-      // FIXED: Added debugging to verify actor is correct
+      // Check if there's an existing session
+      if (protonWeb.session && protonWeb.session.auth) {
+        session = protonWeb.session;
+        actor = session.auth.actor;
+        console.log("Restored existing session for:", actor);
+        return true;
+      }
+
+      console.log("ProtonWeb SDK initialized, no existing session");
+      return false;
+    } catch (err) {
+      console.error("Failed to initialize Proton SDK:", err);
+      throw err;
+    }
+  }
+
+  // FIXED: Updated wallet connection
+  async function connectWalletIfNeeded() {
+    if (session && actor) {
+      console.log("Already connected to:", actor);
+      return true;
+    }
+
+    try {
+      // Initialize SDK if not done already
+      if (!protonWeb) {
+        await initializeProtonSDK();
+      }
+
+      // If we still don't have a session, request login
+      if (!session || !actor) {
+        console.log("Requesting wallet connection...");
+        const result = await protonWeb.login();
+        session = result.session;
+        actor = session.auth.actor;
+      }
+
       console.log("Connected wallet actor:", actor);
       walletDisplay.innerText = `✅ Connected: ${actor}`;
 
@@ -849,6 +887,21 @@
     try {
       console.log("🚀 Starting governance system...");
       
+      // Initialize Proton SDK
+      try {
+        await initializeProtonSDK();
+        if (session && actor) {
+          walletDisplay.innerText = `✅ Connected: ${actor}`;
+          const balance = await getPdaBalance(actor);
+          voteWeight = calcVoteWeight(balance);
+          if (voteWeight > 0) {
+            statusMsg.innerText = `✅ You hold ${balance.toLocaleString()} PDA → Vote Weight = ${voteWeight}`;
+          }
+        }
+      } catch (sdkErr) {
+        console.log("SDK initialization failed, but continuing...");
+      }
+
       statusMsg.innerText = "🔍 Loading governance data...";
       
       try {
@@ -896,7 +949,7 @@
     initialize();
   });
 
-  // FIXED: Proposal submission with debugging
+  // FIXED: Proposal submission using proper ProtonWeb instance
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -919,22 +972,22 @@
       return;
     }
 
-    // FIXED: Added debugging logs
     console.log("Submitting proposal with actor:", actor);
     console.log("Fee amount:", FEE_QUANTITY_STR_HALF);
     
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      await session.transact({
+      // FIXED: Use the proper ProtonWeb transact method  
+      const result = await protonWeb.transact({
         actions: [
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{ actor, permission: "active" }], // actor should be user's account
+            authorization: [{ actor, permission: "active" }],
             data: {
-              from: actor, // user's account
-              to: BURN_ACCOUNT, // token.burn
+              from: actor,
+              to: BURN_ACCOUNT,
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee burn"
             }
@@ -942,10 +995,10 @@
           {
             account: PDA_CONTRACT,
             name: "transfer",
-            authorization: [{ actor, permission: "active" }], // actor should be user's account
+            authorization: [{ actor, permission: "active" }],
             data: {
-              from: actor, // user's account
-              to: XPRPANDAS_ACCOUNT, // xprpandas
+              from: actor,
+              to: XPRPANDAS_ACCOUNT,
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee"
             }
@@ -953,16 +1006,21 @@
           {
             account: VOTE_CONTRACT,
             name: "createprop",
-            authorization: [{ actor, permission: "active" }], // actor should be user's account
+            authorization: [{ actor, permission: "active" }],
             data: {
-              proposer: actor, // user's account
+              proposer: actor,
               title: title,
               text: text,
             }
           }
         ]
+      }, {
+        broadcast: true,
+        blocksBehind: 3,
+        expireSeconds: 30,
       });
 
+      console.log("Transaction result:", result);
       statusMsg.innerText = "✅ Proposal submitted successfully!\n🔍 Check blockchain explorers or refresh page to see new proposal.";
       proposalTitleEl.value = "";
       proposalTextEl.value = "";
@@ -983,7 +1041,7 @@
     }
   });
 
-  // Vote submission
+  // FIXED: Vote submission using proper ProtonWeb instance
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1012,7 +1070,7 @@
     statusMsg.innerText = `🕐 Submitting vote...`;
 
     try {
-      await session.transact({
+      const result = await protonWeb.transact({
         actions: [{
           account: VOTE_CONTRACT,
           name: "vote",
@@ -1025,8 +1083,13 @@
             pdaBalance: Math.floor(voteWeight * 555555)
           }
         }]
+      }, {
+        broadcast: true,
+        blocksBehind: 3,
+        expireSeconds: 30,
       });
 
+      console.log("Vote transaction result:", result);
       statusMsg.innerText = `✅ Vote cast for "${selectedProposal.title || selectedProposal.id}" with choice "${choice.value}" and weight ${voteWeight}`;
 
       voteForm.style.display = "none";

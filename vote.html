@@ -352,9 +352,9 @@
 <body>
   <!-- Updated header with PDA images on both sides -->
   <div class="header-container">
-    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
+    <img src="https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA" alt="PDA Token" class="header-pda-image" />
     <h1>Pandania Governance Voting</h1>
-    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
+    <img src="https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA" alt="PDA Token" class="header-pda-image" />
   </div>
   
   <p style="text-align:center;">
@@ -447,20 +447,20 @@
   </form>
 
 <script>
-  // Contract configuration
+  // Contract configuration - Updated for correct PDA precision (2 decimals)
   const PDA_CONTRACT = "xprpandas";
   const PDA_SYMBOL = "PDA";
-  const VOTE_CONTRACT = "pandadao";
+  const VOTE_CONTRACT = "pandaniaxyz";
 
   const VOTE_PERIOD_DAYS = 7;
   const MS_PER_DAY = 86400000;
 
-  const FEE_TOTAL = 250000;
-  const FEE_HALF = FEE_TOTAL / 2;
-  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA";
+  const FEE_TOTAL = 5555555.55; // Total fee: 5,555,555.55 PDA
+  const FEE_HALF = FEE_TOTAL / 2; // Half fee: 2,777,777.78 PDA (note: actual will be 2777777.78)
+  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA"; // Correct 2 decimal precision
 
-  const BURN_ACCOUNT = "token.burn";
-  const XPRPANDAS_ACCOUNT = "xprpandas";
+  const BURN_ACCOUNT = "null"; // Burn to null account
+  const VOTE_CONTRACT_ACCOUNT = "pandaniaxyz";
 
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
@@ -667,7 +667,7 @@
     const noVotes = proposal.no_votes || 0;
 
     const title = proposal.title || "(No Title)";
-    const fullText = proposal.text || "(No description)";
+    const fullText = proposal.text || proposal.proposal_text || "(No description)";
     
     const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
     const userVote = actor ? getUserVote(proposal.id, actor) : null;
@@ -765,33 +765,38 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Back to original working approach using session.transact()
+  // FIXED: Improved wallet connection with proper Proton SDK initialization
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
     try {
-      const { session: newSession } = await window.ProtonWebSDK({
+      console.log('Initializing Proton SDK...');
+      
+      const protonSDK = await window.ProtonWebSDK({
         linkOptions: { 
-          endpoints: [PROTON_ENDPOINT],
+          endpoints: [PROTON_ENDPOINT, "https://proton.eosusa.news"],
           restoreSession: false
         },
         selectorOptions: {
-          appName: "Pandania Vote",
-          appLogo: "images/x-icon/pda-xprpanda-65x65.png",
+          appName: "Pandania Governance",
+          appLogo: "https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA",
           customStyleOptions: {
             modalBackgroundColor: "#F4F7FA",
-            logoBackgroundColor: "indigo",
+            logoBackgroundColor: "#9c27b0",
             isLogoRound: true,
             optionBackgroundColor: "white",
             optionFontColor: "black",
             primaryFontColor: "black",
             secondaryFontColor: "#6B727F",
-            linkColor: "#752EEB"
+            linkColor: "#9c27b0"
           }
+        },
+        transportOptions: {
+          requestAccount: "pandaniaxyz"
         }
       });
 
-      session = newSession;
+      session = protonSDK.session;
       actor = session.auth.actor;
       
       console.log("Connected wallet actor:", actor);
@@ -895,7 +900,7 @@
     initialize();
   });
 
-  // FIXED: Back to using session.transact() - the original working method
+  // FIXED: Proposal submission using correct session.transact() with proper PDA precision
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -924,7 +929,7 @@
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // FIXED: Use session.transact() - this was the original working method
+      // FIXED: Use session.transact() with correct PDA precision (2 decimals)
       const result = await session.transact({
         actions: [
           {
@@ -944,7 +949,7 @@
             authorization: [{ actor, permission: "active" }],
             data: {
               from: actor,
-              to: XPRPANDAS_ACCOUNT,
+              to: VOTE_CONTRACT_ACCOUNT,
               quantity: FEE_QUANTITY_STR_HALF,
               memo: "Proposal fee"
             }
@@ -956,7 +961,7 @@
             data: {
               proposer: actor,
               title: title,
-              text: text,
+              proposal_text: text,
             }
           }
         ]
@@ -983,7 +988,7 @@
     }
   });
 
-  // FIXED: Vote submission using session.transact()
+  // FIXED: Vote submission using session.transact() with proper action structure
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1013,18 +1018,43 @@
 
     try {
       const result = await session.transact({
-        actions: [{
-          account: VOTE_CONTRACT,
-          name: "vote",
-          authorization: [{ actor, permission: "active" }],
-          data: {
-            voter: actor,
-            proposalId: selectedProposal.id,
-            voteChoice: choice.value,
-            weight: voteWeight,
-            pdaBalance: Math.floor(voteWeight * 555555)
+        actions: [
+          // Burn half fee
+          {
+            account: PDA_CONTRACT,
+            name: "transfer",
+            authorization: [{ actor, permission: "active" }],
+            data: {
+              from: actor,
+              to: BURN_ACCOUNT,
+              quantity: FEE_QUANTITY_STR_HALF,
+              memo: "Vote fee burn"
+            }
+          },
+          // Transfer half fee to vote contract
+          {
+            account: PDA_CONTRACT,
+            name: "transfer",
+            authorization: [{ actor, permission: "active" }],
+            data: {
+              from: actor,
+              to: VOTE_CONTRACT_ACCOUNT,
+              quantity: FEE_QUANTITY_STR_HALF,
+              memo: "Vote fee"
+            }
+          },
+          // Cast vote
+          {
+            account: VOTE_CONTRACT,
+            name: "vote",
+            authorization: [{ actor, permission: "active" }],
+            data: {
+              voter: actor,
+              proposal_id: selectedProposal.id,
+              vote: choice.value === "yes" ? 1 : 0
+            }
           }
-        }]
+        ]
       });
 
       console.log("Vote transaction result:", result);

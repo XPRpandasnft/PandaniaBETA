@@ -465,8 +465,6 @@
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
   
-  // FIXED: Back to original working approach
-  let protonSDK = null;
   let session = null;
   let actor = null;
   let voteWeight = 0;
@@ -767,15 +765,15 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Back to original working wallet connection approach
+  // FIXED: Back to original working approach using session.transact()
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
     try {
-      // FIXED: Use the original working ProtonWebSDK call that returns { session }
-      const result = await window.ProtonWebSDK({
+      const { session: newSession } = await window.ProtonWebSDK({
         linkOptions: { 
-          endpoints: [PROTON_ENDPOINT]
+          endpoints: [PROTON_ENDPOINT],
+          restoreSession: false
         },
         selectorOptions: {
           appName: "Pandania Vote",
@@ -793,9 +791,7 @@
         }
       });
 
-      // FIXED: Store both the SDK instance and session
-      protonSDK = result; // Store the entire SDK result
-      session = result.session;
+      session = newSession;
       actor = session.auth.actor;
       
       console.log("Connected wallet actor:", actor);
@@ -899,7 +895,7 @@
     initialize();
   });
 
-  // FIXED: Proposal submission using the stored SDK instance
+  // FIXED: Back to using session.transact() - the original working method
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -928,8 +924,8 @@
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // FIXED: Use the correct method from the stored SDK instance
-      const result = await protonSDK.transact({
+      // FIXED: Use session.transact() - this was the original working method
+      const result = await session.transact({
         actions: [
           {
             account: PDA_CONTRACT,
@@ -987,7 +983,7 @@
     }
   });
 
-  // FIXED: Vote submission using the stored SDK instance
+  // FIXED: Vote submission using session.transact()
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1016,7 +1012,7 @@
     statusMsg.innerText = `🕐 Submitting vote...`;
 
     try {
-      const result = await protonSDK.transact({
+      const result = await session.transact({
         actions: [{
           account: VOTE_CONTRACT,
           name: "vote",

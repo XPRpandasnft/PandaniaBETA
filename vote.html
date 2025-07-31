@@ -4,7 +4,7 @@
   <title>Pandania Governance Voting</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://unpkg.com/@proton/web-sdk@4.1.4"></script>
+  <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
 
   <style>
     body {
@@ -447,20 +447,20 @@
   </form>
 
 <script>
-  // Contract configuration - FIXED: Correct contract names
+  // Contract configuration - EXACT copy from working version
   const PDA_CONTRACT = "xprpandas";
   const PDA_SYMBOL = "PDA";
-  const VOTE_CONTRACT = "pandadao"; // FIXED: Changed from "pandaniaxyz" to "pandadao"
+  const VOTE_CONTRACT = "pandadao";
 
   const VOTE_PERIOD_DAYS = 7;
   const MS_PER_DAY = 86400000;
 
-  const FEE_TOTAL = 250000; // FIXED: Changed to match button text (250,000 PDA fee)
-  const FEE_HALF = FEE_TOTAL / 2; // Half fee: 125,000 PDA
-  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA"; // Correct 2 decimal precision
+  const FEE_TOTAL = 250000;
+  const FEE_HALF = FEE_TOTAL / 2;
+  const FEE_QUANTITY_STR_HALF = FEE_HALF.toFixed(2) + " PDA";
 
-  const BURN_ACCOUNT = "token.burn"; // FIXED: Changed from "null" to "token.burn"
-  const XPRPANDAS_ACCOUNT = "xprpandas"; // FIXED: Added proper account name
+  const BURN_ACCOUNT = "token.burn";
+  const XPRPANDAS_ACCOUNT = "xprpandas";
 
   // CORS proxy configuration
   const PROTON_ENDPOINT = "https://proton.greymass.com";
@@ -667,7 +667,7 @@
     const noVotes = proposal.no_votes || 0;
 
     const title = proposal.title || "(No Title)";
-    const fullText = proposal.text || proposal.proposal_text || "(No description)";
+    const fullText = proposal.text || "(No description)";
     
     const votersForProposal = votes.filter(v => v.proposal_id == proposal.id);
     const userVote = actor ? getUserVote(proposal.id, actor) : null;
@@ -765,17 +765,14 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Improved wallet connection with correct requestAccount
+  // EXACT COPY from working version - wallet connection
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
     try {
-      console.log('Initializing Proton SDK...');
-      
-      const protonSDK = await window.ProtonWebSDK({
+      const { session: newSession } = await ProtonWebSDK({
         linkOptions: { 
-          endpoints: [PROTON_ENDPOINT, "https://proton.eosusa.news"],
-          restoreSession: false
+          endpoints: [PROTON_ENDPOINT]
         },
         selectorOptions: {
           appName: "Pandania Vote",
@@ -790,14 +787,14 @@
             secondaryFontColor: "#6B727F",
             linkColor: "#752EEB"
           }
+        },
+        transportOptions: { 
+          requestAccount: "pandadao"
         }
-        // FIXED: Removed transportOptions.requestAccount to avoid conflicts
       });
 
-      session = protonSDK.session;
+      session = newSession;
       actor = session.auth.actor;
-      
-      console.log("Connected wallet actor:", actor);
       walletDisplay.innerText = `✅ Connected: ${actor}`;
 
       const balance = await getPdaBalance(actor);
@@ -898,7 +895,7 @@
     initialize();
   });
 
-  // FIXED: Proposal submission using correct contract names and structure
+  // EXACT COPY from working version - Proposal submission
   proposalForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -921,14 +918,10 @@
       return;
     }
 
-    console.log("Submitting proposal with actor:", actor);
-    console.log("Fee amount:", FEE_QUANTITY_STR_HALF);
-    
     statusMsg.innerText = `🕐 Submitting proposal and processing fee payment...`;
 
     try {
-      // FIXED: Use correct contract names and structure from original code
-      const result = await session.transact({
+      await session.transact({
         actions: [
           {
             account: PDA_CONTRACT,
@@ -965,7 +958,6 @@
         ]
       });
 
-      console.log("Transaction result:", result);
       statusMsg.innerText = "✅ Proposal submitted successfully!\n🔍 Check blockchain explorers or refresh page to see new proposal.";
       proposalTitleEl.value = "";
       proposalTextEl.value = "";
@@ -986,7 +978,7 @@
     }
   });
 
-  // FIXED: Vote submission using correct contract structure
+  // EXACT COPY from working version - Vote submission
   voteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1015,7 +1007,7 @@
     statusMsg.innerText = `🕐 Submitting vote...`;
 
     try {
-      const result = await session.transact({
+      await session.transact({
         actions: [{
           account: VOTE_CONTRACT,
           name: "vote",
@@ -1030,7 +1022,6 @@
         }]
       });
 
-      console.log("Vote transaction result:", result);
       statusMsg.innerText = `✅ Vote cast for "${selectedProposal.title || selectedProposal.id}" with choice "${choice.value}" and weight ${voteWeight}`;
 
       voteForm.style.display = "none";

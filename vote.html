@@ -352,9 +352,9 @@
 <body>
   <!-- Updated header with PDA images on both sides -->
   <div class="header-container">
-    <img src="https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA" alt="PDA Token" class="header-pda-image" />
+    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
     <h1>Pandania Governance Voting</h1>
-    <img src="https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA" alt="PDA Token" class="header-pda-image" />
+    <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" class="header-pda-image" />
   </div>
   
   <p style="text-align:center;">
@@ -765,7 +765,7 @@
     voteForm.style.display = "block";
   }
 
-  // FIXED: Improved wallet connection with proper Proton SDK initialization
+  // FIXED: Improved wallet connection with proper PDA token image
   async function connectWalletIfNeeded() {
     if (session && actor) return true;
 
@@ -779,7 +779,7 @@
         },
         selectorOptions: {
           appName: "Pandania Governance",
-          appLogo: "https://via.placeholder.com/65x65/9c27b0/FFFFFF?text=PDA",
+          appLogo: "images/x-icon/pda-xprpanda-65x65.png",
           customStyleOptions: {
             modalBackgroundColor: "#F4F7FA",
             logoBackgroundColor: "#9c27b0",

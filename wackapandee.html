@@ -414,6 +414,33 @@
   const ARCADE_ACCOUNT = "pandaarcade";
   const NFT_SCHEMA = "144534352512";
 
+  // AUDIO SETUP
+  const backgroundMusic = new Audio('sounds/backgroundmusic.mp3');
+  backgroundMusic.loop = true;
+  backgroundMusic.volume = 0.3;
+  
+  const boomSound = new Audio('sounds/boom.mp3');
+  boomSound.volume = 0.5;
+  
+  const wackSound = new Audio('sounds/wack.mp3');
+  wackSound.volume = 0.5;
+  
+  const wickSound = new Audio('sounds/wick.mp3');
+  wickSound.volume = 0.5;
+
+  // Active wick sounds tracker
+  const activeWickSounds = new Map();
+
+  // Start background music on page load
+  window.addEventListener('load', () => {
+    backgroundMusic.play().catch(err => {
+      console.log('Autoplay prevented, will start on user interaction');
+      document.body.addEventListener('click', () => {
+        backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
+      }, { once: true });
+    });
+  });
+
   async function connectWallet() {
     const connectBtn = document.getElementById('connectWalletBtn');
     const walletInfo = document.getElementById('walletInfo');
@@ -515,6 +542,7 @@
 
   async function loadLeaderboard() {
     try {
+      console.log('Loading leaderboard...');
       const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -527,10 +555,18 @@
         })
       });
       const data = await response.json();
+      console.log('Leaderboard data received:', data);
+      
       if (data.rows && data.rows.length > 0) {
-        const sortedLeaderboard = data.rows.sort((a, b) => parseInt(b.score) - parseInt(a.score));
+        const sortedLeaderboard = data.rows.sort((a, b) => {
+          const scoreA = typeof a.score === 'string' ? parseInt(a.score) : a.score;
+          const scoreB = typeof b.score === 'string' ? parseInt(b.score) : b.score;
+          return scoreB - scoreA;
+        });
+        console.log('Sorted leaderboard:', sortedLeaderboard);
         renderLeaderboard(sortedLeaderboard.slice(0, 10));
       } else {
+        console.log('No leaderboard entries found');
         renderLeaderboard([]);
       }
     } catch (error) {
@@ -630,8 +666,19 @@
       claimBtn.disabled = true;
       
       setTimeout(async () => {
+        console.log('Refreshing leaderboard after claim (attempt 1)...');
         await loadLeaderboard();
       }, 2000);
+      
+      setTimeout(async () => {
+        console.log('Refreshing leaderboard after claim (attempt 2)...');
+        await loadLeaderboard();
+      }, 5000);
+      
+      setTimeout(async () => {
+        console.log('Refreshing leaderboard after claim (attempt 3)...');
+        await loadLeaderboard();
+      }, 10000);
       
     } catch (err) {
       console.error('Claim error:', err);
@@ -768,10 +815,27 @@
     const isBomb = Math.random() < 0.2;
     const circle = {type: isBomb ? 'bomb' : 'mole', positionIndex: posIndex, appearedAt: Date.now()};
     circles.push(circle);
+    
+    // Play wick sound when bomb appears
+    if (isBomb) {
+      const wickSoundInstance = new Audio('sounds/wick.mp3');
+      wickSoundInstance.volume = 0.5;
+      wickSoundInstance.play().catch(e => console.log('Wick sound play failed:', e));
+      activeWickSounds.set(circle, wickSoundInstance);
+    }
   }
 
   function removeCircle(index, missed = false) {
     const circle = circles[index];
+    
+    // Stop wick sound if it's a bomb being removed
+    if (circle.type === 'bomb' && activeWickSounds.has(circle)) {
+      const wickSoundInstance = activeWickSounds.get(circle);
+      wickSoundInstance.pause();
+      wickSoundInstance.currentTime = 0;
+      activeWickSounds.delete(circle);
+    }
+    
     clearCircle(circle);
     circles.splice(index, 1);
     if (missed && circle.type === 'mole') {
@@ -814,6 +878,10 @@
   }
 
   function handleMoleHit() {
+    // Play wack sound and stop it before next spawn
+    wackSound.currentTime = 0;
+    wackSound.play().catch(e => console.log('Wack sound play failed:', e));
+    
     streak++;
     updateStreakMultiplier();
     score += multiplier;
@@ -847,6 +915,13 @@
     canvas.classList.add('shake');
     setTimeout(() => canvas.classList.remove('shake'), 400);
     updateClaimableRewards();
+    
+    // Stop all active wick sounds
+    activeWickSounds.forEach(sound => {
+      sound.pause();
+      sound.currentTime = 0;
+    });
+    activeWickSounds.clear();
   }
 
   function gameLoop() {
@@ -894,6 +969,9 @@
           handleMoleHit();
           removeCircle(i);
         } else if (circle.type === 'bomb') {
+          // Play boom sound when bomb is clicked
+          boomSound.currentTime = 0;
+          boomSound.play().catch(e => console.log('Boom sound play failed:', e));
           endGame('You clicked a bomb!');
         }
         break;
@@ -911,6 +989,12 @@
     gameStarted = false;
     drawHoles();
   });
+
+  // Auto-refresh leaderboard every 30 seconds
+  setInterval(() => {
+    console.log('Auto-refreshing leaderboard...');
+    loadLeaderboard();
+  }, 30000);
 
   loadLeaderboard();
 </script>

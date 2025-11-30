@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Wack a Pandee - Mainnet</title>
 <style>
   body {
@@ -13,12 +13,23 @@
     margin: 0;
     overflow-x: hidden;
     padding: 20px 10px;
+    touch-action: manipulation;
   }
 
   h1 {
     color: #fdeecc;
     text-shadow: 2px 2px 5px #222;
     margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  #titlePandaImage {
+    width: 65px;
+    height: 65px;
+    vertical-align: middle;
   }
 
   #gameContainer {
@@ -37,6 +48,7 @@
     animation: neonPulse 1.7s ease-in-out infinite;
     max-width: 100%;
     height: auto;
+    touch-action: none;
   }
 
   @keyframes neonPulse {
@@ -48,6 +60,51 @@
       box-shadow: 0 0 20px #bb33ff, 0 0 40px #d175ff, 0 0 80px #e2c7ff, 0 0 120px #bb33ff;
       border-color: #e2c7ff;
     }
+  }
+
+  @keyframes greenPulse {
+    0%, 100% {
+      text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+    }
+    50% {
+      text-shadow: 0 0 20px #7fff00, 0 0 40px #7fff00, 0 0 60px #7fff00;
+    }
+  }
+
+  @keyframes redPulse {
+    0%, 100% {
+      text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
+    }
+    50% {
+      text-shadow: 0 0 20px #ff6666, 0 0 40px #ff6666, 0 0 60px #ff6666;
+    }
+  }
+
+  #score {
+    color: #00ff00;
+    animation: greenPulse 1.5s ease-in-out infinite;
+    font-weight: bold;
+  }
+
+  #lives {
+    display: inline-block;
+    margin-left: 15px;
+    vertical-align: middle;
+    animation: redPulse 1.5s ease-in-out infinite;
+  }
+  
+  #lives span {
+    color: red;
+    font-size: 1.5em;
+    margin: 0 3px;
+  }
+  
+  #multiplier {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-left: 15px;
+    color: #00ff00;
+    animation: greenPulse 1.5s ease-in-out infinite;
   }
 
   #playButton {
@@ -102,25 +159,6 @@
     color: #fff;
     border: none;
     box-shadow: 0 2px 8px #222;
-  }
-  
-  #lives {
-    display: inline-block;
-    margin-left: 15px;
-    vertical-align: middle;
-  }
-  
-  #lives span {
-    color: red;
-    font-size: 1.5em;
-    margin: 0 3px;
-  }
-  
-  #multiplier {
-    font-weight: bold;
-    font-size: 1.2em;
-    margin-left: 15px;
-    color: #006400;
   }
   
   #scoreboard {
@@ -271,7 +309,10 @@
   }
 
   #claimRewardsBtn {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     margin: 40px auto 0 auto;
     padding: 15px 36px;
     border-radius: 12px;
@@ -289,6 +330,12 @@
     pointer-events: none;
     box-shadow: 0 0 20px #2c1045;
     text-shadow: 0 0 12px #bb33ff;
+  }
+
+  #claimRewardsBtn img {
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
   }
   
   #claimRewardsBtn.lit {
@@ -309,6 +356,38 @@
     min-height: 24px;
   }
 
+  #audioControls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    background: #191528ee;
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 2px solid #b390ff;
+    box-shadow: 0 0 12px #bb33ff;
+    z-index: 30;
+  }
+
+  .audioBtn {
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 1;
+  }
+
+  .audioBtn:hover {
+    transform: scale(1.1);
+  }
+
+  .audioBtn.muted {
+    opacity: 0.5;
+  }
+
   /* Mobile Responsive */
   @media (max-width: 768px) {
     body {
@@ -318,6 +397,11 @@
     h1 {
       font-size: 1.5em;
       margin-top: 10px;
+    }
+
+    #titlePandaImage {
+      width: 45px;
+      height: 45px;
     }
 
     #walletSection {
@@ -357,11 +441,20 @@
       font-size: 1em;
       padding: 12px 28px;
     }
+
+    #audioControls {
+      bottom: 10px;
+      padding: 8px 15px;
+    }
+
+    .audioBtn {
+      font-size: 1.5em;
+    }
   }
 </style>
 </head>
 <body>
-<h1>Wack a Pandee</h1>
+<h1>Wack a Pandee <img id="titlePandaImage" src="images/rebranded panda85x85.png" alt="🐼"></h1>
 
 <!-- Wallet Connection Section -->
 <div id="walletSection">
@@ -394,8 +487,16 @@
 </div>
 
 <!-- Claim Rewards Button -->
-<button id="claimRewardsBtn">Claim Rewards</button>
+<button id="claimRewardsBtn">
+  <span>Claim Rewards</span>
+</button>
 <span id="claimStatus"></span>
+
+<!-- Audio Controls -->
+<div id="audioControls">
+  <button id="muteMusicBtn" class="audioBtn" title="Mute Background Music">🎵</button>
+  <button id="muteAllBtn" class="audioBtn" title="Mute All Sounds">🔊</button>
+</div>
 
 <!-- Load Proton Web SDK -->
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
@@ -431,12 +532,58 @@
   // Active wick sounds tracker
   const activeWickSounds = new Map();
 
+  // Audio control state
+  let musicMuted = false;
+  let allMuted = false;
+
+  // Audio control buttons
+  const muteMusicBtn = document.getElementById('muteMusicBtn');
+  const muteAllBtn = document.getElementById('muteAllBtn');
+
+  muteMusicBtn.addEventListener('click', () => {
+    musicMuted = !musicMuted;
+    if (musicMuted) {
+      backgroundMusic.pause();
+      muteMusicBtn.textContent = '🎵🚫';
+      muteMusicBtn.classList.add('muted');
+    } else {
+      backgroundMusic.play().catch(e => console.log('Music play failed:', e));
+      muteMusicBtn.textContent = '🎵';
+      muteMusicBtn.classList.remove('muted');
+    }
+  });
+
+  muteAllBtn.addEventListener('click', () => {
+    allMuted = !allMuted;
+    if (allMuted) {
+      backgroundMusic.pause();
+      boomSound.muted = true;
+      wackSound.muted = true;
+      wickSound.muted = true;
+      muteAllBtn.textContent = '🔇';
+      muteAllBtn.classList.add('muted');
+      muteMusicBtn.style.display = 'none';
+    } else {
+      if (!musicMuted) {
+        backgroundMusic.play().catch(e => console.log('Music play failed:', e));
+      }
+      boomSound.muted = false;
+      wackSound.muted = false;
+      wickSound.muted = false;
+      muteAllBtn.textContent = '🔊';
+      muteAllBtn.classList.remove('muted');
+      muteMusicBtn.style.display = 'block';
+    }
+  });
+
   // Start background music on page load
   window.addEventListener('load', () => {
     backgroundMusic.play().catch(err => {
       console.log('Autoplay prevented, will start on user interaction');
       document.body.addEventListener('click', () => {
-        backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
+        if (!musicMuted && !allMuted) {
+          backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
+        }
       }, { once: true });
     });
   });
@@ -603,14 +750,14 @@
   function updateClaimableRewards() {
     if (!connectedWallet) {
       claimBtn.classList.remove('lit');
-      claimBtn.textContent = "Claim Rewards";
+      claimBtn.innerHTML = '<span>Claim Rewards</span>';
       claimBtn.disabled = true;
       claimStatus.textContent = "";
       return;
     }
     if (!gameOver || score < 10) {
       claimBtn.classList.remove('lit');
-      claimBtn.textContent = "Claim Rewards";
+      claimBtn.innerHTML = '<span>Claim Rewards</span>';
       claimStatus.textContent = score < 10 ? "Score at least 10 to claim." : "";
       claimBtn.disabled = true;
       return;
@@ -618,7 +765,7 @@
     const rewardAmount = calculateReward(score);
     claimBtn.classList.add('lit');
     claimBtn.disabled = false;
-    claimBtn.textContent = `Claim ${rewardAmount} PDA`;
+    claimBtn.innerHTML = `<span>Claim ${rewardAmount}</span> <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA"> <span>PDA</span>`;
     claimStatus.textContent = "";
   }
 
@@ -690,7 +837,7 @@
   // GAME CODE
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-  const circleRadius = 30;
+  const circleRadius = 45; // Increased from 30 to make moles bigger
   const moleImg = new Image();
   const bombImg = new Image();
   let moleImgLoaded = false;
@@ -702,7 +849,7 @@
     }
   }
   
-  moleImg.src = 'images/whackapandee.png';
+  moleImg.src = 'images/wackapandeemega.png'; // Using mega image
   moleImg.onload = () => { moleImgLoaded = true; checkImagesLoaded(); };
   bombImg.src = 'images/wackapandeebomb.png';
   bombImg.onload = () => { bombImgLoaded = true; checkImagesLoaded(); };
@@ -941,12 +1088,13 @@
     if (gameOver || !gameStarted) return;
     
     event.preventDefault();
+    event.stopPropagation();
     
     const rect = canvas.getBoundingClientRect();
     let clickX, clickY;
     
-    if (event.type.startsWith('touch')) {
-      const touch = event.touches[0] || event.changedTouches[0];
+    if (event.type === 'touchend') {
+      const touch = event.changedTouches[0];
       clickX = touch.clientX - rect.left;
       clickY = touch.clientY - rect.top;
     } else {
@@ -980,7 +1128,7 @@
   }
 
   canvas.addEventListener('click', handleCanvasInteraction);
-  canvas.addEventListener('touchstart', handleCanvasInteraction);
+  canvas.addEventListener('touchend', handleCanvasInteraction);
 
   playAgainBtn.addEventListener('click', () => {
     circles.forEach(clearCircle);

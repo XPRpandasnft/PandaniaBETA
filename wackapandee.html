@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wack a Pandee - Mainnet</title>
 <style>
   body {
@@ -11,6 +12,19 @@
     background: #111;
     margin: 0;
     overflow-x: hidden;
+    padding: 20px 10px;
+  }
+
+  h1 {
+    color: #fdeecc;
+    text-shadow: 2px 2px 5px #222;
+    margin-bottom: 10px;
+  }
+
+  #gameContainer {
+    position: relative;
+    display: inline-block;
+    margin: 20px auto;
   }
 
   canvas { 
@@ -21,6 +35,8 @@
     border: 2px solid #bb33ff;
     box-shadow: 0 0 10px #a020f0, 0 0 20px #a020f0, 0 0 40px #a020f0, 0 0 60px #a020f0, 0 0 90px #a020f0;
     animation: neonPulse 1.7s ease-in-out infinite;
+    max-width: 100%;
+    height: auto;
   }
 
   @keyframes neonPulse {
@@ -32,6 +48,41 @@
       box-shadow: 0 0 20px #bb33ff, 0 0 40px #d175ff, 0 0 80px #e2c7ff, 0 0 120px #bb33ff;
       border-color: #e2c7ff;
     }
+  }
+
+  #playButton {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 50px;
+    font-size: 1.5em;
+    font-weight: bold;
+    background: linear-gradient(135deg, #bb33ff, #8a2be2);
+    color: white;
+    border: 3px solid #e2c7ff;
+    border-radius: 15px;
+    cursor: pointer;
+    box-shadow: 0 0 20px #bb33ff, 0 0 40px #a020f0;
+    transition: all 0.3s ease;
+    z-index: 10;
+  }
+
+  #playButton:hover:not(:disabled) {
+    background: linear-gradient(135deg, #d175ff, #bb33ff);
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 0 30px #bb33ff, 0 0 60px #a020f0;
+  }
+
+  #playButton:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.5;
+    box-shadow: none;
+  }
+
+  #playButton.hidden {
+    display: none;
   }
 
   #gameOver { color: red; font-size: 2em; display: none; }
@@ -230,19 +281,60 @@
     text-align: center;
     min-height: 24px;
   }
+
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    body {
+      padding: 10px;
+    }
+
+    h1 {
+      font-size: 1.5em;
+      margin-top: 10px;
+    }
+
+    #walletSection {
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 90%;
+      max-width: 300px;
+      margin: 10px auto;
+    }
+
+    #leaderboard {
+      position: relative;
+      top: auto;
+      right: auto;
+      width: 90%;
+      max-width: 300px;
+      margin: 20px auto;
+    }
+
+    #gameContainer {
+      margin: 20px auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+      max-width: 600px;
+    }
+
+    #playButton {
+      font-size: 1.2em;
+      padding: 15px 40px;
+    }
+
+    #claimRewardsBtn {
+      font-size: 1em;
+      padding: 12px 28px;
+    }
+  }
 </style>
 </head>
 <body>
-<h1 style="color:#fdeecc;text-shadow:2px 2px 5px #222;">Wack a Pandee</h1>
-<p>
-  Score: <span id="score">0</span>
-  <span id="lives">❤️❤️❤️</span>
-  <span id="multiplier">(x1)</span>
-</p>
-<p id="gameOver">Game Over! You clicked a bomb or missed 3 moles.</p>
-<canvas id="gameCanvas" width="600" height="400"></canvas>
-<button id="playAgainBtn">Play Again</button>
-<div id="scoreboard">High Score: <span id="highScore">0</span></div>
+<h1>Wack a Pandee</h1>
 
 <!-- Wallet Connection Section -->
 <div id="walletSection">
@@ -252,6 +344,21 @@
     <div id="walletStatus">Connected ✅</div>
   </div>
 </div>
+
+<p>
+  Score: <span id="score">0</span>
+  <span id="lives">❤️❤️❤️</span>
+  <span id="multiplier">(x1)</span>
+</p>
+<p id="gameOver">Game Over! You clicked a bomb or missed 3 moles.</p>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <button id="playButton" disabled>🎮 PLAY</button>
+</div>
+
+<button id="playAgainBtn">Play Again</button>
+<div id="scoreboard">High Score: <span id="highScore">0</span></div>
 
 <!-- Leaderboard -->
 <div id="leaderboard">
@@ -271,6 +378,7 @@
   let protonSession = null;
   let protonLink = null;
   let hasNFTBoost = false;
+  let gameStarted = false;
 
   // MAINNET CONFIGURATION
   const PROTON_ENDPOINT = "https://proton.greymass.com";
@@ -283,6 +391,8 @@
     const connectBtn = document.getElementById('connectWalletBtn');
     const walletInfo = document.getElementById('walletInfo');
     const walletName = document.getElementById('walletName');
+    const playButton = document.getElementById('playButton');
+    
     try {
       connectBtn.textContent = 'Connecting...';
       connectBtn.disabled = true;
@@ -330,6 +440,7 @@
         walletName.textContent = connectedWallet;
         walletInfo.style.display = 'block';
         connectBtn.style.display = 'none';
+        playButton.disabled = false;
         await loadLeaderboard();
         updateClaimableRewards();
         console.log('Wallet connected (Mainnet):', connectedWallet);
@@ -385,15 +496,12 @@
           code: GAME_CONTRACT,
           scope: GAME_CONTRACT,
           table: 'leaderboard',
-          limit: 10,
-          reverse: true,
-          key_type: 'i64',
-          index_position: 1
+          limit: 100
         })
       });
       const data = await response.json();
       if (data.rows && data.rows.length > 0) {
-        const sortedLeaderboard = data.rows.sort((a, b) => b.score - a.score);
+        const sortedLeaderboard = data.rows.sort((a, b) => parseInt(b.score) - parseInt(a.score));
         renderLeaderboard(sortedLeaderboard.slice(0, 10));
       } else {
         renderLeaderboard([]);
@@ -493,7 +601,11 @@
       claimStatus.textContent = `Success! ${rewardAmount} PDA claimed and will appear in your wallet soon.`;
       claimBtn.classList.remove('lit');
       claimBtn.disabled = true;
-      await loadLeaderboard();
+      
+      setTimeout(async () => {
+        await loadLeaderboard();
+      }, 2000);
+      
     } catch (err) {
       console.error('Claim error:', err);
       claimStatus.textContent = "Claim failed: " + (err.message || err);
@@ -512,10 +624,10 @@
 
   function checkImagesLoaded() {
     if (moleImgLoaded && bombImgLoaded) {
-      initializeGame();
-      gameLoop();
+      drawHoles();
     }
   }
+  
   moleImg.src = 'images/whackapandee.png';
   moleImg.onload = () => { moleImgLoaded = true; checkImagesLoaded(); };
   bombImg.src = 'images/wackapandeebomb.png';
@@ -548,6 +660,15 @@
   const highScoreDisplay = document.getElementById('highScore');
   let highScore = 0;
   let moleUpTime, spawnInterval, lastSpawnTime, maxCirclesOnScreen, animationFrameId;
+
+  const playButton = document.getElementById('playButton');
+  playButton.addEventListener('click', () => {
+    if (!connectedWallet) return;
+    playButton.classList.add('hidden');
+    gameStarted = true;
+    initializeGame();
+    gameLoop();
+  });
 
   function drawHoles() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -715,7 +836,7 @@
   }
 
   canvas.addEventListener('click', (event) => {
-    if (gameOver) return;
+    if (gameOver || !gameStarted) return;
     const rect = canvas.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
@@ -738,8 +859,9 @@
   playAgainBtn.addEventListener('click', () => {
     circles.forEach(clearCircle);
     circles = [];
-    initializeGame();
-    gameLoop();
+    playButton.classList.remove('hidden');
+    gameStarted = false;
+    drawHoles();
   });
 
   loadLeaderboard();

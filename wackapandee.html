@@ -359,16 +359,18 @@
   #audioControls {
     position: fixed;
     bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 15px;
+    left: 20px;
     background: #191528ee;
-    padding: 10px 20px;
-    border-radius: 50px;
+    padding: 10px;
+    border-radius: 50%;
     border: 2px solid #b390ff;
     box-shadow: 0 0 12px #bb33ff;
     z-index: 30;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .audioBtn {
@@ -386,6 +388,68 @@
 
   .audioBtn.muted {
     opacity: 0.5;
+  }
+
+  /* Access Denied Modal */
+  #accessDeniedModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #accessDeniedModal.show {
+    display: flex;
+  }
+
+  .modal-content {
+    background: #191528;
+    border: 3px solid #b390ff;
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 0 30px #bb33ff;
+  }
+
+  .modal-content h2 {
+    color: #ff3939;
+    font-size: 2.5em;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px #ff3939;
+  }
+
+  .modal-content p {
+    color: #fff;
+    font-size: 1.3em;
+    margin: 20px 0;
+    line-height: 1.6;
+  }
+
+  .modal-content a {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #00ff00, #00cc00);
+    color: #000;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1.2em;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+
+  .modal-content a:hover {
+    background: linear-gradient(135deg, #00cc00, #009900);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 255, 0, 0.4);
   }
 
   /* Mobile Responsive */
@@ -443,12 +507,26 @@
     }
 
     #audioControls {
-      bottom: 10px;
-      padding: 8px 15px;
+      bottom: 15px;
+      left: 15px;
+      width: 45px;
+      height: 45px;
     }
 
     .audioBtn {
       font-size: 1.5em;
+    }
+
+    .modal-content {
+      padding: 30px 20px;
+    }
+
+    .modal-content h2 {
+      font-size: 2em;
+    }
+
+    .modal-content p {
+      font-size: 1.1em;
     }
   }
 </style>
@@ -494,8 +572,16 @@
 
 <!-- Audio Controls -->
 <div id="audioControls">
-  <button id="muteMusicBtn" class="audioBtn" title="Mute Background Music">🎵</button>
   <button id="muteAllBtn" class="audioBtn" title="Mute All Sounds">🔊</button>
+</div>
+
+<!-- Access Denied Modal -->
+<div id="accessDeniedModal">
+  <div class="modal-content">
+    <h2>🚫 ACCESS DENIED</h2>
+    <p>🐼 You need at least <strong>555,555 PDA</strong> tokens to play Wack a Pandee!</p>
+    <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" target="_blank">Buy PDA on Alcor Exchange</a>
+  </div>
 </div>
 
 <!-- Load Proton Web SDK -->
@@ -514,6 +600,7 @@
   const GAME_CONTRACT = "pandagames";
   const ARCADE_ACCOUNT = "pandaarcade";
   const NFT_SCHEMA = "144534352512";
+  const REQUIRED_PDA = 555555;
 
   // AUDIO SETUP
   const backgroundMusic = new Audio('sounds/backgroundmusic.mp3');
@@ -533,25 +620,10 @@
   const activeWickSounds = new Map();
 
   // Audio control state
-  let musicMuted = false;
   let allMuted = false;
 
-  // Audio control buttons
-  const muteMusicBtn = document.getElementById('muteMusicBtn');
+  // Audio control button
   const muteAllBtn = document.getElementById('muteAllBtn');
-
-  muteMusicBtn.addEventListener('click', () => {
-    musicMuted = !musicMuted;
-    if (musicMuted) {
-      backgroundMusic.pause();
-      muteMusicBtn.textContent = '🎵🚫';
-      muteMusicBtn.classList.add('muted');
-    } else {
-      backgroundMusic.play().catch(e => console.log('Music play failed:', e));
-      muteMusicBtn.textContent = '🎵';
-      muteMusicBtn.classList.remove('muted');
-    }
-  });
 
   muteAllBtn.addEventListener('click', () => {
     allMuted = !allMuted;
@@ -562,17 +634,13 @@
       wickSound.muted = true;
       muteAllBtn.textContent = '🔇';
       muteAllBtn.classList.add('muted');
-      muteMusicBtn.style.display = 'none';
     } else {
-      if (!musicMuted) {
-        backgroundMusic.play().catch(e => console.log('Music play failed:', e));
-      }
+      backgroundMusic.play().catch(e => console.log('Music play failed:', e));
       boomSound.muted = false;
       wackSound.muted = false;
       wickSound.muted = false;
       muteAllBtn.textContent = '🔊';
       muteAllBtn.classList.remove('muted');
-      muteMusicBtn.style.display = 'block';
     }
   });
 
@@ -581,18 +649,41 @@
     backgroundMusic.play().catch(err => {
       console.log('Autoplay prevented, will start on user interaction');
       document.body.addEventListener('click', () => {
-        if (!musicMuted && !allMuted) {
+        if (!allMuted) {
           backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
         }
       }, { once: true });
     });
   });
 
+  // Check PDA balance
+  async function checkPDABalance(session) {
+    try {
+      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_currency_balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: PDA_CONTRACT,
+          account: session.auth.actor,
+          symbol: 'PDA'
+        })
+      });
+      const balances = await response.json();
+      console.log('PDA Balance:', balances);
+      const balance = parseFloat((balances[0] || '0 PDA').split(' ')[0]);
+      return balance >= REQUIRED_PDA;
+    } catch (error) {
+      console.error('Error checking PDA balance:', error);
+      return false;
+    }
+  }
+
   async function connectWallet() {
     const connectBtn = document.getElementById('connectWalletBtn');
     const walletInfo = document.getElementById('walletInfo');
     const walletName = document.getElementById('walletName');
     const playButton = document.getElementById('playButton');
+    const accessDeniedModal = document.getElementById('accessDeniedModal');
     
     try {
       connectBtn.textContent = 'Connecting...';
@@ -637,6 +728,16 @@
       console.log('Link:', link);
       
       if (session && session.auth && session.auth.actor) {
+        // Check PDA balance
+        const hasAccess = await checkPDABalance(session);
+        
+        if (!hasAccess) {
+          accessDeniedModal.classList.add('show');
+          connectBtn.textContent = 'Connect Wallet';
+          connectBtn.disabled = false;
+          return;
+        }
+        
         connectedWallet = session.auth.actor;
         walletName.textContent = connectedWallet;
         walletInfo.style.display = 'block';
@@ -690,7 +791,9 @@
   async function loadLeaderboard() {
     try {
       console.log('Loading leaderboard...');
-      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows`, {
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows?_=${timestamp}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -698,16 +801,23 @@
           code: GAME_CONTRACT,
           scope: GAME_CONTRACT,
           table: 'leaderboard',
-          limit: 100
+          limit: 100,
+          lower_bound: '',
+          upper_bound: '',
+          index_position: 1,
+          key_type: '',
+          encode_type: 'dec'
         })
       });
       const data = await response.json();
-      console.log('Leaderboard data received:', data);
+      console.log('Leaderboard raw data:', JSON.stringify(data, null, 2));
       
       if (data.rows && data.rows.length > 0) {
+        console.log('Number of entries:', data.rows.length);
         const sortedLeaderboard = data.rows.sort((a, b) => {
           const scoreA = typeof a.score === 'string' ? parseInt(a.score) : a.score;
           const scoreB = typeof b.score === 'string' ? parseInt(b.score) : b.score;
+          console.log(`Comparing ${a.player} (${scoreA}) vs ${b.player} (${scoreB})`);
           return scoreB - scoreA;
         });
         console.log('Sorted leaderboard:', sortedLeaderboard);
@@ -724,12 +834,14 @@
 
   function renderLeaderboard(entries) {
     const lb = document.querySelector('.lb-entries');
+    console.log('Rendering leaderboard with entries:', entries);
     if (entries.length === 0) {
       lb.innerHTML = '<div style="text-align:center;color:#888;padding:1rem;">No entries yet. Be the first!</div>';
       return;
     }
     lb.innerHTML = '';
-    entries.forEach(entry => {
+    entries.forEach((entry, index) => {
+      console.log(`Entry ${index + 1}:`, entry);
       lb.innerHTML += `
         <div class="lb-row">
           <span class="lb-wallet">${entry.player}</span>
@@ -812,20 +924,21 @@
       claimBtn.classList.remove('lit');
       claimBtn.disabled = true;
       
+      // Multiple refresh attempts with longer delays
       setTimeout(async () => {
         console.log('Refreshing leaderboard after claim (attempt 1)...');
         await loadLeaderboard();
-      }, 2000);
+      }, 3000);
       
       setTimeout(async () => {
         console.log('Refreshing leaderboard after claim (attempt 2)...');
         await loadLeaderboard();
-      }, 5000);
+      }, 8000);
       
       setTimeout(async () => {
         console.log('Refreshing leaderboard after claim (attempt 3)...');
         await loadLeaderboard();
-      }, 10000);
+      }, 15000);
       
     } catch (err) {
       console.error('Claim error:', err);
@@ -837,7 +950,7 @@
   // GAME CODE
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-  const circleRadius = 45; // Increased from 30 to make moles bigger
+  const circleRadius = 45;
   const moleImg = new Image();
   const bombImg = new Image();
   let moleImgLoaded = false;
@@ -849,7 +962,7 @@
     }
   }
   
-  moleImg.src = 'images/wackapandeemega.png'; // Using mega image
+  moleImg.src = 'images/wackapandeemega.png';
   moleImg.onload = () => { moleImgLoaded = true; checkImagesLoaded(); };
   bombImg.src = 'images/wackapandeebomb.png';
   bombImg.onload = () => { bombImgLoaded = true; checkImagesLoaded(); };
@@ -963,7 +1076,6 @@
     const circle = {type: isBomb ? 'bomb' : 'mole', positionIndex: posIndex, appearedAt: Date.now()};
     circles.push(circle);
     
-    // Play wick sound when bomb appears
     if (isBomb) {
       const wickSoundInstance = new Audio('sounds/wick.mp3');
       wickSoundInstance.volume = 0.5;
@@ -975,7 +1087,6 @@
   function removeCircle(index, missed = false) {
     const circle = circles[index];
     
-    // Stop wick sound if it's a bomb being removed
     if (circle.type === 'bomb' && activeWickSounds.has(circle)) {
       const wickSoundInstance = activeWickSounds.get(circle);
       wickSoundInstance.pause();
@@ -1025,7 +1136,6 @@
   }
 
   function handleMoleHit() {
-    // Play wack sound and stop it before next spawn
     wackSound.currentTime = 0;
     wackSound.play().catch(e => console.log('Wack sound play failed:', e));
     
@@ -1063,7 +1173,6 @@
     setTimeout(() => canvas.classList.remove('shake'), 400);
     updateClaimableRewards();
     
-    // Stop all active wick sounds
     activeWickSounds.forEach(sound => {
       sound.pause();
       sound.currentTime = 0;
@@ -1102,7 +1211,6 @@
       clickY = event.clientY - rect.top;
     }
     
-    // Scale coordinates if canvas is scaled
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     clickX *= scaleX;
@@ -1117,7 +1225,6 @@
           handleMoleHit();
           removeCircle(i);
         } else if (circle.type === 'bomb') {
-          // Play boom sound when bomb is clicked
           boomSound.currentTime = 0;
           boomSound.play().catch(e => console.log('Boom sound play failed:', e));
           endGame('You clicked a bomb!');

@@ -2,10 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Wack a Pandee</title>
+<title>Wack a Pandee - Mainnet</title>
 <style>
-  /* Entire original CSS unchanged */
-
   body {
     position: relative;
     text-align: center;
@@ -196,8 +194,6 @@
     min-width: 42px;
   }
 
-
-  /* Claim Rewards Button */
   #claimRewardsBtn {
     display: block;
     margin: 40px auto 0 auto;
@@ -248,16 +244,14 @@
 <button id="playAgainBtn">Play Again</button>
 <div id="scoreboard">High Score: <span id="highScore">0</span></div>
 
-
 <!-- Wallet Connection Section -->
 <div id="walletSection">
   <button id="connectWalletBtn">Connect Wallet</button>
   <div id="walletInfo">
     <div id="walletName"></div>
-    <div id="walletStatus">Connected</div>
+    <div id="walletStatus">Connected ✅</div>
   </div>
 </div>
-
 
 <!-- Leaderboard -->
 <div id="leaderboard">
@@ -265,23 +259,20 @@
   <div class="lb-entries"></div>
 </div>
 
-
 <!-- Claim Rewards Button -->
 <button id="claimRewardsBtn">Claim Rewards</button>
 <span id="claimStatus"></span>
 
-
 <!-- Load Proton Web SDK -->
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
-
 
 <script>
   let connectedWallet = null;
   let protonSession = null;
-  let protonPushTransaction = null;
-  // Added global for NFT 2x multiplier boost flag
+  let protonLink = null;
   let hasNFTBoost = false;
 
+  // MAINNET CONFIGURATION
   const PROTON_ENDPOINT = "https://proton.greymass.com";
   const PDA_CONTRACT = "xprpandas";
   const GAME_CONTRACT = "pandagames";
@@ -297,11 +288,16 @@
       connectBtn.disabled = true;
       if (!window.ProtonWebSDK) {
         alert("Proton SDK not loaded yet. Please try again.");
+        connectBtn.textContent = 'Connect Wallet';
+        connectBtn.disabled = false;
         return;
       }
-      const { session, pushTransaction } = await window.ProtonWebSDK({
+      
+      console.log('Initializing Proton Web SDK (Mainnet)...');
+      
+      const { session, link } = await window.ProtonWebSDK({
         linkOptions: {
-          endpoints: ["https://proton.greymass.com", "https://proton.eosusa.news"],
+          endpoints: ["https://proton.greymass.com", "https://proton.eosusa.io"],
           restoreSession: false
         },
         selectorOptions: {
@@ -322,8 +318,13 @@
           requestAccount: GAME_CONTRACT
         }
       });
+      
       protonSession = session;
-      protonPushTransaction = pushTransaction;
+      protonLink = link;
+      
+      console.log('Session:', session);
+      console.log('Link:', link);
+      
       if (session && session.auth && session.auth.actor) {
         connectedWallet = session.auth.actor;
         walletName.textContent = connectedWallet;
@@ -331,8 +332,8 @@
         connectBtn.style.display = 'none';
         await loadLeaderboard();
         updateClaimableRewards();
-        console.log('Wallet connected:', connectedWallet);
-        // Check NFT ownership for 2x boost
+        console.log('Wallet connected (Mainnet):', connectedWallet);
+        
         hasNFTBoost = await checkNFTBoost(connectedWallet);
         if (hasNFTBoost) {
           console.log('NFT boost active: 2x score multiplier!');
@@ -347,9 +348,9 @@
       connectBtn.disabled = false;
     }
   }
+  
   document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
 
-  // Check NFT ownership for schema 144534352512
   async function checkNFTBoost(wallet) {
     try {
       const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows`, {
@@ -365,7 +366,6 @@
       });
       const data = await response.json();
       if (data.rows && data.rows.length > 0) {
-        // Check if any asset has the NFT_SCHEMA
         return data.rows.some(asset => asset.schema_name === NFT_SCHEMA);
       }
       return false;
@@ -375,7 +375,6 @@
     }
   }
 
-  // Load leaderboard from blockchain
   async function loadLeaderboard() {
     try {
       const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows`, {
@@ -394,7 +393,6 @@
       });
       const data = await response.json();
       if (data.rows && data.rows.length > 0) {
-        // Sort by score descending
         const sortedLeaderboard = data.rows.sort((a, b) => b.score - a.score);
         renderLeaderboard(sortedLeaderboard.slice(0, 10));
       } else {
@@ -427,7 +425,6 @@
   const claimStatus = document.getElementById('claimStatus');
 
   function calculateReward(finalScore) {
-    // Every 10 moles = 10 PDA, max 100 PDA
     const reward = Math.floor(finalScore / 10) * 10;
     return Math.min(reward, 100);
   }
@@ -463,35 +460,48 @@
       claimStatus.textContent = "You must finish a game with score >= 10 to claim.";
       return;
     }
-    if (!protonPushTransaction) {
+    if (!protonSession) {
       claimStatus.textContent = "Wallet connection not fully established. Please reconnect.";
       return;
     }
+    
     const rewardAmount = calculateReward(score);
     claimBtn.disabled = true;
     claimStatus.textContent = "Claiming, please approve in your wallet...";
+    
     try {
-      await protonPushTransaction([
+      console.log('Sending transaction...');
+      console.log('Connected wallet:', connectedWallet);
+      console.log('Score:', score);
+      console.log('Reward amount:', rewardAmount);
+      
+      const result = await protonSession.transact(
         {
-          account: GAME_CONTRACT,
-          name: "gameend",
-          authorization: [{ actor: connectedWallet, permission: "active" }],
-          data: { player: connectedWallet, score: score }
-        }
-      ]);
+          actions: [
+            {
+              account: GAME_CONTRACT,
+              name: "gameend",
+              authorization: [{ actor: connectedWallet, permission: "active" }],
+              data: { player: connectedWallet, score: score }
+            }
+          ]
+        },
+        { broadcast: true }
+      );
+      
+      console.log('Transaction result:', result);
       claimStatus.textContent = `Success! ${rewardAmount} PDA claimed and will appear in your wallet soon.`;
       claimBtn.classList.remove('lit');
       claimBtn.disabled = true;
-      // Reload leaderboard
       await loadLeaderboard();
     } catch (err) {
+      console.error('Claim error:', err);
       claimStatus.textContent = "Claim failed: " + (err.message || err);
       claimBtn.disabled = false;
     }
   };
 
-  // Original game code exactly unchanged below ...
-
+  // GAME CODE
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   const circleRadius = 30;
@@ -585,7 +595,7 @@
     score = 0;
     lives = maxLives;
     streak = 0;
-    multiplier = hasNFTBoost ? 2 : 1; // Start with 2x if NFT holder
+    multiplier = hasNFTBoost ? 2 : 1;
     circles = [];
     gameOver = false;
     moleUpTime = 900;
@@ -619,7 +629,7 @@
     if (missed && circle.type === 'mole') {
       lives--;
       streak = 0;
-      multiplier = hasNFTBoost ? 2 : 1; // maintain 2x multiplier if NFT holder on miss
+      multiplier = hasNFTBoost ? 2 : 1;
       updateLivesDisplay();
       updateMultiplierDisplay();
       if (lives <= 0) {
@@ -669,7 +679,7 @@
 
   function updateStreakMultiplier() {
     if (hasNFTBoost) {
-      multiplier = 2; // permanent 2x boost if NFT holder
+      multiplier = 2;
       updateMultiplierDisplay();
       return;
     }
@@ -732,7 +742,6 @@
     gameLoop();
   });
 
-  // Initial leaderboard load
   loadLeaderboard();
 </script>
 </body>

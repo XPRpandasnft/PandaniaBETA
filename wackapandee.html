@@ -85,7 +85,12 @@
     display: none;
   }
 
-  #gameOver { color: red; font-size: 2em; display: none; }
+  #gameOver { 
+    color: red; 
+    font-size: 2em; 
+    display: none; 
+  }
+  
   #playAgainBtn {
     display: none;
     font-size: 1.2em;
@@ -98,33 +103,39 @@
     border: none;
     box-shadow: 0 2px 8px #222;
   }
+  
   #lives {
     display: inline-block;
     margin-left: 15px;
     vertical-align: middle;
   }
+  
   #lives span {
     color: red;
     font-size: 1.5em;
     margin: 0 3px;
   }
+  
   #multiplier {
     font-weight: bold;
     font-size: 1.2em;
     margin-left: 15px;
     color: #006400;
   }
+  
   #scoreboard {
-    margin-top: 15px;
+    margin: 15px auto 0 auto;
     font-size: 1.2em;
     font-weight: bold;
     padding: 8px 18px;
     border-radius: 10px;
     background: #282e1f;
     color: #fdeecc;
-    display: inline-block;
+    display: block;
+    width: fit-content;
     box-shadow: 0 2px 16px #111;
   }
+  
   @keyframes shake {
     0%   { transform: translate(2px, 0); }
     20%  { transform: translate(-4px, 0); }
@@ -133,9 +144,11 @@
     80%  { transform: translate(1px, 1px); }
     100% { transform: translate(0); }
   }
+  
   canvas.shake {
     animation: shake 0.38s cubic-bezier(.36,.07,.19,.97) both;
   }
+  
   #walletSection {
     position: absolute;
     top: 32px;
@@ -152,6 +165,7 @@
     font-family: "Orbitron", Arial, sans-serif;
     padding: 16px;
   }
+  
   #connectWalletBtn {
     width: 100%;
     padding: 12px 16px;
@@ -165,31 +179,37 @@
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(187, 51, 255, 0.3);
   }
+  
   #connectWalletBtn:hover:not(:disabled) {
     background: linear-gradient(135deg, #d175ff, #bb33ff);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(187, 51, 255, 0.4);
   }
+  
   #connectWalletBtn:disabled {
     background: #666;
     cursor: not-allowed;
     opacity: 0.7;
   }
+  
   #walletInfo {
     margin-top: 12px;
     text-align: center;
     display: none;
   }
+  
   #walletName {
     font-weight: bold;
     color: #caffff;
     font-size: 1.1em;
     margin-bottom: 4px;
   }
+  
   #walletStatus {
     font-size: 0.9em;
     color: #b390ff;
   }
+  
   #leaderboard {
     position: absolute;
     top: 32px;
@@ -205,6 +225,7 @@
     animation: neonPulse 2.1s infinite;
     font-family: "Orbitron", Arial, sans-serif;
   }
+  
   .lb-title {
     text-align: center;
     padding: 13px 0 8px 0;
@@ -215,9 +236,11 @@
     text-shadow: 0 0 8px #bb33ff;
     border-bottom: 1.2px solid #bb33ff4a;
   }
+  
   .lb-entries {
     padding: 12px 16px 14px 12px;
   }
+  
   .lb-row {
     display: flex;
     justify-content: space-between;
@@ -226,6 +249,7 @@
     gap: 20px;
     font-size: 1.13em;
   }
+  
   .lb-wallet {
     text-align: left;
     color: #d9bfff;
@@ -237,6 +261,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  
   .lb-score {
     text-align: right;
     color: #caffff;
@@ -265,6 +290,7 @@
     box-shadow: 0 0 20px #2c1045;
     text-shadow: 0 0 12px #bb33ff;
   }
+  
   #claimRewardsBtn.lit {
     opacity: 1;
     filter: none;
@@ -272,9 +298,10 @@
     box-shadow: 0 0 36px #bb33ff, 0 0 70px #892dff60;
     pointer-events: auto;
   }
+  
   #claimStatus {
     display: block;
-    margin-top: 13px;
+    margin: 13px auto 0 auto;
     font-size: 1.08em;
     color: #dacafa;
     text-shadow: 0 0 8px #a020f0;
@@ -835,11 +862,29 @@
     animationFrameId = requestAnimationFrame(gameLoop);
   }
 
-  canvas.addEventListener('click', (event) => {
+  function handleCanvasInteraction(event) {
     if (gameOver || !gameStarted) return;
+    
+    event.preventDefault();
+    
     const rect = canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    let clickX, clickY;
+    
+    if (event.type.startsWith('touch')) {
+      const touch = event.touches[0] || event.changedTouches[0];
+      clickX = touch.clientX - rect.left;
+      clickY = touch.clientY - rect.top;
+    } else {
+      clickX = event.clientX - rect.left;
+      clickY = event.clientY - rect.top;
+    }
+    
+    // Scale coordinates if canvas is scaled
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    clickX *= scaleX;
+    clickY *= scaleY;
+    
     for (let i = 0; i < circles.length; i++) {
       const circle = circles[i];
       const pos = spawnPositions[circle.positionIndex];
@@ -854,7 +899,10 @@
         break;
       }
     }
-  });
+  }
+
+  canvas.addEventListener('click', handleCanvasInteraction);
+  canvas.addEventListener('touchstart', handleCanvasInteraction);
 
   playAgainBtn.addEventListener('click', () => {
     circles.forEach(clearCircle);

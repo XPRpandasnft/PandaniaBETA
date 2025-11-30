@@ -594,8 +594,13 @@
   let hasNFTBoost = false;
   let gameStarted = false;
 
-  // MAINNET CONFIGURATION
-  const PROTON_ENDPOINT = "https://proton.greymass.com";
+  // MAINNET CONFIGURATION - CORS-friendly endpoints
+  const RPC_ENDPOINTS = [
+    "https://proton.eosusa.io",
+    "https://proton.greymass.com",
+    "https://proton.pink.gg"
+  ];
+  const PROTON_ENDPOINT = RPC_ENDPOINTS[0]; // Primary endpoint
   const PDA_CONTRACT = "xprpandas";
   const GAME_CONTRACT = "pandagames";
   const ARCADE_ACCOUNT = "pandaarcade";
@@ -616,13 +621,9 @@
   const wickSound = new Audio('sounds/wick.mp3');
   wickSound.volume = 0.5;
 
-  // Active wick sounds tracker
   const activeWickSounds = new Map();
-
-  // Audio control state
   let allMuted = false;
 
-  // Audio control button
   const muteAllBtn = document.getElementById('muteAllBtn');
 
   muteAllBtn.addEventListener('click', () => {
@@ -644,7 +645,6 @@
     }
   });
 
-  // Start background music on page load
   window.addEventListener('load', () => {
     backgroundMusic.play().catch(err => {
       console.log('Autoplay prevented, will start on user interaction');
@@ -656,10 +656,26 @@
     });
   });
 
-  // Check PDA balance
+  // Fetch with endpoint fallback
+  async function fetchWithFallback(path, options) {
+    for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+      try {
+        console.log(`Trying endpoint: ${RPC_ENDPOINTS[i]}`);
+        const response = await fetch(`${RPC_ENDPOINTS[i]}${path}`, options);
+        if (response.ok) {
+          return response;
+        }
+      } catch (error) {
+        console.warn(`Endpoint ${RPC_ENDPOINTS[i]} failed:`, error);
+        if (i === RPC_ENDPOINTS.length - 1) throw error;
+      }
+    }
+    throw new Error('All endpoints failed');
+  }
+
   async function checkPDABalance(session) {
     try {
-      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_currency_balance`, {
+      const response = await fetchWithFallback('/v1/chain/get_currency_balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -699,7 +715,7 @@
       
       const { session, link } = await window.ProtonWebSDK({
         linkOptions: {
-          endpoints: ["https://proton.greymass.com", "https://proton.eosusa.io"],
+          endpoints: RPC_ENDPOINTS,
           restoreSession: false
         },
         selectorOptions: {
@@ -728,7 +744,6 @@
       console.log('Link:', link);
       
       if (session && session.auth && session.auth.actor) {
-        // Check PDA balance
         const hasAccess = await checkPDABalance(session);
         
         if (!hasAccess) {
@@ -766,7 +781,7 @@
 
   async function checkNFTBoost(wallet) {
     try {
-      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows`, {
+      const response = await fetchWithFallback('/v1/chain/get_table_rows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -790,58 +805,60 @@
 
   async function loadLeaderboard() {
     try {
-      console.log('Loading leaderboard...');
-      // Add timestamp to prevent caching
-      const timestamp = Date.now();
-      const response = await fetch(`${PROTON_ENDPOINT}/v1/chain/get_table_rows?_=${timestamp}`, {
+      console.log('=== LOADING LEADERBOARD ===');
+      const response = await fetchWithFallback('/v1/chain/get_table_rows', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           json: true,
           code: GAME_CONTRACT,
           scope: GAME_CONTRACT,
           table: 'leaderboard',
-          limit: 100,
-          lower_bound: '',
-          upper_bound: '',
-          index_position: 1,
-          key_type: '',
-          encode_type: 'dec'
+          limit: 100
         })
       });
+      
       const data = await response.json();
-      console.log('Leaderboard raw data:', JSON.stringify(data, null, 2));
+      console.log('Leaderboard Response:', data);
+      console.log('Number of rows:', data.rows ? data.rows.length : 0);
       
       if (data.rows && data.rows.length > 0) {
-        console.log('Number of entries:', data.rows.length);
-        const sortedLeaderboard = data.rows.sort((a, b) => {
-          const scoreA = typeof a.score === 'string' ? parseInt(a.score) : a.score;
-          const scoreB = typeof b.score === 'string' ? parseInt(b.score) : b.score;
-          console.log(`Comparing ${a.player} (${scoreA}) vs ${b.player} (${scoreB})`);
-          return scoreB - scoreA;
-        });
+        console.log('Raw leaderboard data:', JSON.stringify(data.rows, null, 2));
+        
+        const sortedLeaderboard = data.rows
+          .map(entry => ({
+            player: entry.player,
+            score: typeof entry.score === 'string' ? parseInt(entry.score, 10) : entry.score
+          }))
+          .sort((a, b) => b.score - a.score);
+        
         console.log('Sorted leaderboard:', sortedLeaderboard);
         renderLeaderboard(sortedLeaderboard.slice(0, 10));
       } else {
-        console.log('No leaderboard entries found');
+        console.warn('No leaderboard entries found');
         renderLeaderboard([]);
       }
     } catch (error) {
-      console.error('Failed to load leaderboard:', error);
+      console.error('LEADERBOARD ERROR:', error);
+      console.error('Error details:', error.message);
       renderLeaderboard([]);
     }
   }
 
   function renderLeaderboard(entries) {
     const lb = document.querySelector('.lb-entries');
-    console.log('Rendering leaderboard with entries:', entries);
+    console.log('Rendering', entries.length, 'leaderboard entries');
+    
     if (entries.length === 0) {
       lb.innerHTML = '<div style="text-align:center;color:#888;padding:1rem;">No entries yet. Be the first!</div>';
       return;
     }
+    
     lb.innerHTML = '';
     entries.forEach((entry, index) => {
-      console.log(`Entry ${index + 1}:`, entry);
+      console.log(`Entry ${index + 1}:`, entry.player, '-', entry.score);
       lb.innerHTML += `
         <div class="lb-row">
           <span class="lb-wallet">${entry.player}</span>
@@ -900,10 +917,10 @@
     claimStatus.textContent = "Claiming, please approve in your wallet...";
     
     try {
-      console.log('Sending transaction...');
-      console.log('Connected wallet:', connectedWallet);
+      console.log('Sending claim transaction...');
+      console.log('Wallet:', connectedWallet);
       console.log('Score:', score);
-      console.log('Reward amount:', rewardAmount);
+      console.log('Reward:', rewardAmount);
       
       const result = await protonSession.transact(
         {
@@ -919,29 +936,21 @@
         { broadcast: true }
       );
       
-      console.log('Transaction result:', result);
+      console.log('Transaction successful:', result);
       claimStatus.textContent = `Success! ${rewardAmount} PDA claimed and will appear in your wallet soon.`;
       claimBtn.classList.remove('lit');
       claimBtn.disabled = true;
       
-      // Multiple refresh attempts with longer delays
-      setTimeout(async () => {
-        console.log('Refreshing leaderboard after claim (attempt 1)...');
-        await loadLeaderboard();
-      }, 3000);
-      
-      setTimeout(async () => {
-        console.log('Refreshing leaderboard after claim (attempt 2)...');
-        await loadLeaderboard();
-      }, 8000);
-      
-      setTimeout(async () => {
-        console.log('Refreshing leaderboard after claim (attempt 3)...');
-        await loadLeaderboard();
-      }, 15000);
+      // Reload leaderboard with delays
+      [3000, 6000, 12000, 20000].forEach(delay => {
+        setTimeout(() => {
+          console.log(`Refreshing leaderboard (${delay}ms delay)...`);
+          loadLeaderboard();
+        }, delay);
+      });
       
     } catch (err) {
-      console.error('Claim error:', err);
+      console.error('Claim transaction failed:', err);
       claimStatus.textContent = "Claim failed: " + (err.message || err);
       claimBtn.disabled = false;
     }
@@ -1245,7 +1254,6 @@
     drawHoles();
   });
 
-  // Auto-refresh leaderboard every 30 seconds
   setInterval(() => {
     console.log('Auto-refreshing leaderboard...');
     loadLeaderboard();

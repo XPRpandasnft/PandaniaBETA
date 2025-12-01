@@ -160,6 +160,22 @@
     border: none;
     box-shadow: 0 2px 8px #222;
   }
+
+  #gameplayInstructions {
+    color: white;
+    font-size: 0.95em;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 20px auto 15px auto;
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    text-align: left;
+  }
+
+  #gameplayInstructions strong {
+    font-weight: bold;
+  }
   
   #scoreboard {
     margin: 15px auto 0 auto;
@@ -501,6 +517,12 @@
       padding: 15px 40px;
     }
 
+    #gameplayInstructions {
+      font-size: 0.85em;
+      padding: 12px 15px;
+      margin: 15px auto 12px auto;
+    }
+
     #claimRewardsBtn {
       font-size: 1em;
       padding: 12px 28px;
@@ -556,6 +578,13 @@
 </div>
 
 <button id="playAgainBtn">Play Again</button>
+
+<!-- Gameplay Instructions -->
+<div id="gameplayInstructions">
+  <strong>Gameplay:</strong> Whack mind controlled pandee's to get a high score but don't get blown up in the process! Once a player reaches 10 whacks they receive a 2x boost!<br><br>
+  <strong>🐼Tips:</strong> all NFT holders Receive an automated 2x boost throughout every game! (Only players who claim rewards show on the leaderboard!)
+</div>
+
 <div id="scoreboard">High Score: <span id="highScore">0</span></div>
 
 <!-- Leaderboard -->
@@ -1263,3 +1292,4 @@
 </script>
 </body>
 </html>
+

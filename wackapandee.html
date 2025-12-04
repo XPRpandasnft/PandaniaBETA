@@ -629,7 +629,7 @@
     "https://proton.greymass.com",
     "https://proton.pink.gg"
   ];
-  const PROTON_ENDPOINT = RPC_ENDPOINTS[0]; // Primary endpoint
+  const PROTON_ENDPOINT = RPC_ENDPOINTS[0];
   const PDA_CONTRACT = "xprpandas";
   const GAME_CONTRACT = "pandagames";
   const ARCADE_ACCOUNT = "pandaarcade";
@@ -970,6 +970,12 @@
       claimBtn.classList.remove('lit');
       claimBtn.disabled = true;
       
+      // Wake up the reward bot immediately
+      fetch('https://wackapandee.pandania.xyz/wake')
+        .then(res => res.json())
+        .then(data => console.log('✅ Bot woken up:', data))
+        .catch(err => console.log('⚠️ Wake ping failed (bot may be sleeping):', err));
+      
       // Reload leaderboard with delays
       [3000, 6000, 12000, 20000].forEach(delay => {
         setTimeout(() => {
@@ -1292,4 +1298,3 @@
 </script>
 </body>
 </html>
-

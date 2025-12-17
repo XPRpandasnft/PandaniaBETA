@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Panda Pawn Shop</title>
 
-<!-- Minimal CSP allowing Proton SDK -->
+<!-- CSP updated to allow Proton Web SDK modal -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://unpkg.com https://proton.greymass.com; style-src 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *;">
 
 <style>
@@ -250,7 +250,7 @@ function fixIPFS(url) {
   return url;
 }
 
-// Load NFTs (CSP-safe)
+// Load NFTs from wallet
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
@@ -297,25 +297,30 @@ async function loadNFTs(wallet) {
   }
 }
 
-// Connect wallet (must be called directly from user click)
+// Connect wallet & load NFTs
 async function connectWalletPawnShop() {
+  if (session && actor) return true;
+
   try {
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg"
-      }
+        appLogo: "images/pandapawnshop.jpg" // make sure this exists
+      },
+      transportOptions: { requestAccount: "xprpandas" }
     });
 
     session = newSession;
-    if (!session?.auth?.actor) throw new Error("Wallet connection failed");
-
+    if (!session || !session.auth) throw new Error("No auth returned");
     actor = session.auth.actor;
-    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // Load NFTs automatically after wallet connect
+    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
+    console.log("SDK returned session:", session);
+
+    // Automatically load NFTs after connecting
     await loadNFTs(actor);
+
     return true;
   } catch (err) {
     console.error("Wallet connection failed:", err);
@@ -324,9 +329,9 @@ async function connectWalletPawnShop() {
   }
 }
 
-// Only user-initiated click
 document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
 </script>
 
 </body>
 </html>
+

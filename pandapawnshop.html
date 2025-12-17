@@ -13,6 +13,7 @@
     color: #f5e9ff;
   }
 
+  /* Wallet Button */
   #walletBar {
     position: fixed;
     top: 20px;
@@ -115,6 +116,22 @@
     padding: 12px;
     text-align: center;
     cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .nft-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0 18px #bb33ff;
+  }
+
+  .nft-card img {
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  .preview {
+    text-align: center;
   }
 
   .preview img {
@@ -122,6 +139,20 @@
     border-radius: 18px;
     border: 3px solid #bb33ff;
     box-shadow: 0 0 28px rgba(187,51,255,0.6);
+  }
+
+  .loan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+    gap: 18px;
+  }
+
+  .loan-box {
+    background:#000;
+    border:2px solid #453c2c;
+    border-radius:14px;
+    padding:16px;
+    text-align:center;
   }
 
   .action-btn {
@@ -157,7 +188,6 @@
   }
 </style>
 </head>
-
 <body>
 
 <div id="walletBar">
@@ -166,9 +196,8 @@
 </div>
 
 <div class="container">
-
   <div class="title">
-    <img src="images/pandapawnshop.jpg">
+    <img src="images/pandapawnshop.jpg" alt="Panda Pawn Shop">
   </div>
 
   <div class="summary">
@@ -185,7 +214,7 @@
 
   <div class="section preview">
     <h2>Selected NFT</h2>
-    <img id="selectedNFT">
+    <img id="selectedNFT" src="">
     <br>
     <button class="action-btn" id="lendBtn" disabled>
       Lend NFT for PDA
@@ -194,28 +223,42 @@
     <div class="countdown" id="countdown"></div>
   </div>
 
+  <div class="section">
+    <h2>Loan Terms</h2>
+    <div class="loan-grid">
+      <div class="loan-box">⏱ Duration<br><b>72 Hours</b></div>
+      <div class="loan-box">💰 Loan<br><b>5,000 PDA</b></div>
+      <div class="loan-box">🔥 Interest<br><b>5%</b></div>
+      <div class="loan-box">♻ Split<br><b>50% Burn / 50% Vault</b></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
 
 <script>
-let protonSession = null;
 let connectedWallet = null;
+let protonSession = null;
 let loanEndTime = null;
 
-const PROTON_ENDPOINT = "https://proton.greymass.com";
+/* MAINNET CONFIG */
+const RPC_ENDPOINTS = [
+  "https://proton.eosusa.io",
+  "https://proton.greymass.com",
+  "https://proton.pink.gg"
+];
 
-/* CONNECT WALLET — MATCHES GOVERNANCE DAPP */
+/* CONNECT WALLET — FIXED */
 async function connectWallet() {
-  const btn = document.getElementById("connectWalletBtn");
-
+  const btn = document.getElementById('connectWalletBtn');
   try {
     btn.textContent = "Connecting...";
     btn.disabled = true;
 
-    const { session } = await ProtonWebSDK({
+    const { link } = await window.ProtonWebSDK({
       linkOptions: {
-        endpoints: [PROTON_ENDPOINT]
+        endpoints: RPC_ENDPOINTS,
+        restoreSession: false
       },
       selectorOptions: {
         appName: "Panda Pawn Shop",
@@ -223,29 +266,32 @@ async function connectWallet() {
       }
     });
 
+    /* 🔑 REQUIRED LOGIN CALL */
+    const session = await link.login();
+
     protonSession = session;
     connectedWallet = session.auth.actor;
 
-    document.getElementById("walletInfo").innerText =
+    document.getElementById('walletInfo').textContent =
       `Connected: ${connectedWallet}`;
-    document.getElementById("walletInfo").style.display = "block";
-    btn.style.display = "none";
+    document.getElementById('walletInfo').style.display = 'block';
+    btn.style.display = 'none';
 
     loadMockNFTs();
 
-  } catch (err) {
-    console.error("Wallet error:", err);
+  } catch (e) {
+    console.error(e);
     btn.textContent = "Connect Wallet";
     btn.disabled = false;
     alert("Wallet connection failed");
   }
 }
 
-document.getElementById("connectWalletBtn").onclick = connectWallet;
+document.getElementById('connectWalletBtn').onclick = connectWallet;
 
 /* MOCK NFTS */
 function loadMockNFTs() {
-  const grid = document.getElementById("nftGrid");
+  const grid = document.getElementById('nftGrid');
   grid.innerHTML = "";
 
   const mockNFTs = [
@@ -257,7 +303,7 @@ function loadMockNFTs() {
   mockNFTs.forEach(src => {
     const card = document.createElement("div");
     card.className = "nft-card";
-    card.innerHTML = `<img src="${src}" style="width:100%;border-radius:10px"><div>Panda NFT</div>`;
+    card.innerHTML = `<img src="${src}"><div>Panda NFT</div>`;
     card.onclick = () => selectNFT(src);
     grid.appendChild(card);
   });
@@ -275,10 +321,10 @@ document.getElementById("lendBtn").onclick = () => {
 
 function updateCountdown() {
   const diff = loanEndTime - Date.now();
-  const el = document.getElementById("countdown");
+  const countdown = document.getElementById("countdown");
 
   if (diff <= 0) {
-    el.textContent = "DEFAULTED — NFT ELIGIBLE FOR AUCTION";
+    countdown.textContent = "DEFAULTED — NFT ELIGIBLE FOR AUCTION";
     return;
   }
 
@@ -286,9 +332,10 @@ function updateCountdown() {
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
 
-  el.textContent = `⏳ Time Remaining: ${h}h ${m}m ${s}s`;
+  countdown.textContent = `⏳ Time Remaining: ${h}h ${m}m ${s}s`;
 }
 </script>
 
 </body>
 </html>
+

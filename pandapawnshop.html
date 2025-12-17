@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Panda Pawn Shop</title>
 
-<!-- CSP updated to allow Proton Web SDK modal -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://unpkg.com https://proton.greymass.com; style-src 'self' 'unsafe-inline'; img-src * data: blob:; connect-src *;">
-
 <style>
   body {
     margin: 0;
@@ -24,7 +21,7 @@
     z-index: 50;
   }
 
-  #connectWalletBtn {
+  #connect-wallet-btn {
     padding: 14px 22px;
     font-size: 1.05em;
     font-weight: bold;
@@ -42,11 +39,10 @@
     50% { box-shadow: 0 0 24px #d175ff,0 0 48px #bb33ff,0 0 90px #d175ff; }
   }
 
-  #walletInfo {
+  #wallet-display {
     margin-top: 10px;
     font-size: 0.95em;
     color: #caffff;
-    display: none;
   }
 
   .container {
@@ -194,7 +190,7 @@
 <body>
 
 <div style="text-align:center;">
-  <button id="connect-wallet-btn" class="green-button">🔗 Connect Wallet</button>
+  <button id="connect-wallet-btn">🔗 Connect Wallet</button>
   <div id="wallet-display"></div>
 </div>
 
@@ -238,7 +234,6 @@
 </div>
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
-
 <script>
 let session = null;
 let actor = null;
@@ -250,7 +245,7 @@ function fixIPFS(url) {
   return url;
 }
 
-// Load NFTs from wallet
+// Load NFTs from AtomicAssets
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
@@ -297,16 +292,14 @@ async function loadNFTs(wallet) {
   }
 }
 
-// Connect wallet & load NFTs
-async function connectWalletPawnShop() {
-  if (session && actor) return true;
-
+// Connect wallet
+document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg" // make sure this exists
+        appLogo: "images/pandapawnshop-logo.png" // make sure this exists
       },
       transportOptions: { requestAccount: "xprpandas" }
     });
@@ -316,22 +309,16 @@ async function connectWalletPawnShop() {
     actor = session.auth.actor;
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-    console.log("SDK returned session:", session);
 
-    // Automatically load NFTs after connecting
+    // Load NFTs automatically after wallet connection
     await loadNFTs(actor);
 
-    return true;
   } catch (err) {
-    console.error("Wallet connection failed:", err);
+    console.error(err);
     document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
-    return false;
   }
-}
-
-document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
+});
 </script>
 
 </body>
 </html>
-

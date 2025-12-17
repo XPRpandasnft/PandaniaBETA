@@ -235,11 +235,12 @@
 </div>
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
-
 <script>
 let session = null;
 let actor = null;
+let selectedNFT = null;
 
+// Connect wallet
 async function connectWalletPawnShop() {
   if (session && actor) return true;
 
@@ -257,7 +258,10 @@ async function connectWalletPawnShop() {
     actor = session.auth.actor;
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-    console.log("SDK returned session:", session);
+
+    // After connection, load NFTs
+    await loadUserNFTs();
+
     return true;
   } catch (err) {
     console.error("Wallet connection failed:", err);
@@ -267,8 +271,65 @@ async function connectWalletPawnShop() {
 }
 
 document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
-</script>
 
+// Load NFTs from xprpandas contract
+async function loadUserNFTs() {
+  if (!actor) return;
+
+  try {
+    const resp = await fetch("https://proton.greymass.com/v1/chain/get_table_rows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: "xprpandas",
+        table: "assets",  // Change if your NFT table is different
+        scope: actor,
+        limit: 100
+      })
+    });
+
+    const data = await resp.json();
+    const nfts = data.rows || [];
+
+    const nftGrid = document.getElementById("nftGrid");
+    nftGrid.innerHTML = "";
+
+    if (nfts.length === 0) {
+      nftGrid.innerHTML = "<p style='color:#aaa;text-align:center;'>No NFTs found in wallet.</p>";
+      return;
+    }
+
+    nfts.forEach(nft => {
+      const card = document.createElement("div");
+      card.className = "nft-card";
+      card.innerHTML = `
+        <img src="${nft.img_url || nft.image || 'images/pandapawnshop.jpg'}" alt="${nft.name || nft.symbol}">
+        <div>${nft.name || nft.symbol || nft.id}</div>
+      `;
+      card.addEventListener("click", () => selectNFT(nft));
+      nftGrid.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error("Failed to load NFTs:", err);
+    document.getElementById("nftGrid").innerHTML = "<p style='color:#f66;text-align:center;'>Error loading NFTs.</p>";
+  }
+}
+
+// Select NFT
+function selectNFT(nft) {
+  selectedNFT = nft;
+  document.getElementById("selectedNFT").src = nft.img_url || nft.image || "images/pandapawnshop.jpg";
+  document.getElementById("lendBtn").disabled = false;
+}
+
+// Lend button
+document.getElementById("lendBtn").addEventListener("click", async () => {
+  if (!selectedNFT || !actor) return;
+  alert(`Lending NFT "${selectedNFT.name || selectedNFT.symbol || selectedNFT.id}" for PDA!`);
+  // TODO: Add transaction to lock NFT and issue PDA
+});
+</script>
 </body>
 </html>
-

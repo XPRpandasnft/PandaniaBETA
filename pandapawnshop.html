@@ -11,325 +11,167 @@
     font-family: 'Orbitron', Arial, sans-serif;
     background: #000;
     color: #f5e9ff;
+    text-align: center;
+    padding: 40px 20px;
   }
 
-  /* Wallet Button */
-  #walletBar {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 50;
+  h1 {
+    font-size: 2em;
+    margin-bottom: 20px;
+    text-shadow: 0 0 8px #bb33ff, 0 0 16px #a020f0;
   }
 
   #connectWalletBtn {
-    padding: 14px 22px;
-    font-size: 1.05em;
+    padding: 14px 28px;
+    font-size: 1.1em;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: 12px;
     border: none;
     cursor: pointer;
     background: linear-gradient(135deg, #bb33ff, #7a2bf8);
     color: white;
     box-shadow: 0 0 12px #bb33ff, 0 0 26px #a020f0, 0 0 48px #bb33ff;
-    animation: neonPulse 2s infinite;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+  }
+
+  #connectWalletBtn:hover {
+    background: linear-gradient(135deg, #d175ff, #bb33ff);
+    transform: scale(1.05);
+    box-shadow: 0 0 24px #bb33ff, 0 0 48px #a020f0;
+  }
+
+  #walletName {
+    margin-bottom: 20px;
+    font-weight: bold;
+    font-size: 1.2em;
+    color: #caffff;
+  }
+
+  #nftContainer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .nftCard {
+    width: 120px;
+    height: 120px;
+    border: 2px solid #bb33ff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 12px #bb33ff, 0 0 24px #a020f0;
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nftCard img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
 
   @keyframes neonPulse {
-    0%,100% { box-shadow: 0 0 12px #bb33ff,0 0 26px #a020f0,0 0 48px #bb33ff; }
-    50% { box-shadow: 0 0 24px #d175ff,0 0 48px #bb33ff,0 0 90px #d175ff; }
-  }
-
-  #walletInfo {
-    margin-top: 10px;
-    font-size: 0.95em;
-    color: #caffff;
-    display: none;
-  }
-
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 120px 20px 60px;
-  }
-
-  .title {
-    text-align: center;
-    margin-bottom: 30px;
-  }
-
-  .title img {
-    max-width: 420px;
-    width: 90%;
-    filter: drop-shadow(0 0 18px #bb33ff)
-            drop-shadow(0 0 36px #a020f0)
-            drop-shadow(0 0 64px #bb33ff);
-    animation: titleGlow 2.2s infinite ease-in-out;
-  }
-
-  @keyframes titleGlow {
-    0%,100% {
-      filter: drop-shadow(0 0 18px #bb33ff)
-              drop-shadow(0 0 36px #a020f0)
-              drop-shadow(0 0 64px #bb33ff);
-    }
-    50% {
-      filter: drop-shadow(0 0 30px #d175ff)
-              drop-shadow(0 0 60px #bb33ff)
-              drop-shadow(0 0 110px #d175ff);
-    }
-  }
-
-  .summary {
-    max-width: 780px;
-    margin: 0 auto 50px;
-    text-align: center;
-    line-height: 1.7;
-    font-size: 1.05em;
-    color: #dacafa;
-  }
-
-  .section {
-    background: #120c1f;
-    border: 2px solid #7a2bf8;
-    border-radius: 18px;
-    padding: 24px;
-    margin-bottom: 40px;
-    box-shadow: 0 0 24px rgba(122,43,248,0.35);
-  }
-
-  .section h2 {
-    margin-top: 0;
-    color: #e2c7ff;
-    text-shadow: 0 0 10px #bb33ff;
-  }
-
-  .nft-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 18px;
-  }
-
-  .nft-card {
-    background: #000;
-    border-radius: 14px;
-    border: 2px solid #453c2c;
-    padding: 12px;
-    text-align: center;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-
-  .nft-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0 18px #bb33ff;
-  }
-
-  .nft-card img {
-    width: 100%;
-    border-radius: 10px;
-    margin-bottom: 8px;
-  }
-
-  .preview {
-    text-align: center;
-  }
-
-  .preview img {
-    max-width: 260px;
-    border-radius: 18px;
-    border: 3px solid #bb33ff;
-    box-shadow: 0 0 28px rgba(187,51,255,0.6);
-  }
-
-  .loan-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
-    gap: 18px;
-  }
-
-  .loan-box {
-    background:#000;
-    border:2px solid #453c2c;
-    border-radius:14px;
-    padding:16px;
-    text-align:center;
-  }
-
-  .action-btn {
-    margin-top: 18px;
-    padding: 14px 28px;
-    border-radius: 12px;
-    border: none;
-    font-size: 1.05em;
-    font-weight: bold;
-    background: linear-gradient(135deg, #bb33ff, #892dff);
-    color: #fff;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 0 22px rgba(187,51,255,0.45);
-  }
-
-  .action-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .action-btn img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .countdown {
-    margin-top: 15px;
-    font-size: 1.1em;
-    color: #ffbfff;
+    0%,100% { box-shadow: 0 0 12px #bb33ff,0 0 24px #a020f0; }
+    50% { box-shadow: 0 0 24px #d175ff,0 0 48px #bb33ff; }
   }
 </style>
 </head>
 <body>
 
-<div style="text-align:center;">
-  <button id="connect-wallet-btn" class="green-button">🔗 Connect Wallet</button>
-  <div id="wallet-display"></div>
-</div>
+<h1>Panda Pawn Shop</h1>
+<button id="connectWalletBtn">Connect Wallet</button>
+<div id="walletName"></div>
+<div id="nftContainer"></div>
 
-<div class="container">
-  <div class="title">
-    <img src="images/pandapawnshop.jpg" alt="Panda Pawn Shop">
-  </div>
-
-  <div class="summary">
-    Lock your Proton Pandas NFTs to access short-term PDA liquidity.<br>
-    Repay your loan to get your NFT back — or default and the NFT enters a PDA-only auction.
-    <br><br>
-    🐼 Small loans • ⏱ Short terms • 🔥 PDA burned on interest
-  </div>
-
-  <div class="section">
-    <h2>Select NFT to Lend</h2>
-    <div class="nft-grid" id="nftGrid"></div>
-  </div>
-
-  <div class="section preview">
-    <h2>Selected NFT</h2>
-    <img id="selectedNFT" src="">
-    <br>
-    <button class="action-btn" id="lendBtn" disabled>
-      Lend NFT for PDA
-      <img src="images/pda-xprpanda-65x65.png">
-    </button>
-    <div class="countdown" id="countdown"></div>
-  </div>
-
-  <div class="section">
-    <h2>Loan Terms</h2>
-    <div class="loan-grid">
-      <div class="loan-box">⏱ Duration<br><b>72 Hours</b></div>
-      <div class="loan-box">💰 Loan<br><b>5,000 PDA</b></div>
-      <div class="loan-box">🔥 Interest<br><b>5%</b></div>
-      <div class="loan-box">♻ Split<br><b>50% Burn / 50% Vault</b></div>
-    </div>
-  </div>
-</div>
-
+<!-- Proton SDK -->
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+
 <script>
-let session = null;
-let actor = null;
-let selectedNFT = null;
+  const RPC_ENDPOINTS = [
+    "https://proton.eosusa.io",
+    "https://proton.greymass.com",
+    "https://proton.pink.gg"
+  ];
+  const NFT_SCHEMA = "144534352512"; // Replace with your NFT schema
+  let protonSession = null;
+  let connectedWallet = null;
 
-// Connect wallet
-async function connectWalletPawnShop() {
-  if (session && actor) return true;
-
-  try {
-    const { session: newSession } = await ProtonWebSDK({
-      linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop-logo.png"
-      },
-      transportOptions: { requestAccount: "xprpandas" }
-    });
-
-    session = newSession;
-    actor = session.auth.actor;
-
-    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-
-    // After connection, load NFTs
-    await loadUserNFTs();
-
-    return true;
-  } catch (err) {
-    console.error("Wallet connection failed:", err);
-    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
-    return false;
+  async function fetchWithFallback(path, options) {
+    for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+      try {
+        const response = await fetch(`${RPC_ENDPOINTS[i]}${path}`, options);
+        if (response.ok) return await response.json();
+      } catch(e) { console.warn(`Endpoint ${RPC_ENDPOINTS[i]} failed:`, e); }
+    }
+    return null;
   }
-}
 
-document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
+  async function connectWallet() {
+    try {
+      const { session, link } = await window.ProtonWebSDK({
+        linkOptions: { endpoints: RPC_ENDPOINTS, restoreSession: false },
+        selectorOptions: { appName: "Panda Pawn Shop" }
+      });
+      protonSession = session;
+      connectedWallet = session.auth.actor;
+      document.getElementById('walletName').textContent = connectedWallet;
+      document.getElementById('connectWalletBtn').style.display = 'none';
+      await loadNFTs(connectedWallet);
+    } catch (err) {
+      console.error('Wallet connection failed:', err);
+      alert('Failed to connect wallet.');
+    }
+  }
 
-// Load NFTs from xprpandas contract
-async function loadUserNFTs() {
-  if (!actor) return;
-
-  try {
-    const resp = await fetch("https://proton.greymass.com/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+  async function loadNFTs(wallet) {
+    const data = await fetchWithFallback('/v1/chain/get_table_rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         json: true,
-        code: "xprpandas",
-        table: "assets",  // Change if your NFT table is different
-        scope: actor,
+        code: 'atomicassets',
+        scope: wallet,
+        table: 'assets',
         limit: 100
       })
     });
 
-    const data = await resp.json();
-    const nfts = data.rows || [];
+    const container = document.getElementById('nftContainer');
+    container.innerHTML = '';
 
-    const nftGrid = document.getElementById("nftGrid");
-    nftGrid.innerHTML = "";
-
-    if (nfts.length === 0) {
-      nftGrid.innerHTML = "<p style='color:#aaa;text-align:center;'>No NFTs found in wallet.</p>";
+    if (!data || !data.rows || data.rows.length === 0) {
+      container.innerHTML = '<p>No NFTs found in this wallet.</p>';
       return;
     }
 
-    nfts.forEach(nft => {
-      const card = document.createElement("div");
-      card.className = "nft-card";
-      card.innerHTML = `
-        <img src="${nft.img_url || nft.image || 'images/pandapawnshop.jpg'}" alt="${nft.name || nft.symbol}">
-        <div>${nft.name || nft.symbol || nft.id}</div>
-      `;
-      card.addEventListener("click", () => selectNFT(nft));
-      nftGrid.appendChild(card);
+    const nftRows = data.rows.filter(nft => nft.schema_name === NFT_SCHEMA);
+    if (nftRows.length === 0) {
+      container.innerHTML = '<p>No matching NFTs found for this schema.</p>';
+      return;
+    }
+
+    nftRows.forEach(nft => {
+      const imgUrl = nft.data.img || nft.data.image || nft.data.url || '';
+      const card = document.createElement('div');
+      card.className = 'nftCard';
+      if(imgUrl) {
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        card.appendChild(img);
+      } else {
+        card.textContent = 'No Image';
+      }
+      container.appendChild(card);
     });
-
-  } catch (err) {
-    console.error("Failed to load NFTs:", err);
-    document.getElementById("nftGrid").innerHTML = "<p style='color:#f66;text-align:center;'>Error loading NFTs.</p>";
   }
-}
 
-// Select NFT
-function selectNFT(nft) {
-  selectedNFT = nft;
-  document.getElementById("selectedNFT").src = nft.img_url || nft.image || "images/pandapawnshop.jpg";
-  document.getElementById("lendBtn").disabled = false;
-}
-
-// Lend button
-document.getElementById("lendBtn").addEventListener("click", async () => {
-  if (!selectedNFT || !actor) return;
-  alert(`Lending NFT "${selectedNFT.name || selectedNFT.symbol || selectedNFT.id}" for PDA!`);
-  // TODO: Add transaction to lock NFT and issue PDA
-});
+  document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
 </script>
+
 </body>
 </html>

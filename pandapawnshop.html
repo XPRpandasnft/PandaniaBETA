@@ -235,12 +235,11 @@
 </div>
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
-
 <script>
 let session = null;
 let actor = null;
 
-// Convert ipfs:// to https
+// IPFS fix
 function fixIPFS(url) {
   if (!url) return "";
   if (url.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + url.slice(7);
@@ -276,7 +275,6 @@ async function loadNFTs(wallet) {
     data.rows.forEach(nft => {
       let imgURL = nft.data.img || nft.data.image || (nft.template?.immutable_data?.image || "");
       imgURL = fixIPFS(imgURL);
-
       const name = nft.data.name || nft.template?.name || "Unnamed NFT";
 
       const card = document.createElement("div");
@@ -289,31 +287,30 @@ async function loadNFTs(wallet) {
 
       nftGrid.appendChild(card);
     });
-
   } catch (err) {
     console.error(err);
     nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
   }
 }
 
-// Connect wallet and load NFTs
+// Connect wallet & load NFTs
 async function connectWalletPawnShop() {
   if (session && actor) return true;
 
   try {
-    const { session: newSession } = await ProtonWebSDK({
+    const newSession = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop-logo.png"
+        appName: "Panda Pawn Shop"
       }
     });
 
     session = newSession;
     actor = session.auth.actor;
+
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // **Load NFTs immediately after wallet connection**
+    // Load NFTs
     loadNFTs(actor);
 
     return true;
@@ -326,6 +323,7 @@ async function connectWalletPawnShop() {
 
 document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
 </script>
+
 
 </body>
 </html>

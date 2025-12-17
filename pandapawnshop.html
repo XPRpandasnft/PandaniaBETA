@@ -13,6 +13,14 @@
     color: #f5e9ff;
   }
 
+  /* Wallet Button */
+  #walletBar {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 50;
+  }
+
   #connect-wallet-btn {
     padding: 14px 22px;
     font-size: 1.05em;
@@ -31,36 +39,152 @@
     50% { box-shadow: 0 0 24px #d175ff,0 0 48px #bb33ff,0 0 90px #d175ff; }
   }
 
-  #wallet-display { margin-top: 10px; font-size: 0.95em; color: #caffff; }
-
-  .container { max-width: 1200px; margin: 0 auto; padding: 120px 20px 60px; }
-  .title { text-align: center; margin-bottom: 30px; }
-  .title img { max-width: 420px; width: 90%; filter: drop-shadow(0 0 18px #bb33ff) drop-shadow(0 0 36px #a020f0) drop-shadow(0 0 64px #bb33ff); animation: titleGlow 2.2s infinite ease-in-out; }
-  @keyframes titleGlow {
-    0%,100% { filter: drop-shadow(0 0 18px #bb33ff) drop-shadow(0 0 36px #a020f0) drop-shadow(0 0 64px #bb33ff); }
-    50% { filter: drop-shadow(0 0 30px #d175ff) drop-shadow(0 0 60px #bb33ff) drop-shadow(0 0 110px #d175ff); }
+  #wallet-display {
+    margin-top: 10px;
+    font-size: 0.95em;
+    color: #caffff;
   }
 
-  .summary { max-width: 780px; margin: 0 auto 50px; text-align: center; line-height: 1.7; font-size: 1.05em; color: #dacafa; }
-  .section { background: #120c1f; border: 2px solid #7a2bf8; border-radius: 18px; padding: 24px; margin-bottom: 40px; box-shadow: 0 0 24px rgba(122,43,248,0.35); }
-  .section h2 { margin-top: 0; color: #e2c7ff; text-shadow: 0 0 10px #bb33ff; }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 120px 20px 60px;
+  }
 
-  .nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
-  .nft-card { background: #000; border-radius: 14px; border: 2px solid #453c2c; padding: 12px; text-align: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-  .nft-card:hover { transform: translateY(-4px); box-shadow: 0 0 18px #bb33ff; }
-  .nft-card img { width: 100%; border-radius: 10px; margin-bottom: 8px; }
+  .title {
+    text-align: center;
+    margin-bottom: 30px;
+  }
 
-  .preview { text-align: center; }
-  .preview img { max-width: 260px; border-radius: 18px; border: 3px solid #bb33ff; box-shadow: 0 0 28px rgba(187,51,255,0.6); }
+  .title img {
+    max-width: 420px;
+    width: 90%;
+    filter: drop-shadow(0 0 18px #bb33ff)
+            drop-shadow(0 0 36px #a020f0)
+            drop-shadow(0 0 64px #bb33ff);
+    animation: titleGlow 2.2s infinite ease-in-out;
+  }
 
-  .loan-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 18px; }
-  .loan-box { background:#000; border:2px solid #453c2c; border-radius:14px; padding:16px; text-align:center; }
+  @keyframes titleGlow {
+    0%,100% {
+      filter: drop-shadow(0 0 18px #bb33ff)
+              drop-shadow(0 0 36px #a020f0)
+              drop-shadow(0 0 64px #bb33ff);
+    }
+    50% {
+      filter: drop-shadow(0 0 30px #d175ff)
+              drop-shadow(0 0 60px #bb33ff)
+              drop-shadow(0 0 110px #d175ff);
+    }
+  }
 
-  .action-btn { margin-top: 18px; padding: 14px 28px; border-radius: 12px; border: none; font-size: 1.05em; font-weight: bold; background: linear-gradient(135deg, #bb33ff, #892dff); color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 0 22px rgba(187,51,255,0.45); }
-  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .action-btn img { width: 28px; height: 28px; }
+  .summary {
+    max-width: 780px;
+    margin: 0 auto 50px;
+    text-align: center;
+    line-height: 1.7;
+    font-size: 1.05em;
+    color: #dacafa;
+  }
 
-  .countdown { margin-top: 15px; font-size: 1.1em; color: #ffbfff; }
+  .section {
+    background: #120c1f;
+    border: 2px solid #7a2bf8;
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 40px;
+    box-shadow: 0 0 24px rgba(122,43,248,0.35);
+  }
+
+  .section h2 {
+    margin-top: 0;
+    color: #e2c7ff;
+    text-shadow: 0 0 10px #bb33ff;
+  }
+
+  .nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 18px;
+  }
+
+  .nft-card {
+    background: #000;
+    border-radius: 14px;
+    border: 2px solid #453c2c;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .nft-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0 18px #bb33ff;
+  }
+
+  .nft-card img {
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  .preview {
+    text-align: center;
+  }
+
+  .preview img {
+    max-width: 260px;
+    border-radius: 18px;
+    border: 3px solid #bb33ff;
+    box-shadow: 0 0 28px rgba(187,51,255,0.6);
+  }
+
+  .loan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+    gap: 18px;
+  }
+
+  .loan-box {
+    background:#000;
+    border:2px solid #453c2c;
+    border-radius:14px;
+    padding:16px;
+    text-align:center;
+  }
+
+  .action-btn {
+    margin-top: 18px;
+    padding: 14px 28px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1.05em;
+    font-weight: bold;
+    background: linear-gradient(135deg, #bb33ff, #892dff);
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 0 22px rgba(187,51,255,0.45);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .action-btn img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .countdown {
+    margin-top: 15px;
+    font-size: 1.1em;
+    color: #ffbfff;
+  }
 </style>
 </head>
 <body>
@@ -71,11 +195,15 @@
 </div>
 
 <div class="container">
-  <div class="title"><img src="images/x-icon/pda-xprpanda-65x65.png" alt="Panda Pawn Shop"></div>
+  <div class="title">
+    <img src="images/pandapawnshop.jpg" alt="Panda Pawn Shop">
+  </div>
+
   <div class="summary">
     Lock your Proton Pandas NFTs to access short-term PDA liquidity.<br>
     Repay your loan to get your NFT back — or default and the NFT enters a PDA-only auction.
-    <br><br>🐼 Small loans • ⏱ Short terms • 🔥 PDA burned on interest
+    <br><br>
+    🐼 Small loans • ⏱ Short terms • 🔥 PDA burned on interest
   </div>
 
   <div class="section">
@@ -117,15 +245,13 @@ function fixIPFS(url) {
   return url;
 }
 
-// Load NFTs via CORS proxy
+// Load NFTs from AtomicAssets
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
 
-  const PROXY = "https://cors-anywhere.herokuapp.com/";
-
   try {
-    const resp = await fetch(PROXY + "https://proton.greymass.com/v1/chain/get_table_rows", {
+    const resp = await fetch("https://proton.greymass.com/v1/chain/get_table_rows", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -160,7 +286,6 @@ async function loadNFTs(wallet) {
 
       nftGrid.appendChild(card);
     });
-
   } catch (err) {
     console.error(err);
     nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
@@ -174,7 +299,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop-logo.png"
+        appLogo: "images/pandapawnshop-logo.png" // make sure this exists
       },
       transportOptions: { requestAccount: "xprpandas" }
     });
@@ -185,7 +310,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // Load NFTs automatically
+    // Load NFTs automatically after wallet connection
     await loadNFTs(actor);
 
   } catch (err) {

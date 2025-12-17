@@ -190,9 +190,9 @@
 </head>
 <body>
 
-<div id="walletBar">
-  <button id="connectWalletBtn">Connect Wallet</button>
-  <div id="walletInfo"></div>
+<div style="text-align:center;">
+  <button id="connect-wallet-btn" class="green-button">🔗 Connect Wallet</button>
+  <div id="wallet-display"></div>
 </div>
 
 <div class="container">
@@ -237,103 +237,36 @@
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
 
 <script>
-let connectedWallet = null;
-let protonSession = null;
-let loanEndTime = null;
+let session = null;
+let actor = null;
 
-/* MAINNET CONFIG */
-const RPC_ENDPOINTS = [
-  "https://proton.eosusa.io",
-  "https://proton.greymass.com",
-  "https://proton.pink.gg"
-];
+async function connectWalletPawnShop() {
+  if (session && actor) return true;
 
-/* CONNECT WALLET — FIXED */
-async function connectWallet() {
-  const btn = document.getElementById('connectWalletBtn');
   try {
-    btn.textContent = "Connecting...";
-    btn.disabled = true;
-
-    const { link } = await window.ProtonWebSDK({
-      linkOptions: {
-        endpoints: RPC_ENDPOINTS,
-        restoreSession: false
-      },
+    const { session: newSession } = await ProtonWebSDK({
+      linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg"
-      }
+        appLogo: "images/pandapawnshop-logo.png"
+      },
+      transportOptions: { requestAccount: "xprpandas" }
     });
 
-    /* 🔑 REQUIRED LOGIN CALL */
-    const session = await link.login();
+    session = newSession;
+    actor = session.auth.actor;
 
-    protonSession = session;
-    connectedWallet = session.auth.actor;
-
-    document.getElementById('walletInfo').textContent =
-      `Connected: ${connectedWallet}`;
-    document.getElementById('walletInfo').style.display = 'block';
-    btn.style.display = 'none';
-
-    loadMockNFTs();
-
-  } catch (e) {
-    console.error(e);
-    btn.textContent = "Connect Wallet";
-    btn.disabled = false;
-    alert("Wallet connection failed");
+    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
+    console.log("SDK returned session:", session);
+    return true;
+  } catch (err) {
+    console.error("Wallet connection failed:", err);
+    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
+    return false;
   }
 }
 
-document.getElementById('connectWalletBtn').onclick = connectWallet;
-
-/* MOCK NFTS */
-function loadMockNFTs() {
-  const grid = document.getElementById('nftGrid');
-  grid.innerHTML = "";
-
-  const mockNFTs = [
-    "https://via.placeholder.com/300x300?text=Panda+1",
-    "https://via.placeholder.com/300x300?text=Panda+2",
-    "https://via.placeholder.com/300x300?text=Panda+3"
-  ];
-
-  mockNFTs.forEach(src => {
-    const card = document.createElement("div");
-    card.className = "nft-card";
-    card.innerHTML = `<img src="${src}"><div>Panda NFT</div>`;
-    card.onclick = () => selectNFT(src);
-    grid.appendChild(card);
-  });
-}
-
-function selectNFT(src) {
-  document.getElementById("selectedNFT").src = src;
-  document.getElementById("lendBtn").disabled = false;
-}
-
-document.getElementById("lendBtn").onclick = () => {
-  loanEndTime = Date.now() + 72 * 60 * 60 * 1000;
-  setInterval(updateCountdown, 1000);
-};
-
-function updateCountdown() {
-  const diff = loanEndTime - Date.now();
-  const countdown = document.getElementById("countdown");
-
-  if (diff <= 0) {
-    countdown.textContent = "DEFAULTED — NFT ELIGIBLE FOR AUCTION";
-    return;
-  }
-
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
-
-  countdown.textContent = `⏳ Time Remaining: ${h}h ${m}m ${s}s`;
-}
+document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
 </script>
 
 </body>

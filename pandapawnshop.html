@@ -247,7 +247,7 @@ function fixIPFS(url) {
   return url;
 }
 
-// Load NFTs from wallet (CSP-safe)
+// Load NFTs from AtomicAssets
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
@@ -276,7 +276,8 @@ async function loadNFTs(wallet) {
     data.rows.forEach(nft => {
       let imgURL = nft.data.img || nft.data.image || (nft.template?.immutable_data?.image || "");
       imgURL = fixIPFS(imgURL);
-      const name = nft.name || nft.template?.name || "Unnamed NFT";
+
+      const name = nft.data.name || nft.template?.name || "Unnamed NFT";
 
       const card = document.createElement("div");
       card.className = "nft-card";
@@ -288,13 +289,14 @@ async function loadNFTs(wallet) {
 
       nftGrid.appendChild(card);
     });
+
   } catch (err) {
     console.error(err);
     nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
   }
 }
 
-// Connect wallet
+// Connect wallet and load NFTs
 async function connectWalletPawnShop() {
   if (session && actor) return true;
 
@@ -304,15 +306,16 @@ async function connectWalletPawnShop() {
       selectorOptions: {
         appName: "Panda Pawn Shop",
         appLogo: "images/pandapawnshop-logo.png"
-      },
-      transportOptions: { requestAccount: "xprpandas" }
+      }
     });
 
     session = newSession;
     actor = session.auth.actor;
-
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-    console.log("SDK returned session:", session);
+
+    // **Load NFTs immediately after wallet connection**
+    loadNFTs(actor);
+
     return true;
   } catch (err) {
     console.error("Wallet connection failed:", err);
@@ -320,7 +323,6 @@ async function connectWalletPawnShop() {
     return false;
   }
 }
-
 
 document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
 </script>

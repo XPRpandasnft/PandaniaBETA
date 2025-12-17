@@ -13,7 +13,7 @@
     color: #f5e9ff;
   }
 
-  /* Wallet Button */
+   /* Wallet Button */
   #walletBar {
     position: fixed;
     top: 20px;
@@ -301,15 +301,18 @@ async function connectWalletPawnShop() {
   try {
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: { appName: "Panda Pawn Shop" }
+      selectorOptions: {
+        appName: "Panda Pawn Shop",
+        appLogo: "images/pandapawnshop-logo.png"
+      },
+      transportOptions: { requestAccount: "xprpandas" }
     });
 
     session = newSession;
     actor = session.auth.actor;
+
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-
-    await loadNFTs(actor); // Load NFTs automatically after connect
-
+    console.log("SDK returned session:", session);
     return true;
   } catch (err) {
     console.error("Wallet connection failed:", err);
@@ -317,6 +320,7 @@ async function connectWalletPawnShop() {
     return false;
   }
 }
+
 
 document.getElementById("connect-wallet-btn").addEventListener("click", connectWalletPawnShop);
 </script>

@@ -238,15 +238,15 @@
 let session = null;
 let actor = null;
 
-// URL of your Render backend
+// Backend URL
 const NFT_BACKEND = "https://panda-nft-backend.onrender.com";
 
-// Load NFTs from Render backend
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
 
   try {
+    // 👈 FIXED: Use Render backend instead of direct RPC
     const resp = await fetch(`${NFT_BACKEND}/api/nfts?wallet=${wallet}`);
     if (!resp.ok) throw new Error("Backend returned " + resp.status);
 
@@ -278,14 +278,14 @@ async function loadNFTs(wallet) {
   }
 }
 
-// Connect wallet
+// Connect wallet (unchanged)
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg" // make sure this exists
+        appLogo: "images/pandapawnshop.jpg"
       },
       transportOptions: { requestAccount: "xprpandas" }
     });
@@ -296,7 +296,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // Load NFTs automatically after wallet connection, via Render backend
+    // Load NFTs via Render backend
     await loadNFTs(actor);
 
   } catch (err) {
@@ -305,6 +305,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
   }
 });
 </script>
+
 
 </body>
 </html>

@@ -237,90 +237,52 @@ content="script-src 'self' https://unpkg.com 'unsafe-eval' 'unsafe-inline';">
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
 <script>
-let session = null;
-let actor = null;
-
-// Convert ipfs:// to https
-function fixIPFS(url) {
-  if (!url) return "";
-  if (url.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + url.slice(7);
-  return url;
-}
-
-// Load NFTs from AtomicAssets
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
 
   try {
-    const resp = await fetch("https://proton.greymass.com/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: "atomicassets",
-        scope: wallet,
-        table: "assets",
-        limit: 50
-      })
-    });
+    const url = `https://proton.api.atomicassets.io/atomicassets/v1/assets?owner=${wallet}&limit=100`;
+    const resp = await fetch(url);
+    const json = await resp.json();
 
-    const data = await resp.json();
     nftGrid.innerHTML = "";
 
-    if (!data.rows || data.rows.length === 0) {
-      nftGrid.innerHTML = "<p>No NFTs found in wallet.</p>";
+    if (!json.data || json.data.length === 0) {
+      nftGrid.innerHTML = "<p>No NFTs found.</p>";
       return;
     }
 
-    data.rows.forEach(nft => {
-      let imgURL = nft.data.img || nft.data.image || (nft.template?.immutable_data?.image || "");
-      imgURL = fixIPFS(imgURL);
-      const name = nft.name || nft.template?.name || "Unnamed NFT";
+    json.data.forEach(asset => {
+      let img = asset.data?.img || asset.data?.image || "";
+      if (img.startsWith("ipfs://")) {
+        img = "https://ipfs.io/ipfs/" + img.replace("ipfs://", "");
+      }
+
+      const name = asset.name || "Unnamed NFT";
 
       const card = document.createElement("div");
       card.className = "nft-card";
-      card.innerHTML = `<img src="${imgURL}" alt="${name}"><div>${name}</div>`;
-      card.addEventListener("click", () => {
-        document.getElementById("selectedNFT").src = imgURL;
+      card.innerHTML = `
+        <img src="${img}" alt="${name}">
+        <div>${name}</div>
+      `;
+
+      card.onclick = () => {
+        document.getElementById("selectedNFT").src = img;
         document.getElementById("lendBtn").disabled = false;
-      });
+      };
 
       nftGrid.appendChild(card);
     });
-  } catch (err) {
-    console.error(err);
+
+  } catch (e) {
+    console.error(e);
     nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
   }
 }
-
-// Connect wallet
-document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
-  try {
-    const { session: newSession } = await ProtonWebSDK({
-      linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg" // make sure this exists
-      },
-      transportOptions: { requestAccount: "xprpandas" }
-    });
-
-    session = newSession;
-    if (!session || !session.auth) throw new Error("No auth returned");
-    actor = session.auth.actor;
-
-    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-
-    // Load NFTs automatically after wallet connection
-    await loadNFTs(actor);
-
-  } catch (err) {
-    console.error(err);
-    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
-  }
-});
 </script>
+
 
 </body>
 </html>

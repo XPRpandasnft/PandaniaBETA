@@ -238,43 +238,29 @@
 let session = null;
 let actor = null;
 
-// Convert ipfs:// to https
-function fixIPFS(url) {
-  if (!url) return "";
-  if (url.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + url.slice(7);
-  return url;
-}
+// URL of your Render backend
+const NFT_BACKEND = "https://panda-nft-backend.onrender.com";
 
-// Load NFTs from AtomicAssets
+// Load NFTs from Render backend
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading NFTs...";
 
   try {
-    const resp = await fetch("https://proton.greymass.com/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: "atomicassets",
-        scope: wallet,
-        table: "assets",
-        limit: 50
-      })
-    });
+    const resp = await fetch(`${NFT_BACKEND}/api/nfts?wallet=${wallet}`);
+    if (!resp.ok) throw new Error("Backend returned " + resp.status);
 
-    const data = await resp.json();
+    const nfts = await resp.json();
     nftGrid.innerHTML = "";
 
-    if (!data.rows || data.rows.length === 0) {
+    if (!nfts.length) {
       nftGrid.innerHTML = "<p>No NFTs found in wallet.</p>";
       return;
     }
 
-    data.rows.forEach(nft => {
-      let imgURL = nft.data.img || nft.data.image || (nft.template?.immutable_data?.image || "");
-      imgURL = fixIPFS(imgURL);
-      const name = nft.name || nft.template?.name || "Unnamed NFT";
+    nfts.forEach(nft => {
+      const imgURL = nft.image;
+      const name = nft.name || "Unnamed NFT";
 
       const card = document.createElement("div");
       card.className = "nft-card";
@@ -288,7 +274,7 @@ async function loadNFTs(wallet) {
     });
   } catch (err) {
     console.error(err);
-    nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
+    nftGrid.innerHTML = "<p>Error loading NFTs from backend.</p>";
   }
 }
 
@@ -310,7 +296,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // Load NFTs automatically after wallet connection
+    // Load NFTs automatically after wallet connection, via Render backend
     await loadNFTs(actor);
 
   } catch (err) {

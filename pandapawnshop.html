@@ -301,10 +301,15 @@ async function loadNFTs(wallet) {
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
-      linkOptions: { endpoints: ["https://proton.greymass.com"] },
+      linkOptions: {
+        endpoints: ["https://proton.greymass.com"]
+      },
       selectorOptions: {
         appName: "Panda Pawn Shop",
         appLogo: "images/pandapawnshop.jpg"
+      },
+      transportOptions: {
+        requestAccount: "xprpandas"
       }
     });
 

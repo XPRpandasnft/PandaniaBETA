@@ -271,14 +271,16 @@ async function loadNFTs(wallet) {
       card.innerHTML = `
         <img src="${imgURL}" 
              alt="${name}" 
-             onerror="this.src='https://via.placeholder.com/150x150/333/fff?text=P#${nft.template_id}'"
+             onerror="this.src='https://picsum.photos/150/150?random=${nft.template_id}'"
              loading="lazy">
         <div>${name}</div>
       `;
       card.addEventListener("click", () => {
         document.getElementById("selectedNFT").src = imgURL;
+        document.getElementById("selectedNFT").onerror = () => {
+          document.getElementById("selectedNFT").src = `https://picsum.photos/260/260?random=${nft.template_id}`;
+        };
         document.getElementById("lendBtn").disabled = false;
-        // Store selected NFT data for lending
         window.selectedNFT = nft;
         console.log("Selected:", nft);
       });

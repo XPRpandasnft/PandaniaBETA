@@ -238,8 +238,8 @@
 let session = null;
 let actor = null;
 
-// *** CHANGE THIS TO YOUR DEPLOYED BACKEND URL ***
-const PANDA_BACKEND = "https://panda-backend.onrender.com"; // UPDATE WHEN DEPLOYED
+// ✅ YOUR BACKEND URL - READY TO GO
+const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
 // Convert ipfs:// to https (fallback)
 function fixIPFS(url) {
@@ -248,7 +248,7 @@ function fixIPFS(url) {
   return url;
 }
 
-// *** NEW: Load Proton Pandas ONLY from backend ***
+// Load Proton Pandas ONLY from your backend
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading Proton Pandas...";
@@ -318,4 +318,3 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
 </body>
 </html>
-

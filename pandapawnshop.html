@@ -239,59 +239,64 @@
 let session = null;
 let actor = null;
 
-const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
+// NFT CONTRACT INFO
+const CONTRACT = "pandasnftcntr"; // replace with your NFT contract name
+const TABLE = "nfts"; // table containing NFTs
+const ENDPOINT = "https://proton.greymass.com";
 
 /* =======================
-   LOAD NFTs FROM BACKEND
+   LOAD NFTs FROM CHAIN
 ======================= */
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading Proton Pandas...";
 
   try {
-    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
-    const nfts = await resp.json();
+    const response = await fetch(`${ENDPOINT}/v1/chain/get_table_rows`, {
+      method: "POST",
+      body: JSON.stringify({
+        json: true,
+        code: CONTRACT,
+        scope: wallet,
+        table: TABLE,
+        limit: 100
+      })
+    });
+
+    const data = await response.json();
 
     nftGrid.innerHTML = "";
 
-    if (!Array.isArray(nfts) || nfts.length === 0) {
+    if (!data.rows || data.rows.length === 0) {
       nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
       return;
     }
 
-    nfts.forEach(nft => {
+    data.rows.forEach(nft => {
       const card = document.createElement("div");
       card.className = "nft-card";
 
       const img = document.createElement("img");
 
-      // Convert IPFS hash to HTTP URL if needed
+      // convert IPFS hash to HTTP URL
       if (nft.image && nft.image.startsWith("Qm")) {
         img.src = `https://ipfs.io/ipfs/${nft.image}`;
       } else {
         img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
       }
 
-      img.alt = nft.name;
+      img.alt = nft.name || "Proton Panda";
       img.loading = "lazy";
-
-      img.onerror = () => {
-        img.onerror = null; 
-        img.src = 'https://via.placeholder.com/160?text=No+Image';
-      };
+      img.onerror = () => { img.src = 'https://via.placeholder.com/160?text=No+Image'; };
 
       const name = document.createElement("div");
-      name.innerText = nft.name;
+      name.innerText = nft.name || "Unnamed Panda";
 
       card.appendChild(img);
       card.appendChild(name);
 
       card.onclick = () => {
-        if (nft.image && nft.image.startsWith("Qm")) {
-          document.getElementById("selectedNFT").src = `https://ipfs.io/ipfs/${nft.image}`;
-        } else {
-          document.getElementById("selectedNFT").src = nft.image || 'https://via.placeholder.com/260?text=No+Image';
-        }
+        document.getElementById("selectedNFT").src = img.src;
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
       };
@@ -311,12 +316,12 @@ async function loadNFTs(wallet) {
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
-      linkOptions: { endpoints: ["https://proton.greymass.com"] },
+      linkOptions: { endpoints: [ENDPOINT] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
         appLogo: "images/pandapawnshop.jpg"
       },
-      transportOptions: { requestAccount: "xprpandas" }
+      transportOptions: { requestAccount: "" }
     });
 
     session = newSession;

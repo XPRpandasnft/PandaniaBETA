@@ -266,7 +266,14 @@ async function loadNFTs(wallet) {
       card.className = "nft-card";
 
       const img = document.createElement("img");
-      img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
+
+      // Convert IPFS hash to HTTP URL
+      if (nft.image && nft.image.startsWith("Qm")) {
+        img.src = `https://ipfs.io/ipfs/${nft.image}`;
+      } else {
+        img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
+      }
+
       img.alt = nft.name;
       img.loading = "lazy";
 
@@ -282,7 +289,11 @@ async function loadNFTs(wallet) {
       card.appendChild(name);
 
       card.onclick = () => {
-        document.getElementById("selectedNFT").src = nft.image || 'https://via.placeholder.com/260?text=No+Image';
+        if (nft.image && nft.image.startsWith("Qm")) {
+          document.getElementById("selectedNFT").src = `https://ipfs.io/ipfs/${nft.image}`;
+        } else {
+          document.getElementById("selectedNFT").src = nft.image || 'https://via.placeholder.com/260?text=No+Image';
+        }
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
       };
@@ -335,3 +346,4 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
 </body>
 </html>
+

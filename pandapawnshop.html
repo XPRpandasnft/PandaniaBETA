@@ -72,7 +72,7 @@
 
   <div class="section preview">
     <h2>Selected NFT</h2>
-    <img id="selectedNFT" src="">
+    <img id="selectedNFT" src="" crossOrigin="anonymous">
     <br>
     <button class="action-btn" id="lendBtn" disabled>
       Lend NFT for PDA
@@ -92,12 +92,10 @@
   </div>
 </div>
 
-<script type="module">
-import { ProtonWebSDK } from 'https://unpkg.com/@proton/web-sdk@latest/dist/module/index.js';
-
+<script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+<script>
 let session = null;
 let actor = null;
-
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
 async function loadNFTs(wallet) {
@@ -119,33 +117,32 @@ async function loadNFTs(wallet) {
     console.log("Loaded NFTs:", nfts);
 
     nfts.forEach(nft => {
-      const imgURL = nft.image;
-      const name = nft.name || "Proton Panda";
-
-      console.log(`Rendering ${name}: ${imgURL}`);
+      const proxyURL = `${PANDA_BACKEND}/api/panda-image/${nft.template_id}`;
+      const fallbackURL = `https://nft.xprnetwork.org/144534352512/${nft.template_id}`;
+      const name = nft.name || `Proton Panda`;
 
       const card = document.createElement("div");
       card.className = "nft-card";
       card.innerHTML = `
-        <img src="${imgURL}" 
-             alt="${name}" 
-             onerror="this.src='https://picsum.photos/150/150?random=${nft.template_id}'" 
-             loading="lazy">
+        <img src="${proxyURL}" alt="${name}" loading="lazy" crossOrigin="anonymous">
         <div>${name}</div>
       `;
+
       card.addEventListener("click", () => {
-        const selectedNFTImg = document.getElementById("selectedNFT");
-        selectedNFTImg.src = imgURL;
-        selectedNFTImg.onerror = () => {
-          selectedNFTImg.src = `https://picsum.photos/260/260?random=${nft.template_id}`;
-        };
+        const selectedImg = document.getElementById("selectedNFT");
+        selectedImg.src = proxyURL;
+        selectedImg.onerror = () => { selectedImg.src = fallbackURL; };
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
         console.log("Selected:", nft);
       });
 
+      const imgEl = card.querySelector("img");
+      imgEl.onerror = () => { imgEl.src = fallbackURL; };
+
       nftGrid.appendChild(card);
     });
+
   } catch (err) {
     console.error("NFT load error:", err);
     nftGrid.innerHTML = "<p>Error loading Proton Pandas. Check backend.</p>";
@@ -155,7 +152,7 @@ async function loadNFTs(wallet) {
 // Connect wallet
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
-    const { session: newSession } = await ProtonWebSDK({
+    session = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
@@ -164,12 +161,10 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
       transportOptions: { requestAccount: "xprpandas" }
     });
 
-    session = newSession;
     if (!session || !session.auth) throw new Error("No auth returned");
     actor = session.auth.actor;
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-
     await loadNFTs(actor);
 
   } catch (err) {
@@ -181,3 +176,4 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
 </body>
 </html>
+

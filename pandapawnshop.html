@@ -271,8 +271,9 @@ async function loadNFTs(wallet) {
       img.loading = "lazy";
 
       img.onerror = () => {
-        img.src = "images/panda-fallback.png";
-      };
+  img.onerror = null;
+  img.style.display = "none";
+};
 
       const name = document.createElement("div");
       name.innerText = nft.name;

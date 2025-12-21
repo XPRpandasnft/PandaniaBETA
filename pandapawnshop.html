@@ -241,13 +241,6 @@ let actor = null;
 // ✅ YOUR BACKEND URL - READY TO GO
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
-// Convert ipfs:// to https (fallback)
-function fixIPFS(url) {
-  if (!url) return "";
-  if (url.startsWith("ipfs://")) return "https://ipfs.neftyblocks.io/ipfs/" + url.slice(7);
-  return url;
-}
-
 // Load Proton Pandas ONLY from your backend
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
@@ -265,13 +258,23 @@ async function loadNFTs(wallet) {
       return;
     }
 
+    console.log("Loaded NFTs:", nfts); // DEBUG: Check what backend returns
+
     nfts.forEach(nft => {
       const imgURL = nft.image;
       const name = nft.name || "Proton Panda";
 
+      console.log(`Rendering ${name}: ${imgURL}`); // DEBUG: Check image URLs
+
       const card = document.createElement("div");
       card.className = "nft-card";
-      card.innerHTML = `<img src="${imgURL}" alt="${name}"><div>${name}</div>`;
+      card.innerHTML = `
+        <img src="${imgURL}" 
+             alt="${name}" 
+             onerror="this.src='https://via.placeholder.com/150x150/333/fff?text=P#${nft.template_id}'"
+             loading="lazy">
+        <div>${name}</div>
+      `;
       card.addEventListener("click", () => {
         document.getElementById("selectedNFT").src = imgURL;
         document.getElementById("lendBtn").disabled = false;

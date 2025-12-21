@@ -234,64 +234,70 @@
 </div>
 
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+
 <script>
 let session = null;
 let actor = null;
 
-// ✅ YOUR BACKEND URL - READY TO GO
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
-// Load Proton Pandas ONLY from your backend
+/* =======================
+   LOAD NFTs FROM BACKEND
+======================= */
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading Proton Pandas...";
 
   try {
-    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
-    if (!resp.ok) throw new Error("Backend error " + resp.status);
+    const resp = await fetch(
+      `${PANDA_BACKEND}/api/pandas?wallet=${wallet}`
+    );
 
     const nfts = await resp.json();
     nftGrid.innerHTML = "";
 
-    if (!nfts || nfts.length === 0) {
-      nftGrid.innerHTML = "<p>No Proton Pandas found in wallet.</p>";
+    if (!nfts.length) {
+      nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
       return;
     }
 
-    console.log("Loaded NFTs:", nfts); // DEBUG: Check what backend returns
-
     nfts.forEach(nft => {
-      const imgURL = nft.image;
-      const name = nft.name || "Proton Panda";
-
-      console.log(`Rendering ${name}: ${imgURL}`); // DEBUG: Check image URLs
-
       const card = document.createElement("div");
       card.className = "nft-card";
-      card.innerHTML = `
-        <img src="${imgURL}" 
-             alt="${name}" 
-             onerror="this.src='https://via.placeholder.com/150x150/333/fff?text=P#${nft.template_id}'"
-             loading="lazy">
-        <div>${name}</div>
-      `;
-      card.addEventListener("click", () => {
-        document.getElementById("selectedNFT").src = imgURL;
+
+      const img = document.createElement("img");
+      img.src = nft.image;
+      img.alt = nft.name;
+      img.loading = "lazy";
+
+      img.onerror = () => {
+        img.src = "images/panda-fallback.png";
+      };
+
+      const name = document.createElement("div");
+      name.innerText = nft.name;
+
+      card.appendChild(img);
+      card.appendChild(name);
+
+      card.onclick = () => {
+        document.getElementById("selectedNFT").src = nft.image;
         document.getElementById("lendBtn").disabled = false;
-        // Store selected NFT data for lending
         window.selectedNFT = nft;
-        console.log("Selected:", nft);
-      });
+      };
 
       nftGrid.appendChild(card);
     });
+
   } catch (err) {
     console.error("NFT load error:", err);
-    nftGrid.innerHTML = "<p>Error loading Proton Pandas. Check backend.</p>";
+    nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
   }
 }
 
-// Connect wallet
+/* =======================
+   CONNECT WALLET
+======================= */
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
@@ -299,22 +305,24 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
       selectorOptions: {
         appName: "Panda Pawn Shop",
         appLogo: "images/pandapawnshop.jpg"
-      },
-      transportOptions: { requestAccount: "xprpandas" }
+      }
     });
 
     session = newSession;
-    if (!session || !session.auth) throw new Error("No auth returned");
+    if (!session || !session.auth) {
+      throw new Error("No wallet auth returned");
+    }
+
     actor = session.auth.actor;
+    document.getElementById("wallet-display").innerText =
+      `✅ Connected: ${actor}`;
 
-    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-
-    // Load Proton Pandas automatically after wallet connection
     await loadNFTs(actor);
 
   } catch (err) {
     console.error(err);
-    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
+    document.getElementById("wallet-display").innerText =
+      `❌ Connect failed: ${err.message}`;
   }
 });
 </script>

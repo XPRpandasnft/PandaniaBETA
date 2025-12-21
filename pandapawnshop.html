@@ -118,28 +118,41 @@ async function loadNFTs(wallet) {
     console.log("Loaded NFTs:", nfts);
 
     nfts.forEach(nft => {
-      const imgURL = nft.image;
-      const name = nft.name || "Proton Panda";
-
-      console.log(`Rendering ${name}: ${imgURL}`);
+      // Use backend proxy URL first
+      const proxyURL = `${PANDA_BACKEND}/api/panda-image/${nft.template_id}`;
+      // Fallback URL if proxy fails
+      const fallbackURL = `https://nft.xprnetwork.org/144534352512/${nft.template_id}`;
+      const name = nft.name || `Proton Panda`;
 
       const card = document.createElement("div");
       card.className = "nft-card";
       card.innerHTML = `
-        <img src="${imgURL}" 
+        <img src="${proxyURL}" 
              alt="${name}" 
              loading="lazy">
         <div>${name}</div>
       `;
+
+      // Click to select
       card.addEventListener("click", () => {
-        document.getElementById("selectedNFT").src = imgURL;
+        const selectedImg = document.getElementById("selectedNFT");
+        selectedImg.src = proxyURL;
+        // If proxy fails, use fallback
+        selectedImg.onerror = () => {
+          selectedImg.src = fallbackURL;
+        };
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
         console.log("Selected:", nft);
       });
 
+      // If proxy fails in grid, fallback immediately
+      const imgEl = card.querySelector("img");
+      imgEl.onerror = () => { imgEl.src = fallbackURL; };
+
       nftGrid.appendChild(card);
     });
+
   } catch (err) {
     console.error("NFT load error:", err);
     nftGrid.innerHTML = "<p>Error loading Proton Pandas. Check backend.</p>";
@@ -175,4 +188,3 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
 </body>
 </html>
-

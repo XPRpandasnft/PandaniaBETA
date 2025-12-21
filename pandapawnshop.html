@@ -245,17 +245,15 @@ async function loadNFTs(wallet) {
       return;
     }
     nfts.forEach(nft => {
-      const imgURL = nft.image;
+      const imgURL = `${PANDA_BACKEND}/api/panda-image/${nft.template_id}`;
       const name = nft.name || "Proton Panda";
       const card = document.createElement("div");
       card.className = "nft-card";
       card.innerHTML = `
-        <img src="${imgURL}" 
-             alt="${name}" 
-             onerror="this.src='https://via.placeholder.com/150x150/333/fff?text=P#${nft.template_id}'"
-             loading="lazy">
-        <div>${name}</div>
-      `;
+        card.innerHTML = `
+  <img src="${imgURL}" alt="${name}" loading="lazy">
+  <div>${name}</div>
+`;
       card.addEventListener("click", () => {
         document.getElementById("selectedNFT").src = imgURL;
         document.getElementById("lendBtn").disabled = false;

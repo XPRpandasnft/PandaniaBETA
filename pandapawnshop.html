@@ -265,28 +265,33 @@ async function loadNFTs(wallet) {
 
       const img = document.createElement("img");
 
-      // FIXED: Convert IPFS hash to HTTP URL if needed
-      if (nft.image && (nft.image.startsWith("Qm") || nft.image.startsWith("ipfs://"))) {
-        const hash = nft.image.replace("ipfs://", "");
-        img.src = `https://ipfs.io/ipfs/${hash}`;
+      // Convert IPFS hash to HTTP URL if needed
+      if (nft.image && nft.image.startsWith("Qm")) {
+        img.src = `https://ipfs.io/ipfs/${nft.image}`;
       } else {
         img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
       }
 
-      img.alt = nft.name || "Proton Panda";
+      img.alt = nft.name;
       img.loading = "lazy";
 
-      // Fallback if image fails to load
-      img.onerror = () => { img.src = 'https://via.placeholder.com/160?text=No+Image'; };
+      img.onerror = () => {
+        img.onerror = null; 
+        img.src = 'https://via.placeholder.com/160?text=No+Image';
+      };
 
       const name = document.createElement("div");
-      name.innerText = nft.name || "Unnamed Panda";
+      name.innerText = nft.name;
 
       card.appendChild(img);
       card.appendChild(name);
 
       card.onclick = () => {
-        document.getElementById("selectedNFT").src = img.src;
+        if (nft.image && nft.image.startsWith("Qm")) {
+          document.getElementById("selectedNFT").src = `https://ipfs.io/ipfs/${nft.image}`;
+        } else {
+          document.getElementById("selectedNFT").src = nft.image || 'https://via.placeholder.com/260?text=No+Image';
+        }
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
       };

@@ -266,14 +266,14 @@ async function loadNFTs(wallet) {
       card.className = "nft-card";
 
       const img = document.createElement("img");
-      img.src = nft.image;
+      img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
       img.alt = nft.name;
       img.loading = "lazy";
 
       img.onerror = () => {
-  img.onerror = null;
-  img.style.display = "none";
-};
+        img.onerror = null; 
+        img.src = 'https://via.placeholder.com/160?text=No+Image';
+      };
 
       const name = document.createElement("div");
       name.innerText = nft.name;
@@ -282,7 +282,7 @@ async function loadNFTs(wallet) {
       card.appendChild(name);
 
       card.onclick = () => {
-        document.getElementById("selectedNFT").src = nft.image;
+        document.getElementById("selectedNFT").src = nft.image || 'https://via.placeholder.com/260?text=No+Image';
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
       };

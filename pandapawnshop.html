@@ -261,7 +261,7 @@ async function loadNFTs(wallet) {
     console.log("Loaded NFTs:", nfts); // DEBUG: Check what backend returns
 
     nfts.forEach(nft => {
-      const imgURL = nft.image;
+      const imgURL = `${PANDA_BACKEND}/api/panda-image/${nft.template_id}`;
       const name = nft.name || "Proton Panda";
 
       console.log(`Rendering ${name}: ${imgURL}`); // DEBUG: Check image URLs
@@ -269,12 +269,10 @@ async function loadNFTs(wallet) {
       const card = document.createElement("div");
       card.className = "nft-card";
       card.innerHTML = `
-        <img src="${imgURL}" 
-             alt="${name}" 
-             onerror="this.src='https://via.placeholder.com/150x150/333/fff?text=P#${nft.template_id}'"
-             loading="lazy">
-        <div>${name}</div>
-      `;
+        card.innerHTML = `
+  <img src="${imgURL}" alt="${name}" loading="lazy">
+  <div>${name}</div>
+`;
       card.addEventListener("click", () => {
         document.getElementById("selectedNFT").src = imgURL;
         document.getElementById("lendBtn").disabled = false;

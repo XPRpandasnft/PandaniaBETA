@@ -226,83 +226,43 @@
 </div>
 
 <!-- Proton SDK -->
-<script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+<script src="https://unpkg.com/@proton/link@2/dist/link.min.js"></script>
+<script src="https://unpkg.com/@proton/link-browser-transport@2/dist/link-browser-transport.min.js"></script>
 <script>
-let session = null;
-let actor = null;
+let link;
+let session;
+let actor;
+
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
-async function loadNFTs(wallet) {
-  const nftGrid = document.getElementById("nftGrid");
-  nftGrid.innerHTML = "Loading Proton Pandas...";
+async function connectWallet() {
   try {
-    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
-    if (!resp.ok) throw new Error("Backend error " + resp.status);
-    const nfts = await resp.json();
-    nftGrid.innerHTML = "";
-    if (!nfts || nfts.length === 0) {
-      nftGrid.innerHTML = "<p>No Proton Pandas found in wallet.</p>";
-      return;
-    }
-    nfts.forEach(nft => {
-      const imgURL = `${PANDA_BACKEND}/api/panda-image/${nft.template_id}`;
-      const name = nft.name || "Proton Panda";
-      const card = document.createElement("div");
-      card.className = "nft-card";
-      card.innerHTML = `
-        card.innerHTML = `
-  <img src="${imgURL}" alt="${name}" loading="lazy">
-  <div>${name}</div>
-`;
-      card.addEventListener("click", () => {
-        document.getElementById("selectedNFT").src = imgURL;
-        document.getElementById("lendBtn").disabled = false;
-        window.selectedNFT = nft;
-      });
-      nftGrid.appendChild(card);
+    link = new protonLink.Link({
+      transport: new protonLinkBrowserTransport.BrowserTransport(),
+      chains: [{
+        chainId: "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0",
+        nodeUrl: "https://proton.greymass.com"
+      }]
     });
+
+    session = await link.login("Panda Pawn Shop");
+    actor = session.auth.actor.toString();
+
+    document.getElementById("wallet-display").innerText =
+      `✅ Connected: ${actor}`;
+
+    await loadNFTs(actor);
+
   } catch (err) {
-    console.error("NFT load error:", err);
-    nftGrid.innerHTML = "<p>Error loading Proton Pandas. Check backend.</p>";
+    console.error("Wallet error:", err);
+    document.getElementById("wallet-display").innerText =
+      "❌ Wallet connection failed";
   }
 }
 
-document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
-  const display = document.getElementById("wallet-display");
-  display.innerText = "⏳ Connecting...";
-  try {
-    let connectFunc = null;
-    // Detect newer SDK export style
-    if (typeof ProtonWebSDK === "object" && typeof ProtonWebSDK.connect === "function") {
-      connectFunc = ProtonWebSDK.connect;
-    } else if (typeof ProtonWebSDK === "function") {
-      connectFunc = ProtonWebSDK;
-    } else if (typeof window.ProtonWebSDK?.connect === "function") {
-      connectFunc = window.ProtonWebSDK.connect;
-    }
-
-    if (!connectFunc) throw new Error("Proton SDK not loaded correctly.");
-
-    const { session: newSession } = await connectFunc({
-      linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg"
-      },
-      transportOptions: { requestAccount: "xprpandas" }
-    });
-
-    session = newSession;
-    actor = session?.auth?.actor;
-    if (!actor) throw new Error("No wallet account authorized.");
-
-    display.innerText = `✅ Connected: ${actor}`;
-    await loadNFTs(actor);
-  } catch (err) {
-    console.error("Wallet connect error:", err);
-    display.innerText = `❌ Connect failed: ${err.message}`;
-  }
-});
+document
+  .getElementById("connect-wallet-btn")
+  .addEventListener("click", connectWallet);
 </script>
 </body>
 </html>

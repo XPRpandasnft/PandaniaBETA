@@ -207,7 +207,7 @@
   </div>
 
   <div class="section">
-    <h2>Select NFT to Lend</h2>
+    <h2>Select Proton Panda to Lend</h2>
     <div class="nft-grid" id="nftGrid"></div>
   </div>
 
@@ -238,29 +238,36 @@
 let session = null;
 let actor = null;
 
-// Backend URL
-const NFT_BACKEND = "https://panda-nft-backend.onrender.com";
+// *** CHANGE THIS TO YOUR DEPLOYED BACKEND URL ***
+const PANDA_BACKEND = "https://panda-backend.onrender.com"; // UPDATE WHEN DEPLOYED
 
+// Convert ipfs:// to https (fallback)
+function fixIPFS(url) {
+  if (!url) return "";
+  if (url.startsWith("ipfs://")) return "https://ipfs.neftyblocks.io/ipfs/" + url.slice(7);
+  return url;
+}
+
+// *** NEW: Load Proton Pandas ONLY from backend ***
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
-  nftGrid.innerHTML = "Loading NFTs...";
+  nftGrid.innerHTML = "Loading Proton Pandas...";
 
   try {
-    // 👈 FIXED: Use Render backend instead of direct RPC
-    const resp = await fetch(`${NFT_BACKEND}/api/nfts?wallet=${wallet}`);
-    if (!resp.ok) throw new Error("Backend returned " + resp.status);
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
+    if (!resp.ok) throw new Error("Backend error " + resp.status);
 
     const nfts = await resp.json();
     nftGrid.innerHTML = "";
 
-    if (!nfts.length) {
-      nftGrid.innerHTML = "<p>No NFTs found in wallet.</p>";
+    if (!nfts || nfts.length === 0) {
+      nftGrid.innerHTML = "<p>No Proton Pandas found in wallet.</p>";
       return;
     }
 
     nfts.forEach(nft => {
       const imgURL = nft.image;
-      const name = nft.name || "Unnamed NFT";
+      const name = nft.name || "Proton Panda";
 
       const card = document.createElement("div");
       card.className = "nft-card";
@@ -268,17 +275,20 @@ async function loadNFTs(wallet) {
       card.addEventListener("click", () => {
         document.getElementById("selectedNFT").src = imgURL;
         document.getElementById("lendBtn").disabled = false;
+        // Store selected NFT data for lending
+        window.selectedNFT = nft;
+        console.log("Selected:", nft);
       });
 
       nftGrid.appendChild(card);
     });
   } catch (err) {
-    console.error(err);
-    nftGrid.innerHTML = "<p>Error loading NFTs from backend.</p>";
+    console.error("NFT load error:", err);
+    nftGrid.innerHTML = "<p>Error loading Proton Pandas. Check backend.</p>";
   }
 }
 
-// Connect wallet (unchanged)
+// Connect wallet
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
@@ -296,7 +306,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
-    // Load NFTs via Render backend
+    // Load Proton Pandas automatically after wallet connection
     await loadNFTs(actor);
 
   } catch (err) {
@@ -306,6 +316,6 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 });
 </script>
 
-
 </body>
 </html>
+

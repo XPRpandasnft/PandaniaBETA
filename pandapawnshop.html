@@ -239,54 +239,44 @@
 let session = null;
 let actor = null;
 
-// NFT CONTRACT INFO
-const CONTRACT = "pandasnftcntr"; // replace with your NFT contract name
-const TABLE = "nfts"; // table containing NFTs
-const ENDPOINT = "https://proton.greymass.com";
+const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
 /* =======================
-   LOAD NFTs FROM CHAIN
+   LOAD NFTs FROM BACKEND
 ======================= */
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = "Loading Proton Pandas...";
 
   try {
-    const response = await fetch(`${ENDPOINT}/v1/chain/get_table_rows`, {
-      method: "POST",
-      body: JSON.stringify({
-        json: true,
-        code: CONTRACT,
-        scope: wallet,
-        table: TABLE,
-        limit: 100
-      })
-    });
-
-    const data = await response.json();
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
+    const nfts = await resp.json();
 
     nftGrid.innerHTML = "";
 
-    if (!data.rows || data.rows.length === 0) {
+    if (!Array.isArray(nfts) || nfts.length === 0) {
       nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
       return;
     }
 
-    data.rows.forEach(nft => {
+    nfts.forEach(nft => {
       const card = document.createElement("div");
       card.className = "nft-card";
 
       const img = document.createElement("img");
 
-      // convert IPFS hash to HTTP URL
-      if (nft.image && nft.image.startsWith("Qm")) {
-        img.src = `https://ipfs.io/ipfs/${nft.image}`;
+      // FIXED: Convert IPFS hash to HTTP URL if needed
+      if (nft.image && (nft.image.startsWith("Qm") || nft.image.startsWith("ipfs://"))) {
+        const hash = nft.image.replace("ipfs://", "");
+        img.src = `https://ipfs.io/ipfs/${hash}`;
       } else {
         img.src = nft.image || 'https://via.placeholder.com/160?text=No+Image';
       }
 
       img.alt = nft.name || "Proton Panda";
       img.loading = "lazy";
+
+      // Fallback if image fails to load
       img.onerror = () => { img.src = 'https://via.placeholder.com/160?text=No+Image'; };
 
       const name = document.createElement("div");
@@ -316,12 +306,12 @@ async function loadNFTs(wallet) {
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
-      linkOptions: { endpoints: [ENDPOINT] },
+      linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
         appName: "Panda Pawn Shop",
         appLogo: "images/pandapawnshop.jpg"
       },
-      transportOptions: { requestAccount: "" }
+      transportOptions: { requestAccount: "xprpandas" }
     });
 
     session = newSession;

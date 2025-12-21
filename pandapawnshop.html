@@ -72,7 +72,7 @@
 
   <div class="section preview">
     <h2>Selected NFT</h2>
-    <img id="selectedNFT" src="" crossOrigin="anonymous">
+    <img id="selectedNFT" src="">
     <br>
     <button class="action-btn" id="lendBtn" disabled>
       Lend NFT for PDA
@@ -96,6 +96,7 @@
 <script>
 let session = null;
 let actor = null;
+
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
 async function loadNFTs(wallet) {
@@ -124,7 +125,9 @@ async function loadNFTs(wallet) {
       const card = document.createElement("div");
       card.className = "nft-card";
       card.innerHTML = `
-        <img src="${proxyURL}" alt="${name}" loading="lazy" crossOrigin="anonymous">
+        <img src="${proxyURL}" 
+             alt="${name}" 
+             loading="lazy">
         <div>${name}</div>
       `;
 
@@ -152,6 +155,7 @@ async function loadNFTs(wallet) {
 // Connect wallet
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
+    // FIX: use session directly (no destructuring)
     session = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
@@ -165,6 +169,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
     actor = session.auth.actor;
 
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
+
     await loadNFTs(actor);
 
   } catch (err) {

@@ -249,10 +249,7 @@ async function loadNFTs(wallet) {
   nftGrid.innerHTML = "Loading Proton Pandas...";
 
   try {
-    const resp = await fetch(
-      `${PANDA_BACKEND}/api/pandas?wallet=${wallet}`
-    );
-
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
     const nfts = await resp.json();
     nftGrid.innerHTML = "";
 
@@ -313,37 +310,25 @@ async function loadNFTs(wallet) {
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
     const { session: newSession } = await ProtonWebSDK({
-      linkOptions: {
-        endpoints: ["https://proton.greymass.com"]
-      },
-      selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg"
-      },
-      transportOptions: {
-        requestAccount: "xprpandas"
-      }
+      linkOptions: { endpoints: ["https://proton.greymass.com"] },
+      selectorOptions: { appName: "Panda Pawn Shop", appLogo: "images/pandapawnshop.jpg" },
+      transportOptions: { requestAccount: "xprpandas" }
     });
 
     session = newSession;
-    if (!session || !session.auth) {
-      throw new Error("No wallet auth returned");
-    }
+    if (!session || !session.auth) throw new Error("No wallet auth returned");
 
     actor = session.auth.actor;
-    document.getElementById("wallet-display").innerText =
-      `✅ Connected: ${actor}`;
+    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
 
     await loadNFTs(actor);
 
   } catch (err) {
     console.error(err);
-    document.getElementById("wallet-display").innerText =
-      `❌ Connect failed: ${err.message}`;
+    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
   }
 });
 </script>
 
 </body>
 </html>
-

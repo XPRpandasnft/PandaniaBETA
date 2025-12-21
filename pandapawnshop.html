@@ -251,9 +251,10 @@ async function loadNFTs(wallet) {
   try {
     const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
     const nfts = await resp.json();
+
     nftGrid.innerHTML = "";
 
-    if (!nfts.length) {
+    if (!Array.isArray(nfts) || nfts.length === 0) {
       nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
       return;
     }
@@ -264,7 +265,7 @@ async function loadNFTs(wallet) {
 
       const img = document.createElement("img");
 
-      // Convert IPFS hash to HTTP URL
+      // Convert IPFS hash to HTTP URL if needed
       if (nft.image && nft.image.startsWith("Qm")) {
         img.src = `https://ipfs.io/ipfs/${nft.image}`;
       } else {
@@ -311,7 +312,10 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
   try {
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: { appName: "Panda Pawn Shop", appLogo: "images/pandapawnshop.jpg" },
+      selectorOptions: {
+        appName: "Panda Pawn Shop",
+        appLogo: "images/pandapawnshop.jpg"
+      },
       transportOptions: { requestAccount: "xprpandas" }
     });
 
@@ -325,7 +329,8 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
   } catch (err) {
     console.error(err);
-    document.getElementById("wallet-display").innerText = `❌ Connect failed: ${err.message}`;
+    document.getElementById("wallet-display").innerText =
+      `❌ Connect failed: ${err.message}`;
   }
 });
 </script>

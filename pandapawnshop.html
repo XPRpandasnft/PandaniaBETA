@@ -130,24 +130,13 @@ let actor = null;
 
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 
-/* =======================
-   LOAD NFTs FROM BACKEND
-======================= */
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = '<p class="loading">🔄 Loading Proton Pandas...</p>';
 
   try {
-    console.log(`Fetching NFTs for wallet: ${wallet}`);
-    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!resp.ok) {
-      throw new Error(`Backend returned ${resp.status}: ${resp.statusText}`);
-    }
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
+    if (!resp.ok) throw new Error(`Backend returned ${resp.status}`);
 
     const nfts = await resp.json();
     console.log('Received NFTs:', nfts);
@@ -155,36 +144,40 @@ async function loadNFTs(wallet) {
     nftGrid.innerHTML = "";
 
     if (!Array.isArray(nfts) || nfts.length === 0) {
-      nftGrid.innerHTML = "<p>No Proton Pandas found in this wallet.</p>";
+      nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
       return;
     }
-
-    console.log(`Rendering ${nfts.length} NFTs`);
 
     nfts.forEach(nft => {
       const card = document.createElement("div");
       card.className = "nft-card";
-      card.dataset.assetId = nft.asset_id;
 
       const img = document.createElement("img");
       img.src = nft.image;
       img.alt = nft.name;
       img.loading = "lazy";
       
-      // Handle image loading errors
+      // Store fallback URLs
+      if (nft.fallback_urls) {
+        img.dataset.fallbacks = JSON.stringify(nft.fallback_urls);
+        img.dataset.fallbackIndex = '0';
+      }
+      
+      // Handle errors with fallbacks
       img.onerror = function() {
-        console.warn(`Image failed to load for ${nft.name}:`, nft.image);
-        // Try IPFS gateway fallback
-        if (img.src.includes('ipfs.io')) {
-          const hash = img.src.split('/ipfs/')[1];
-          if (hash && !img.dataset.retried) {
-            img.dataset.retried = 'true';
-            img.src = `https://cloudflare-ipfs.com/ipfs/${hash}`;
-          } else {
-            // Ultimate fallback
-            img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext fill="%23fff" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+        if (img.dataset.fallbacks) {
+          const fallbacks = JSON.parse(img.dataset.fallbacks);
+          const currentIndex = parseInt(img.dataset.fallbackIndex || '0');
+          
+          if (currentIndex < fallbacks.length) {
+            img.src = fallbacks[currentIndex];
+            img.dataset.fallbackIndex = (currentIndex + 1).toString();
+            return;
           }
         }
+        
+        // Placeholder
+        img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext fill="%23fff" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EPanda %23' + nft.template_id + '%3C/text%3E%3C/svg%3E';
       };
 
       const name = document.createElement("div");
@@ -195,22 +188,14 @@ async function loadNFTs(wallet) {
       card.appendChild(name);
 
       card.onclick = () => {
-        // Remove selected class from all cards
         document.querySelectorAll('.nft-card').forEach(c => c.classList.remove('selected'));
-        // Add selected class to clicked card
         card.classList.add('selected');
         
-        // Update preview
-        const selectedImg = document.getElementById("selectedNFT");
-        const selectedInfo = document.getElementById("selectedInfo");
-        selectedImg.src = nft.image;
-        selectedImg.style.display = 'block';
-        selectedInfo.innerText = nft.name;
-        
+        document.getElementById("selectedNFT").src = nft.image;
+        document.getElementById("selectedNFT").style.display = 'block';
+        document.getElementById("selectedInfo").innerText = nft.name;
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
-        
-        console.log('Selected NFT:', nft);
       };
 
       nftGrid.appendChild(card);
@@ -218,26 +203,15 @@ async function loadNFTs(wallet) {
 
   } catch (err) {
     console.error("NFT load error:", err);
-    nftGrid.innerHTML = `<div class="error-message">
-      <strong>Error loading NFTs:</strong><br>
-      ${err.message}<br>
-      <small>Please check console for details</small>
-    </div>`;
+    nftGrid.innerHTML = `<div class="error-message">Error loading NFTs: ${err.message}</div>`;
   }
 }
 
-/* =======================
-   CONNECT WALLET
-======================= */
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
-    console.log('Connecting wallet...');
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
-      selectorOptions: {
-        appName: "Panda Pawn Shop",
-        appLogo: "images/pandapawnshop.jpg"
-      },
+      selectorOptions: { appName: "Panda Pawn Shop", appLogo: "images/pandapawnshop.jpg" },
       transportOptions: { requestAccount: "xprpandas" }
     });
 
@@ -246,21 +220,18 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     actor = session.auth.actor;
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
-    console.log('Wallet connected:', actor);
 
     await loadNFTs(actor);
 
   } catch (err) {
-    console.error('Wallet connection error:', err);
-    document.getElementById("wallet-display").innerHTML =
-      `<div class="error-message">❌ Connect failed: ${err.message}</div>`;
+    console.error(err);
+    document.getElementById("wallet-display").innerHTML = `<div class="error-message">❌ ${err.message}</div>`;
   }
 });
 
-// Lend button handler (placeholder for future smart contract integration)
 document.getElementById("lendBtn").addEventListener("click", () => {
   if (window.selectedNFT) {
-    alert(`Lending feature coming soon!\n\nSelected: ${window.selectedNFT.name}\nAsset ID: ${window.selectedNFT.asset_id}`);
+    alert(`Lending feature coming soon!\n\nSelected: ${window.selectedNFT.name}`);
   }
 });
 </script>

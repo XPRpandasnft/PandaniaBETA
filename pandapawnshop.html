@@ -60,7 +60,9 @@
   .nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
   .nft-card { background: #000; border-radius: 14px; border: 2px solid #453c2c; padding: 12px; text-align: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
   .nft-card:hover { transform: translateY(-4px); box-shadow: 0 0 18px #bb33ff; }
-  .nft-card img { width: 100%; border-radius: 10px; margin-bottom: 8px; }
+  .nft-card.selected { border-color: #bb33ff; box-shadow: 0 0 18px #bb33ff; }
+  .nft-card img { width: 100%; border-radius: 10px; margin-bottom: 8px; min-height: 150px; object-fit: cover; background: #1a1a1a; }
+  .nft-card .nft-name { font-size: 0.85em; color: #dacafa; word-break: break-word; }
   .preview { text-align: center; }
   .preview img { max-width: 260px; border-radius: 18px; border: 3px solid #bb33ff; box-shadow: 0 0 28px rgba(187,51,255,0.6); }
   .loan-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 18px; }
@@ -69,11 +71,13 @@
   .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .action-btn img { width: 28px; height: 28px; }
   .countdown { margin-top: 15px; font-size: 1.1em; color: #ffbfff; }
+  .error-message { color: #ff6b6b; margin-top: 10px; padding: 10px; background: rgba(255,107,107,0.1); border-radius: 8px; }
+  .loading { color: #bb33ff; }
 </style>
 </head>
 <body>
 
-<div style="text-align:center;">
+<div style="text-align:center; padding: 20px;">
   <button id="connect-wallet-btn">🔗 Connect Wallet</button>
   <div id="wallet-display"></div>
 </div>
@@ -97,11 +101,12 @@
 
   <div class="section preview">
     <h2>Selected NFT</h2>
-    <img id="selectedNFT" src="">
+    <img id="selectedNFT" src="" style="display: none;">
+    <p id="selectedInfo" style="color: #999;">No NFT selected</p>
     <br>
     <button class="action-btn" id="lendBtn" disabled>
       Lend NFT for PDA
-      <img src="images/x-icon/pda-xprpanda-65x65.png">
+      <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA">
     </button>
     <div class="countdown" id="countdown"></div>
   </div>
@@ -130,38 +135,82 @@ const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
 ======================= */
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
-  nftGrid.innerHTML = "Loading Proton Pandas...";
+  nftGrid.innerHTML = '<p class="loading">🔄 Loading Proton Pandas...</p>';
 
   try {
-    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`);
+    console.log(`Fetching NFTs for wallet: ${wallet}`);
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${wallet}`, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Backend returned ${resp.status}: ${resp.statusText}`);
+    }
+
     const nfts = await resp.json();
+    console.log('Received NFTs:', nfts);
 
     nftGrid.innerHTML = "";
 
     if (!Array.isArray(nfts) || nfts.length === 0) {
-      nftGrid.innerHTML = "<p>No Proton Pandas found.</p>";
+      nftGrid.innerHTML = "<p>No Proton Pandas found in this wallet.</p>";
       return;
     }
+
+    console.log(`Rendering ${nfts.length} NFTs`);
 
     nfts.forEach(nft => {
       const card = document.createElement("div");
       card.className = "nft-card";
+      card.dataset.assetId = nft.asset_id;
 
       const img = document.createElement("img");
       img.src = nft.image;
       img.alt = nft.name;
       img.loading = "lazy";
+      
+      // Handle image loading errors
+      img.onerror = function() {
+        console.warn(`Image failed to load for ${nft.name}:`, nft.image);
+        // Try IPFS gateway fallback
+        if (img.src.includes('ipfs.io')) {
+          const hash = img.src.split('/ipfs/')[1];
+          if (hash && !img.dataset.retried) {
+            img.dataset.retried = 'true';
+            img.src = `https://cloudflare-ipfs.com/ipfs/${hash}`;
+          } else {
+            // Ultimate fallback
+            img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext fill="%23fff" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+          }
+        }
+      };
 
       const name = document.createElement("div");
+      name.className = "nft-name";
       name.innerText = nft.name;
 
       card.appendChild(img);
       card.appendChild(name);
 
       card.onclick = () => {
-        document.getElementById("selectedNFT").src = nft.image;
+        // Remove selected class from all cards
+        document.querySelectorAll('.nft-card').forEach(c => c.classList.remove('selected'));
+        // Add selected class to clicked card
+        card.classList.add('selected');
+        
+        // Update preview
+        const selectedImg = document.getElementById("selectedNFT");
+        const selectedInfo = document.getElementById("selectedInfo");
+        selectedImg.src = nft.image;
+        selectedImg.style.display = 'block';
+        selectedInfo.innerText = nft.name;
+        
         document.getElementById("lendBtn").disabled = false;
         window.selectedNFT = nft;
+        
+        console.log('Selected NFT:', nft);
       };
 
       nftGrid.appendChild(card);
@@ -169,7 +218,11 @@ async function loadNFTs(wallet) {
 
   } catch (err) {
     console.error("NFT load error:", err);
-    nftGrid.innerHTML = "<p>Error loading NFTs.</p>";
+    nftGrid.innerHTML = `<div class="error-message">
+      <strong>Error loading NFTs:</strong><br>
+      ${err.message}<br>
+      <small>Please check console for details</small>
+    </div>`;
   }
 }
 
@@ -178,6 +231,7 @@ async function loadNFTs(wallet) {
 ======================= */
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
   try {
+    console.log('Connecting wallet...');
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: {
@@ -192,17 +246,24 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
 
     actor = session.auth.actor;
     document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
+    console.log('Wallet connected:', actor);
 
     await loadNFTs(actor);
 
   } catch (err) {
-    console.error(err);
-    document.getElementById("wallet-display").innerText =
-      `❌ Connect failed: ${err.message}`;
+    console.error('Wallet connection error:', err);
+    document.getElementById("wallet-display").innerHTML =
+      `<div class="error-message">❌ Connect failed: ${err.message}</div>`;
+  }
+});
+
+// Lend button handler (placeholder for future smart contract integration)
+document.getElementById("lendBtn").addEventListener("click", () => {
+  if (window.selectedNFT) {
+    alert(`Lending feature coming soon!\n\nSelected: ${window.selectedNFT.name}\nAsset ID: ${window.selectedNFT.asset_id}`);
   }
 });
 </script>
 
 </body>
 </html>
-

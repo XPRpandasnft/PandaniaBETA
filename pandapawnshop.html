@@ -1312,14 +1312,6 @@ const ATOMICASSETS = "atomicassets";
 const COLLECTION_NAME = "protonpandas";
 const REQUIRED_PDA = 555555;
 
-// IPFS Gateways - try multiple if one fails
-const IPFS_GATEWAYS = [
-  "https://ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://gateway.pinata.cloud/ipfs/",
-  "https://dweb.link/ipfs/"
-];
-
 // RPC Endpoints
 const RPC_ENDPOINTS = [
   "https://proton.greymass.com",
@@ -1436,57 +1428,30 @@ async function getUserLoans(accountName) {
   }
 }
 
-// Convert IPFS hash to gateway URL
-function ipfsToGateway(imageUrl, gatewayIndex = 0) {
-  if (!imageUrl) return null;
-  
-  const gateway = IPFS_GATEWAYS[gatewayIndex] || IPFS_GATEWAYS[0];
-  
-  if (imageUrl.startsWith('Qm') || imageUrl.startsWith('bafy')) {
-    return gateway + imageUrl;
-  } else if (imageUrl.startsWith('ipfs://')) {
-    return gateway + imageUrl.replace('ipfs://', '');
-  }
-  return imageUrl;
-}
-
-// BATCH FETCH: Get all NFT images from AtomicAssets in ONE request (like loadNFTs does)
+// FIXED: Fetch loan NFT images using the SAME BACKEND as loadNFTs
+// The loaned NFTs are held by the contract (pandapawn), so we query that wallet
 async function fetchLoanNFTImages(assetIds) {
   const imageMap = {};
   
   if (!assetIds || assetIds.length === 0) return imageMap;
   
   try {
-    // Batch request - fetch ALL assets in one call
-    const idsParam = assetIds.join(',');
-    const response = await fetch(`https://proton.api.atomicassets.io/atomicassets/v1/assets?ids=${idsParam}&page=1&limit=100`);
+    // Use the SAME backend that loadNFTs uses - query the contract's wallet
+    const resp = await fetch(`${PANDA_BACKEND}/api/pandas?wallet=${PAWN_CONTRACT}`);
     
-    if (!response.ok) {
-      console.error('AtomicAssets API error:', response.status);
+    if (!resp.ok) {
+      console.error('Backend error:', resp.status);
       return imageMap;
     }
     
-    const data = await response.json();
+    const nfts = await resp.json();
     
-    if (data.success && data.data && Array.isArray(data.data)) {
-      data.data.forEach(asset => {
-        let imageUrl = null;
-        
-        // Try all possible image fields (same as loadNFTs backend returns)
-        if (asset.data && asset.data.image) {
-          imageUrl = asset.data.image;
-        } else if (asset.immutable_data && asset.immutable_data.image) {
-          imageUrl = asset.immutable_data.image;
-        } else if (asset.data && asset.data.img) {
-          imageUrl = asset.data.img;
-        } else if (asset.immutable_data && asset.immutable_data.img) {
-          imageUrl = asset.immutable_data.img;
-        }
-        
-        if (imageUrl) {
-          // Convert IPFS to gateway URL
-          imageUrl = ipfsToGateway(imageUrl);
-          imageMap[String(asset.asset_id)] = imageUrl;
+    if (Array.isArray(nfts)) {
+      // Create a map of asset_id -> image URL (same format as loadNFTs uses)
+      nfts.forEach(nft => {
+        const assetIdStr = String(nft.asset_id);
+        if (assetIds.includes(assetIdStr) && nft.image) {
+          imageMap[assetIdStr] = nft.image;
         }
       });
     }
@@ -1559,23 +1524,7 @@ function clearCountdowns() {
   countdownIntervals = [];
 }
 
-// Handle image load error - try next IPFS gateway
-function handleImageError(img) {
-  const currentGateway = parseInt(img.dataset.gatewayIndex || '0');
-  const originalHash = img.dataset.ipfsHash;
-  
-  if (originalHash && currentGateway < IPFS_GATEWAYS.length - 1) {
-    // Try next gateway
-    const nextGateway = currentGateway + 1;
-    img.dataset.gatewayIndex = nextGateway;
-    img.src = IPFS_GATEWAYS[nextGateway] + originalHash;
-  } else {
-    // All gateways failed, use placeholder
-    img.src = PLACEHOLDER_IMAGE;
-  }
-}
-
-// Update User Loans Display - FIXED VERSION using same pattern as loadNFTs
+// Update User Loans Display - Uses SAME image loading as loadNFTs
 async function updateUserLoansDisplay() {
   if (!actor) return;
   
@@ -1607,73 +1556,86 @@ async function updateUserLoansDisplay() {
     return;
   }
   
-  // Show loading state first
+  // Show loading state
   grid.innerHTML = '<p class="loading">🔄 Loading your loans...</p>';
   
-  // STEP 1: Get all asset IDs
+  // Get all asset IDs
   const assetIds = loans.map(loan => String(loan.asset_id));
   
-  // STEP 2: Fetch ALL images in ONE batch request (like loadNFTs does with backend)
+  // Fetch images using SAME backend as loadNFTs
   const imageMap = await fetchLoanNFTImages(assetIds);
   
-  // STEP 3: Clear grid and build loan cards with DOM manipulation (like loadNFTs)
+  // Clear grid
   grid.innerHTML = '';
   
-  loans.forEach((loan, index) => {
+  // Build loan cards using same pattern as loadNFTs
+  loans.forEach(loan => {
     const timeInfo = formatTimeRemaining(loan.expires_at);
     const loanAmount = loan.loan_amount / 100;
     const repayAmount = loan.repay_amount / 100;
     const assetIdStr = String(loan.asset_id);
     
-    // Get image URL from our batch fetch
-    let imageUrl = imageMap[assetIdStr] || PLACEHOLDER_IMAGE;
+    // Get image from our fetch (same source as loadNFTs)
+    const imageUrl = imageMap[assetIdStr] || PLACEHOLDER_IMAGE;
     
-    // Extract IPFS hash for fallback retry
-    let ipfsHash = null;
-    if (imageUrl && !imageUrl.startsWith('data:')) {
-      const match = imageUrl.match(/ipfs\/(.+)$/);
-      if (match) ipfsHash = match[1];
-    }
-    
-    // Create loan card element (like loadNFTs creates nft-card)
+    // Create card element (same pattern as loadNFTs)
     const card = document.createElement('div');
     card.className = `loan-card ${timeInfo.class === 'danger' ? 'urgent' : ''}`;
     card.dataset.loanId = loan.loan_id;
     
-    // Create image element with error handling (like loadNFTs)
-    const imgHtml = `
-      <div class="loan-card-header">
-        <img class="loan-card-nft" 
-             src="${imageUrl}" 
-             alt="NFT"
-             data-gateway-index="0"
-             ${ipfsHash ? `data-ipfs-hash="${ipfsHash}"` : ''}
-             onerror="handleImageError(this)">
-        <div class="loan-card-info">
-          <div class="loan-card-title">Proton Panda #${loan.asset_id}</div>
-          <div class="loan-card-id">Loan #${loan.loan_id}</div>
-        </div>
-      </div>
-      <div class="loan-card-timer">
-        <div class="timer-label">Time Remaining</div>
-        <div class="timer-value ${timeInfo.class}" id="timer${loan.loan_id}">${timeInfo.text}</div>
-      </div>
-      <div class="loan-card-details">
-        <div class="loan-detail">
-          <div class="loan-detail-label">Borrowed</div>
-          <div class="loan-detail-value">${loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
-        </div>
-        <div class="loan-detail">
-          <div class="loan-detail-label">Repay Amount</div>
-          <div class="loan-detail-value">${repayAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
-        </div>
-      </div>
-      <button class="repay-btn" onclick="openRepayModal(${loan.loan_id}, ${loan.loan_amount}, ${loan.repay_amount}, ${loan.asset_id})">
-        💰 Repay & Get NFT Back
-      </button>
+    // Create image element with onerror handler (same as loadNFTs)
+    const img = document.createElement('img');
+    img.className = 'loan-card-nft';
+    img.src = imageUrl;
+    img.alt = 'NFT';
+    img.onerror = function() {
+      this.src = PLACEHOLDER_IMAGE;
+    };
+    
+    // Build the card HTML structure
+    const header = document.createElement('div');
+    header.className = 'loan-card-header';
+    
+    const info = document.createElement('div');
+    info.className = 'loan-card-info';
+    info.innerHTML = `
+      <div class="loan-card-title">Proton Panda #${loan.asset_id}</div>
+      <div class="loan-card-id">Loan #${loan.loan_id}</div>
     `;
     
-    card.innerHTML = imgHtml;
+    header.appendChild(img);
+    header.appendChild(info);
+    
+    const timer = document.createElement('div');
+    timer.className = 'loan-card-timer';
+    timer.innerHTML = `
+      <div class="timer-label">Time Remaining</div>
+      <div class="timer-value ${timeInfo.class}" id="timer${loan.loan_id}">${timeInfo.text}</div>
+    `;
+    
+    const details = document.createElement('div');
+    details.className = 'loan-card-details';
+    details.innerHTML = `
+      <div class="loan-detail">
+        <div class="loan-detail-label">Borrowed</div>
+        <div class="loan-detail-value">${loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
+      </div>
+      <div class="loan-detail">
+        <div class="loan-detail-label">Repay Amount</div>
+        <div class="loan-detail-value">${repayAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
+      </div>
+    `;
+    
+    const btn = document.createElement('button');
+    btn.className = 'repay-btn';
+    btn.textContent = '💰 Repay & Get NFT Back';
+    btn.onclick = () => openRepayModal(loan.loan_id, loan.loan_amount, loan.repay_amount, loan.asset_id);
+    
+    card.appendChild(header);
+    card.appendChild(timer);
+    card.appendChild(details);
+    card.appendChild(btn);
+    
     grid.appendChild(card);
   });
   
@@ -1904,7 +1866,7 @@ async function createLoan(nft) {
   }
 }
 
-// Load NFTs - THIS IS THE WORKING VERSION, loans section now uses same pattern
+// Load NFTs - THE WORKING VERSION
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = '<p class="loading">🔄 Loading Proton Pandas...</p>';

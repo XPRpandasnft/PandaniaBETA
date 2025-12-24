@@ -861,6 +861,20 @@
     color: #caffff;
   }
 
+  .inline-link {
+    display: inline;
+    padding: 0;
+    background: none;
+    color: #bb33ff;
+    text-decoration: underline;
+    font-weight: normal;
+  }
+
+  .inline-link:hover {
+    color: #00ff88;
+    transform: none;
+  }
+
   /* Mobile Responsive */
   @media (max-width: 768px) {
     .fixed-header {
@@ -1110,7 +1124,7 @@
         <p style="margin-bottom: 15px;">A: No, loans cannot be extended. You must repay within 14 days.</p>
         
         <p><strong>Q: What collections are supported?</strong></p>
-        <p style="margin-bottom: 15px;">A: Currently only Proton Pandas. More collections coming soon!</p>
+        <p style="margin-bottom: 15px;">A: Currently only Proton Pandas. More collections coming soon! <a href="http://pandania.xyz/vote.html" target="_blank" class="inline-link">Vote for new collections here</a></p>
         
         <p><strong>Q: How is the floor price determined?</strong></p>
         <p style="margin-bottom: 0;">A: The floor price is set by the admin and updated periodically based on market conditions.</p>
@@ -1288,8 +1302,6 @@ const PDA_CONTRACT = "xprpandas";
 const ATOMICASSETS = "atomicassets";
 const COLLECTION_NAME = "protonpandas";
 const REQUIRED_PDA = 555555;
-
-// On-chain amounts use 4 decimal precision internally
 const CHAIN_PRECISION = 10000;
 
 // RPC Endpoints
@@ -1405,10 +1417,13 @@ async function getUserLoans(accountName) {
   }
 }
 
-// Get NFT image from AtomicAssets API
+// Get NFT image from cache or AtomicAssets API
 async function getNFTImage(assetId) {
-  if (nftImageCache[assetId]) {
-    return nftImageCache[assetId];
+  const cacheKey = String(assetId);
+  
+  // Check cache first
+  if (nftImageCache[cacheKey]) {
+    return nftImageCache[cacheKey];
   }
 
   try {
@@ -1435,7 +1450,7 @@ async function getNFTImage(assetId) {
           } else if (imageUrl.startsWith('ipfs://')) {
             imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
           }
-          nftImageCache[assetId] = imageUrl;
+          nftImageCache[cacheKey] = imageUrl;
           return imageUrl;
         }
       }
@@ -1453,7 +1468,6 @@ async function updateGlobalStats() {
   const collection = await getCollectionConfig();
 
   if (collection) {
-    // On-chain values stored with 4 decimal precision
     const floorPrice = collection.floor_price / CHAIN_PRECISION;
     const loanAmount = floorPrice * 0.05;
     
@@ -1542,16 +1556,21 @@ async function updateUserLoansDisplay() {
     return;
   }
   
+  // First, fetch all NFT images
+  const imagePromises = loans.map(loan => getNFTImage(loan.asset_id));
+  const images = await Promise.all(imagePromises);
+  
+  // Build loan cards with images
   grid.innerHTML = loans.map((loan, index) => {
     const timeInfo = formatTimeRemaining(loan.expires_at);
-    // On-chain values stored with 4 decimal precision
     const loanAmount = loan.loan_amount / CHAIN_PRECISION;
     const repayAmount = loan.repay_amount / CHAIN_PRECISION;
+    const imageUrl = images[index];
     
     return `
       <div class="loan-card ${timeInfo.class === 'danger' ? 'urgent' : ''}" data-loan-id="${loan.loan_id}">
         <div class="loan-card-header">
-          <img class="loan-card-nft" src="" alt="NFT" id="loanNft${loan.loan_id}" data-asset-id="${loan.asset_id}">
+          <img class="loan-card-nft" src="${imageUrl}" alt="NFT" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%231a1a1a%22 width=%22200%22 height=%22200%22/%3E%3Ctext fill=%22%23bb33ff%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2214%22%3EPanda%3C/text%3E%3C/svg%3E'">
           <div class="loan-card-info">
             <div class="loan-card-title">Proton Panda #${loan.asset_id}</div>
             <div class="loan-card-id">Loan #${loan.loan_id}</div>
@@ -1578,18 +1597,6 @@ async function updateUserLoansDisplay() {
     `;
   }).join('');
   
-  // Load NFT images asynchronously
-  loans.forEach(async (loan) => {
-    const imgEl = document.getElementById(`loanNft${loan.loan_id}`);
-    if (imgEl) {
-      const imageUrl = await getNFTImage(loan.asset_id);
-      imgEl.src = imageUrl;
-      imgEl.onerror = function() {
-        this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%231a1a1a" width="200" height="200"/%3E%3Ctext fill="%23bb33ff" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="14"%3EPanda%3C/text%3E%3C/svg%3E';
-      };
-    }
-  });
-  
   // Start countdown timers
   loans.forEach(loan => {
     const interval = setInterval(() => {
@@ -1606,7 +1613,6 @@ async function updateUserLoansDisplay() {
 
 // Open Repay Modal
 function openRepayModal(loanId, loanAmount, repayAmount, assetId) {
-  // On-chain values stored with 4 decimal precision
   const principal = loanAmount / CHAIN_PRECISION;
   const total = repayAmount / CHAIN_PRECISION;
   const interest = total - principal;
@@ -1660,7 +1666,6 @@ async function repayLoan(loanId, repayAmount) {
   btn.disabled = true;
   
   try {
-    // Format amount with 2 decimal precision for PDA token transfer
     const repayAmountFormatted = (repayAmount / CHAIN_PRECISION).toFixed(2) + ' PDA';
     
     const actions = [
@@ -1744,7 +1749,6 @@ async function createLoan(nft) {
       throw new Error('Collection not configured in contract. Please contact admin.');
     }
 
-    // On-chain values stored with 4 decimal precision
     const floorPrice = collectionConfig.floor_price / CHAIN_PRECISION;
     const loanAmount = floorPrice * 0.05;
     const repayAmount = loanAmount * 1.10;
@@ -1779,7 +1783,8 @@ async function createLoan(nft) {
     const result = await session.transact({ actions }, { broadcast: true });
     console.log('Loan created:', result);
 
-    nftImageCache[nft.asset_id] = nft.image;
+    // Cache the NFT image
+    nftImageCache[String(nft.asset_id)] = nft.image;
 
     document.getElementById('loanDetails').innerHTML = `
       <div class="repay-row">
@@ -1840,7 +1845,6 @@ async function loadNFTs(wallet) {
     }
 
     const collectionConfig = await getCollectionConfig();
-    // On-chain values stored with 4 decimal precision
     const floorPrice = collectionConfig ? collectionConfig.floor_price / CHAIN_PRECISION : 0;
     const loanAmount = floorPrice * 0.05;
     const repayAmount = loanAmount * 1.10;
@@ -1854,7 +1858,8 @@ async function loadNFTs(wallet) {
       img.alt = nft.name;
       img.loading = "lazy";
       
-      nftImageCache[nft.asset_id] = nft.image;
+      // Cache image with string key
+      nftImageCache[String(nft.asset_id)] = nft.image;
       
       if (nft.fallback_urls) {
         img.dataset.fallbacks = JSON.stringify(nft.fallback_urls);

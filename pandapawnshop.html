@@ -440,6 +440,7 @@
     border-radius: 10px;
     object-fit: cover;
     border: 2px solid #bb33ff;
+    background: #1a1a1a;
   }
 
   .loan-card-info {
@@ -1065,9 +1066,9 @@
         <p><strong>Example:</strong></p>
         <p>If Floor Price = <strong>2,082,863 PDA</strong></p>
         <ul class="docs-list">
-          <li>Loan Amount = 2,082,863 × 5% = <strong>104,143 PDA</strong></li>
-          <li>Interest = 104,143 × 10% = <strong>10,414 PDA</strong></li>
-          <li>Total Repayment = 104,143 + 10,414 = <strong>114,557 PDA</strong></li>
+          <li>Loan Amount = 2,082,863 × 5% = <strong>104,143.15 PDA</strong></li>
+          <li>Interest = 104,143.15 × 10% = <strong>10,414.31 PDA</strong></li>
+          <li>Total Repayment = 104,143.15 + 10,414.31 = <strong>114,557.46 PDA</strong></li>
         </ul>
       </div>
     </div>
@@ -1278,6 +1279,7 @@ let session = null;
 let actor = null;
 let userLoans = [];
 let countdownIntervals = [];
+let nftImageCache = {};  // Cache NFT images for loans
 
 // Configuration
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
@@ -1286,6 +1288,7 @@ const PDA_CONTRACT = "xprpandas";
 const ATOMICASSETS = "atomicassets";
 const COLLECTION_NAME = "protonpandas";
 const REQUIRED_PDA = 555555;
+const PDA_DECIMALS = 2;  // PDA has 2 decimal precision
 
 // RPC Endpoints
 const RPC_ENDPOINTS = [
@@ -1293,6 +1296,20 @@ const RPC_ENDPOINTS = [
   "https://proton.eosusa.io",
   "https://proton.pink.gg"
 ];
+
+// Format PDA amount with 2 decimal precision
+function formatPDA(amount, fromSmallestUnit = true) {
+  if (fromSmallestUnit) {
+    // Convert from smallest unit (with 2 decimals) to display value
+    return (amount / 100).toFixed(2);
+  }
+  return parseFloat(amount).toFixed(2);
+}
+
+// Format PDA for blockchain (2 decimals)
+function formatPDAForChain(amount) {
+  return parseFloat(amount).toFixed(2) + ' PDA';
+}
 
 // Fetch with fallback
 async function fetchWithFallback(path, options) {
@@ -1375,7 +1392,7 @@ async function getCollectionConfig() {
   }
 }
 
-// Get User Loans
+// Get User Loans (only status 0 = ACTIVE)
 async function getUserLoans(accountName) {
   try {
     const response = await fetchWithFallback('/v1/chain/get_table_rows', {
@@ -1391,6 +1408,7 @@ async function getUserLoans(accountName) {
     });
     const data = await response.json();
     if (data.rows) {
+      // Filter for user's active loans (status 0 = ACTIVE)
       return data.rows.filter(loan => loan.borrower === accountName && loan.status === 0);
     }
     return [];
@@ -1400,25 +1418,74 @@ async function getUserLoans(accountName) {
   }
 }
 
+// Get NFT image from AtomicAssets API
+async function getNFTImage(assetId) {
+  // Check cache first
+  if (nftImageCache[assetId]) {
+    return nftImageCache[assetId];
+  }
+
+  try {
+    // Try AtomicAssets API
+    const response = await fetch(`https://proton.api.atomicassets.io/atomicassets/v1/assets/${assetId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data) {
+        const asset = data.data;
+        let imageUrl = null;
+
+        // Try to get image from immutable_data or data
+        if (asset.data && asset.data.image) {
+          imageUrl = asset.data.image;
+        } else if (asset.immutable_data && asset.immutable_data.image) {
+          imageUrl = asset.immutable_data.image;
+        } else if (asset.data && asset.data.img) {
+          imageUrl = asset.data.img;
+        } else if (asset.immutable_data && asset.immutable_data.img) {
+          imageUrl = asset.immutable_data.img;
+        }
+
+        // Handle IPFS URLs
+        if (imageUrl) {
+          if (imageUrl.startsWith('Qm') || imageUrl.startsWith('bafy')) {
+            imageUrl = `https://ipfs.io/ipfs/${imageUrl}`;
+          } else if (imageUrl.startsWith('ipfs://')) {
+            imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+          }
+          nftImageCache[assetId] = imageUrl;
+          return imageUrl;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching NFT image:', error);
+  }
+
+  // Return placeholder if no image found
+  return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%231a1a1a" width="200" height="200"/%3E%3Ctext fill="%23bb33ff" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="14"%3EPanda%3C/text%3E%3C/svg%3E';
+}
+
 // Update Global Stats
 async function updateGlobalStats() {
   const config = await getContractConfig();
   const collection = await getCollectionConfig();
 
   if (collection) {
-    const floorPrice = collection.floor_price / 10000;
+    // floor_price is stored with 2 decimal precision (smallest units)
+    const floorPrice = collection.floor_price / 100;  // Convert to display value
     const loanAmount = floorPrice * 0.05;
     
-    document.getElementById('statFloor').textContent = floorPrice.toLocaleString() + ' PDA';
-    document.getElementById('statLoanAmount').textContent = loanAmount.toLocaleString() + ' PDA';
-    document.getElementById('headerFloor').textContent = floorPrice.toLocaleString();
-    document.getElementById('floorBadge').textContent = `Floor: ${floorPrice.toLocaleString()} PDA`;
+    document.getElementById('statFloor').textContent = floorPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' PDA';
+    document.getElementById('statLoanAmount').textContent = loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' PDA';
+    document.getElementById('headerFloor').textContent = floorPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('floorBadge').textContent = `Floor: ${floorPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA`;
   }
 
   if (config) {
     document.getElementById('statTotalLoans').textContent = config.total_loans || '0';
-    document.getElementById('statOutstanding').textContent = ((config.total_outstanding || 0) / 10000).toLocaleString() + ' PDA';
-    document.getElementById('statBurned').textContent = ((config.total_burned || 0) / 10000).toLocaleString() + ' PDA';
+    // total_outstanding and total_burned are stored with 2 decimal precision
+    document.getElementById('statOutstanding').textContent = ((config.total_outstanding || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' PDA';
+    document.getElementById('statBurned').textContent = ((config.total_burned || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' PDA';
   }
 }
 
@@ -1462,7 +1529,7 @@ function clearCountdowns() {
   countdownIntervals = [];
 }
 
-// Update User Loans Display
+// Update User Loans Display with NFT Images
 async function updateUserLoansDisplay() {
   if (!actor) return;
   
@@ -1495,15 +1562,17 @@ async function updateUserLoansDisplay() {
     return;
   }
   
+  // Build loan cards HTML
   grid.innerHTML = loans.map((loan, index) => {
     const timeInfo = formatTimeRemaining(loan.expires_at);
-    const loanAmount = loan.loan_amount / 10000;
-    const repayAmount = loan.repay_amount / 10000;
+    // Amounts are stored with 2 decimal precision
+    const loanAmount = loan.loan_amount / 100;
+    const repayAmount = loan.repay_amount / 100;
     
     return `
       <div class="loan-card ${timeInfo.class === 'danger' ? 'urgent' : ''}" data-loan-id="${loan.loan_id}">
         <div class="loan-card-header">
-          <img class="loan-card-nft" src="https://ipfs.io/ipfs/QmPlaceholder" alt="NFT" id="loanNft${index}">
+          <img class="loan-card-nft" src="" alt="NFT" id="loanNft${loan.loan_id}" data-asset-id="${loan.asset_id}">
           <div class="loan-card-info">
             <div class="loan-card-title">Proton Panda #${loan.asset_id}</div>
             <div class="loan-card-id">Loan #${loan.loan_id}</div>
@@ -1516,11 +1585,11 @@ async function updateUserLoansDisplay() {
         <div class="loan-card-details">
           <div class="loan-detail">
             <div class="loan-detail-label">Borrowed</div>
-            <div class="loan-detail-value">${loanAmount.toLocaleString()} PDA</div>
+            <div class="loan-detail-value">${loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
           </div>
           <div class="loan-detail">
             <div class="loan-detail-label">Repay Amount</div>
-            <div class="loan-detail-value">${repayAmount.toLocaleString()} PDA</div>
+            <div class="loan-detail-value">${repayAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</div>
           </div>
         </div>
         <button class="repay-btn" onclick="openRepayModal(${loan.loan_id}, ${loan.loan_amount}, ${loan.repay_amount}, ${loan.asset_id})">
@@ -1529,6 +1598,18 @@ async function updateUserLoansDisplay() {
       </div>
     `;
   }).join('');
+  
+  // Load NFT images asynchronously
+  loans.forEach(async (loan) => {
+    const imgEl = document.getElementById(`loanNft${loan.loan_id}`);
+    if (imgEl) {
+      const imageUrl = await getNFTImage(loan.asset_id);
+      imgEl.src = imageUrl;
+      imgEl.onerror = function() {
+        this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%231a1a1a" width="200" height="200"/%3E%3Ctext fill="%23bb33ff" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="14"%3EPanda%3C/text%3E%3C/svg%3E';
+      };
+    }
+  });
   
   // Start countdown timers
   loans.forEach(loan => {
@@ -1546,8 +1627,9 @@ async function updateUserLoansDisplay() {
 
 // Open Repay Modal
 function openRepayModal(loanId, loanAmount, repayAmount, assetId) {
-  const principal = loanAmount / 10000;
-  const total = repayAmount / 10000;
+  // Amounts are stored with 2 decimal precision
+  const principal = loanAmount / 100;
+  const total = repayAmount / 100;
   const interest = total - principal;
   const burnAmount = interest * 0.6;
   const vaultAmount = interest * 0.4;
@@ -1563,23 +1645,23 @@ function openRepayModal(loanId, loanAmount, repayAmount, assetId) {
     </div>
     <div class="repay-row">
       <span class="label">Principal</span>
-      <span class="value">${principal.toLocaleString()} PDA</span>
+      <span class="value">${principal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
     </div>
     <div class="repay-row">
       <span class="label">Interest (10%)</span>
-      <span class="value">${interest.toLocaleString()} PDA</span>
+      <span class="value">${interest.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
     </div>
     <div class="repay-row">
       <span class="label">→ Burned (60%)</span>
-      <span class="value" style="color: #ff4444;">${burnAmount.toLocaleString()} PDA</span>
+      <span class="value" style="color: #ff4444;">${burnAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
     </div>
     <div class="repay-row">
       <span class="label">→ To Vault (40%)</span>
-      <span class="value">${vaultAmount.toLocaleString()} PDA</span>
+      <span class="value">${vaultAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
     </div>
     <div class="repay-row">
       <span class="label">Total Repayment</span>
-      <span class="value">${total.toLocaleString()} PDA</span>
+      <span class="value">${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
     </div>
   `;
   
@@ -1599,9 +1681,11 @@ async function repayLoan(loanId, repayAmount) {
   btn.disabled = true;
   
   try {
-    const repayAmountFormatted = (repayAmount / 10000).toFixed(4) + ' PDA';
+    // Format amount with 2 decimal precision for PDA
+    const repayAmountFormatted = (repayAmount / 100).toFixed(2) + ' PDA';
     
     const actions = [
+      // First: Transfer PDA from user to contract (repay amount)
       {
         account: PDA_CONTRACT,
         name: 'transfer',
@@ -1613,6 +1697,7 @@ async function repayLoan(loanId, repayAmount) {
           memo: `repay:${loanId}`
         }
       },
+      // Second: Call repayloan action
       {
         account: PAWN_CONTRACT,
         name: 'repayloan',
@@ -1620,6 +1705,15 @@ async function repayLoan(loanId, repayAmount) {
         data: {
           borrower: actor.toString(),
           loan_id: loanId
+        }
+      },
+      // Third: Call claimrepay to finalize (executes interest split & NFT return)
+      {
+        account: PAWN_CONTRACT,
+        name: 'claimrepay',
+        authorization: [{ actor: actor.toString(), permission: 'active' }],
+        data: {
+          borrower: actor.toString()
         }
       }
     ];
@@ -1634,7 +1728,7 @@ async function repayLoan(loanId, repayAmount) {
     await updateUserLoansDisplay();
     await updateGlobalStats();
     const pdaBalance = await checkPDABalance(actor.toString());
-    document.getElementById('headerBalance').textContent = pdaBalance.toLocaleString();
+    document.getElementById('headerBalance').textContent = pdaBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     
   } catch (error) {
     console.error('Repay error:', error);
@@ -1675,13 +1769,15 @@ async function createLoan(nft) {
       throw new Error('Collection not configured in contract. Please contact admin.');
     }
 
-    const floorPrice = collectionConfig.floor_price / 10000;
+    // floor_price is stored with 2 decimal precision
+    const floorPrice = collectionConfig.floor_price / 100;
     const loanAmount = floorPrice * 0.05;
     const repayAmount = loanAmount * 1.10;
 
     lendBtn.innerHTML = '⏳ Creating Loan...';
 
     const actions = [
+      // First: Transfer NFT to contract
       {
         account: ATOMICASSETS,
         name: 'transfer',
@@ -1693,6 +1789,7 @@ async function createLoan(nft) {
           memo: 'loan'
         }
       },
+      // Second: Create loan (this will also send PDA to borrower)
       {
         account: PAWN_CONTRACT,
         name: 'createloan',
@@ -1709,6 +1806,9 @@ async function createLoan(nft) {
     const result = await session.transact({ actions }, { broadcast: true });
     console.log('Loan created:', result);
 
+    // Cache the NFT image for the loan display
+    nftImageCache[nft.asset_id] = nft.image;
+
     // Show success modal
     document.getElementById('loanDetails').innerHTML = `
       <div class="repay-row">
@@ -1717,11 +1817,11 @@ async function createLoan(nft) {
       </div>
       <div class="repay-row">
         <span class="label">Loan Amount</span>
-        <span class="value">${loanAmount.toLocaleString()} PDA</span>
+        <span class="value">${loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
       </div>
       <div class="repay-row">
         <span class="label">Repay Amount</span>
-        <span class="value">${repayAmount.toLocaleString()} PDA</span>
+        <span class="value">${repayAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} PDA</span>
       </div>
       <div class="repay-row">
         <span class="label">Duration</span>
@@ -1736,7 +1836,7 @@ async function createLoan(nft) {
     await updateGlobalStats();
     
     const newBalance = await checkPDABalance(actor.toString());
-    document.getElementById('headerBalance').textContent = newBalance.toLocaleString();
+    document.getElementById('headerBalance').textContent = newBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     // Reset selection
     document.getElementById('selectedNFT').style.display = 'none';
@@ -1772,7 +1872,8 @@ async function loadNFTs(wallet) {
 
     // Get collection config for loan preview
     const collectionConfig = await getCollectionConfig();
-    const floorPrice = collectionConfig ? collectionConfig.floor_price / 10000 : 0;
+    // floor_price is stored with 2 decimal precision
+    const floorPrice = collectionConfig ? collectionConfig.floor_price / 100 : 0;
     const loanAmount = floorPrice * 0.05;
     const repayAmount = loanAmount * 1.10;
 
@@ -1784,6 +1885,9 @@ async function loadNFTs(wallet) {
       img.src = nft.image;
       img.alt = nft.name;
       img.loading = "lazy";
+      
+      // Cache image for later use in loans display
+      nftImageCache[nft.asset_id] = nft.image;
       
       if (nft.fallback_urls) {
         img.dataset.fallbacks = JSON.stringify(nft.fallback_urls);
@@ -1819,10 +1923,10 @@ async function loadNFTs(wallet) {
         document.getElementById("selectedInfo").innerText = nft.name;
         document.getElementById("lendBtn").disabled = false;
         
-        // Show loan preview
+        // Show loan preview with 2 decimal formatting
         document.getElementById("loanPreview").style.display = 'block';
-        document.getElementById("previewAmount").textContent = loanAmount.toLocaleString() + ' PDA';
-        document.getElementById("previewRepay").textContent = repayAmount.toLocaleString();
+        document.getElementById("previewAmount").textContent = loanAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' PDA';
+        document.getElementById("previewRepay").textContent = repayAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
         
         window.selectedNFT = nft;
       };
@@ -1877,7 +1981,7 @@ document.getElementById("connect-wallet-btn").addEventListener("click", async ()
     const pdaBalance = await checkPDABalance(actor.toString());
     
     walletDisplay.innerHTML = `✅ ${actor}`;
-    document.getElementById('headerBalance').textContent = pdaBalance.toLocaleString();
+    document.getElementById('headerBalance').textContent = pdaBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     connectBtn.textContent = '✅ Connected';
 
     await loadNFTs(actor.toString());

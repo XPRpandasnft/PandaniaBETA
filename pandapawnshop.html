@@ -73,9 +73,166 @@
   .countdown { margin-top: 15px; font-size: 1.1em; color: #ffbfff; }
   .error-message { color: #ff6b6b; margin-top: 10px; padding: 10px; background: rgba(255,107,107,0.1); border-radius: 8px; }
   .loading { color: #bb33ff; }
+
+  /* Access Denied Modal Styles */
+  #accessDeniedModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #accessDeniedModal.show {
+    display: flex;
+  }
+
+  #accessDeniedModal .modal-content {
+    background: linear-gradient(135deg, #1a0a2e, #0d0015);
+    border: 3px solid #bb33ff;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 450px;
+    box-shadow: 0 0 50px rgba(187, 51, 255, 0.6);
+    animation: modalPop 0.3s ease-out;
+  }
+
+  @keyframes modalPop {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  #accessDeniedModal h2 {
+    color: #ff4444;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+  }
+
+  #accessDeniedModal p {
+    color: #dacafa;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 25px;
+  }
+
+  #accessDeniedModal strong {
+    color: #bb33ff;
+    font-size: 1.2em;
+  }
+
+  #accessDeniedModal a {
+    display: inline-block;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #00ff88, #00cc6a);
+    color: #000;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 1em;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  }
+
+  #accessDeniedModal a:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.6);
+  }
+
+  #accessDeniedModal .close-modal {
+    display: block;
+    margin-top: 20px;
+    color: #888;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+
+  #accessDeniedModal .close-modal:hover {
+    color: #fff;
+  }
+
+  /* Success Modal Styles */
+  #successModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #successModal.show {
+    display: flex;
+  }
+
+  #successModal .modal-content {
+    background: linear-gradient(135deg, #0a2e1a, #001509);
+    border: 3px solid #00ff88;
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 450px;
+    box-shadow: 0 0 50px rgba(0, 255, 136, 0.6);
+    animation: modalPop 0.3s ease-out;
+  }
+
+  #successModal h2 {
+    color: #00ff88;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+  }
+
+  #successModal p {
+    color: #dacafa;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 15px;
+  }
+
+  #successModal .close-modal {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #bb33ff, #892dff);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
+
+<!-- Access Denied Modal -->
+<div id="accessDeniedModal">
+  <div class="modal-content">
+    <h2>🚫 ACCESS DENIED</h2>
+    <p>🐼 You need at least <strong>555,555 PDA</strong> tokens to use Panda Pawn Shop!</p>
+    <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" target="_blank">Buy PDA on Alcor Exchange</a>
+    <span class="close-modal" onclick="closeAccessDeniedModal()">Close</span>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div id="successModal">
+  <div class="modal-content">
+    <h2>✅ LOAN CREATED!</h2>
+    <p id="successMessage">Your loan has been created successfully!</p>
+    <p id="loanDetails"></p>
+    <button class="close-modal" onclick="closeSuccessModal()">Close</button>
+  </div>
+</div>
 
 <div style="text-align:center; padding: 20px;">
   <button id="connect-wallet-btn">🔗 Connect Wallet</button>
@@ -114,10 +271,10 @@
   <div class="section">
     <h2>Loan Terms</h2>
     <div class="loan-grid">
-      <div class="loan-box">⏱ Duration<br><b>72 Hours</b></div>
-      <div class="loan-box">💰 Loan<br><b>5,000 PDA</b></div>
-      <div class="loan-box">🔥 Interest<br><b>5%</b></div>
-      <div class="loan-box">♻ Split<br><b>50% Burn / 50% Vault</b></div>
+      <div class="loan-box">⏱ Duration<br><b>14 Days</b></div>
+      <div class="loan-box">💰 Loan<br><b>5% of Floor</b></div>
+      <div class="loan-box">🔥 Interest<br><b>10%</b></div>
+      <div class="loan-box">♻ Split<br><b>60% Burn / 40% Vault</b></div>
     </div>
   </div>
 </div>
@@ -128,8 +285,206 @@
 let session = null;
 let actor = null;
 
+// Configuration
 const PANDA_BACKEND = "https://panda-nft-backend.onrender.com";
+const PAWN_CONTRACT = "pandapawn";
+const PDA_CONTRACT = "xprpandas";
+const ATOMICASSETS = "atomicassets";
+const COLLECTION_NAME = "protonpandas";
+const REQUIRED_PDA = 555555;
 
+// RPC Endpoints with fallback
+const RPC_ENDPOINTS = [
+  "https://proton.greymass.com",
+  "https://proton.eosusa.io",
+  "https://proton.pink.gg"
+];
+
+// Fetch with endpoint fallback
+async function fetchWithFallback(path, options) {
+  for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+    try {
+      const response = await fetch(`${RPC_ENDPOINTS[i]}${path}`, options);
+      if (response.ok) {
+        return response;
+      }
+    } catch (error) {
+      console.warn(`Endpoint ${RPC_ENDPOINTS[i]} failed:`, error);
+      if (i === RPC_ENDPOINTS.length - 1) throw error;
+    }
+  }
+  throw new Error('All endpoints failed');
+}
+
+// Check PDA Balance
+async function checkPDABalance(accountName) {
+  try {
+    const response = await fetchWithFallback('/v1/chain/get_currency_balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: PDA_CONTRACT,
+        account: accountName,
+        symbol: 'PDA'
+      })
+    });
+    const balances = await response.json();
+    console.log('PDA Balance:', balances);
+    const balance = parseFloat((balances[0] || '0 PDA').split(' ')[0]);
+    return balance;
+  } catch (error) {
+    console.error('Error checking PDA balance:', error);
+    return 0;
+  }
+}
+
+// Show Access Denied Modal
+function showAccessDeniedModal() {
+  document.getElementById('accessDeniedModal').classList.add('show');
+}
+
+// Close Access Denied Modal
+function closeAccessDeniedModal() {
+  document.getElementById('accessDeniedModal').classList.remove('show');
+}
+
+// Show Success Modal
+function showSuccessModal(loanId, amount) {
+  document.getElementById('loanDetails').innerHTML = `
+    <strong>Loan ID:</strong> #${loanId}<br>
+    <strong>Amount:</strong> ${amount} PDA<br>
+    <strong>Duration:</strong> 14 Days<br>
+    <strong>Interest:</strong> 10%
+  `;
+  document.getElementById('successModal').classList.add('show');
+}
+
+// Close Success Modal
+function closeSuccessModal() {
+  document.getElementById('successModal').classList.remove('show');
+}
+
+// Get collection config from contract
+async function getCollectionConfig() {
+  try {
+    const response = await fetchWithFallback('/v1/chain/get_table_rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: PAWN_CONTRACT,
+        scope: PAWN_CONTRACT,
+        table: 'collections',
+        lower_bound: COLLECTION_NAME,
+        upper_bound: COLLECTION_NAME,
+        limit: 1,
+        json: true
+      })
+    });
+    const data = await response.json();
+    if (data.rows && data.rows.length > 0) {
+      return data.rows[0];
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting collection config:', error);
+    return null;
+  }
+}
+
+// Create Loan Transaction
+async function createLoan(nft) {
+  if (!session || !actor) {
+    alert('Please connect your wallet first!');
+    return;
+  }
+
+  const lendBtn = document.getElementById('lendBtn');
+  const originalText = lendBtn.innerHTML;
+
+  try {
+    // Disable button and show loading
+    lendBtn.disabled = true;
+    lendBtn.innerHTML = '⏳ Checking PDA Balance...';
+
+    // Check PDA balance first
+    const pdaBalance = await checkPDABalance(actor.toString());
+    console.log(`PDA Balance: ${pdaBalance}, Required: ${REQUIRED_PDA}`);
+
+    if (pdaBalance < REQUIRED_PDA) {
+      showAccessDeniedModal();
+      lendBtn.innerHTML = originalText;
+      lendBtn.disabled = false;
+      return;
+    }
+
+    lendBtn.innerHTML = '⏳ Creating Loan...';
+
+    // Get collection config to calculate loan amount
+    const collectionConfig = await getCollectionConfig();
+    if (!collectionConfig) {
+      throw new Error('Collection not configured in contract');
+    }
+
+    const floorPrice = collectionConfig.floor_price / 10000; // Convert from 4 decimals
+    const loanAmount = floorPrice * 0.05; // 5% of floor
+
+    // Transaction: Transfer NFT to contract then create loan
+    const actions = [
+      // Step 1: Transfer NFT to pandapawn contract
+      {
+        account: ATOMICASSETS,
+        name: 'transfer',
+        authorization: [{ actor: actor.toString(), permission: 'active' }],
+        data: {
+          from: actor.toString(),
+          to: PAWN_CONTRACT,
+          asset_ids: [nft.asset_id],
+          memo: 'loan'
+        }
+      },
+      // Step 2: Create loan record
+      {
+        account: PAWN_CONTRACT,
+        name: 'createloan',
+        authorization: [{ actor: actor.toString(), permission: 'active' }],
+        data: {
+          borrower: actor.toString(),
+          asset_id: nft.asset_id,
+          template_id: nft.template_id,
+          collection_name: COLLECTION_NAME
+        }
+      }
+    ];
+
+    console.log('Sending transaction:', actions);
+
+    const result = await session.transact({ actions }, {
+      broadcast: true
+    });
+
+    console.log('Transaction result:', result);
+
+    // Show success
+    showSuccessModal(nft.asset_id, loanAmount.toFixed(4));
+
+    // Refresh NFT list
+    await loadNFTs(actor.toString());
+
+    // Reset selection
+    document.getElementById('selectedNFT').style.display = 'none';
+    document.getElementById('selectedInfo').innerText = 'No NFT selected';
+    window.selectedNFT = null;
+
+  } catch (error) {
+    console.error('Loan creation error:', error);
+    alert(`❌ Failed to create loan: ${error.message}`);
+  } finally {
+    lendBtn.innerHTML = originalText;
+    lendBtn.disabled = !window.selectedNFT;
+  }
+}
+
+// Load NFTs
 async function loadNFTs(wallet) {
   const nftGrid = document.getElementById("nftGrid");
   nftGrid.innerHTML = '<p class="loading">🔄 Loading Proton Pandas...</p>';
@@ -157,13 +512,11 @@ async function loadNFTs(wallet) {
       img.alt = nft.name;
       img.loading = "lazy";
       
-      // Store fallback URLs
       if (nft.fallback_urls) {
         img.dataset.fallbacks = JSON.stringify(nft.fallback_urls);
         img.dataset.fallbackIndex = '0';
       }
       
-      // Handle errors with fallbacks
       img.onerror = function() {
         if (img.dataset.fallbacks) {
           const fallbacks = JSON.parse(img.dataset.fallbacks);
@@ -175,8 +528,6 @@ async function loadNFTs(wallet) {
             return;
           }
         }
-        
-        // Placeholder
         img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3Ctext fill="%23fff" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EPanda %23' + nft.template_id + '%3C/text%3E%3C/svg%3E';
       };
 
@@ -207,31 +558,67 @@ async function loadNFTs(wallet) {
   }
 }
 
+// Connect Wallet
 document.getElementById("connect-wallet-btn").addEventListener("click", async () => {
+  const connectBtn = document.getElementById("connect-wallet-btn");
+  const walletDisplay = document.getElementById("wallet-display");
+
   try {
+    connectBtn.textContent = '⏳ Connecting...';
+    connectBtn.disabled = true;
+
     const { session: newSession } = await ProtonWebSDK({
       linkOptions: { endpoints: ["https://proton.greymass.com"] },
       selectorOptions: { appName: "Panda Pawn Shop", appLogo: "images/pandapawnshop.jpg" },
-      transportOptions: { requestAccount: "xprpandas" }
+      transportOptions: { requestAccount: "pandapawn" }
     });
 
     session = newSession;
     if (!session || !session.auth) throw new Error("No wallet auth returned");
 
     actor = session.auth.actor;
-    document.getElementById("wallet-display").innerText = `✅ Connected: ${actor}`;
+    
+    // Check PDA balance on connect
+    const pdaBalance = await checkPDABalance(actor.toString());
+    
+    walletDisplay.innerHTML = `✅ Connected: ${actor}<br><span style="color: #bb33ff;">💰 PDA Balance: ${pdaBalance.toLocaleString()}</span>`;
+    connectBtn.textContent = '✅ Connected';
 
-    await loadNFTs(actor);
+    await loadNFTs(actor.toString());
 
   } catch (err) {
     console.error(err);
-    document.getElementById("wallet-display").innerHTML = `<div class="error-message">❌ ${err.message}</div>`;
+    walletDisplay.innerHTML = `<div class="error-message">❌ ${err.message}</div>`;
+    connectBtn.textContent = '🔗 Connect Wallet';
+    connectBtn.disabled = false;
   }
 });
 
-document.getElementById("lendBtn").addEventListener("click", () => {
+// Lend Button Click
+document.getElementById("lendBtn").addEventListener("click", async () => {
+  if (!session) {
+    // If not connected, trigger wallet connection first
+    document.getElementById("connect-wallet-btn").click();
+    return;
+  }
+
   if (window.selectedNFT) {
-    alert(`Lending feature coming soon!\n\nSelected: ${window.selectedNFT.name}`);
+    await createLoan(window.selectedNFT);
+  } else {
+    alert('Please select an NFT first!');
+  }
+});
+
+// Close modals on background click
+document.getElementById('accessDeniedModal').addEventListener('click', (e) => {
+  if (e.target.id === 'accessDeniedModal') {
+    closeAccessDeniedModal();
+  }
+});
+
+document.getElementById('successModal').addEventListener('click', (e) => {
+  if (e.target.id === 'successModal') {
+    closeSuccessModal();
   }
 });
 </script>

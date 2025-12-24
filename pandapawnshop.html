@@ -47,6 +47,31 @@
     color: #bb33ff;
   }
 
+  .header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .docs-btn {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #1a0a2e, #2d1b4e);
+    border: 2px solid #bb33ff;
+    border-radius: 8px;
+    color: #bb33ff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85em;
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+
+  .docs-btn:hover {
+    background: linear-gradient(135deg, #bb33ff, #7a2bf8);
+    color: white;
+    box-shadow: 0 0 15px rgba(187, 51, 255, 0.5);
+  }
+
   .header-stats {
     display: flex;
     gap: 20px;
@@ -60,6 +85,12 @@
   .header-stat span {
     color: #bb33ff;
     font-weight: bold;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
   }
 
   #connect-wallet-btn {
@@ -585,6 +616,12 @@
     animation: modalPop 0.3s ease-out;
     max-height: 90vh;
     overflow-y: auto;
+    position: relative;
+  }
+
+  .modal-content.wide {
+    max-width: 700px;
+    text-align: left;
   }
 
   @keyframes modalPop {
@@ -635,6 +672,22 @@
   }
 
   .modal .close-modal:hover {
+    color: #fff;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 2em;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .close-btn:hover {
     color: #fff;
   }
 
@@ -721,6 +774,92 @@
     color: #fff;
   }
 
+  /* Docs Modal Styles */
+  .docs-section {
+    margin-bottom: 25px;
+  }
+
+  .docs-section h3 {
+    color: #bb33ff;
+    font-size: 1.2em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .docs-section p {
+    margin-bottom: 10px;
+  }
+
+  .docs-box {
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #453c2c;
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .docs-box.highlight {
+    border-color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+  }
+
+  .docs-box.warning {
+    border-color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+  }
+
+  .docs-formula {
+    background: rgba(187, 51, 255, 0.2);
+    border: 1px solid #bb33ff;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 0.95em;
+    margin: 10px 0;
+  }
+
+  .docs-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+  }
+
+  .docs-list li {
+    padding: 8px 0;
+    padding-left: 25px;
+    position: relative;
+  }
+
+  .docs-list li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #00ff88;
+  }
+
+  .docs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+  }
+
+  .docs-table th, .docs-table td {
+    padding: 10px;
+    border: 1px solid #453c2c;
+    text-align: left;
+  }
+
+  .docs-table th {
+    background: rgba(187, 51, 255, 0.2);
+    color: #bb33ff;
+  }
+
+  .docs-table td {
+    color: #caffff;
+  }
+
   /* Mobile Responsive */
   @media (max-width: 768px) {
     .fixed-header {
@@ -732,13 +871,21 @@
       flex-direction: column;
     }
 
+    .header-center {
+      position: relative;
+      left: auto;
+      transform: none;
+      order: -1;
+      margin-bottom: 10px;
+    }
+
     .header-stats {
       flex-wrap: wrap;
       justify-content: center;
     }
 
     .container {
-      padding: 140px 15px 60px;
+      padding: 160px 15px 60px;
     }
 
     .title img {
@@ -793,8 +940,16 @@
       padding: 20px;
     }
 
+    .modal-content.wide {
+      max-width: 95%;
+    }
+
     .modal-buttons {
       flex-direction: column;
+    }
+
+    .docs-table {
+      font-size: 0.85em;
     }
   }
 
@@ -832,9 +987,136 @@
       <div class="header-stat">Your PDA: <span id="headerBalance">--</span></div>
     </div>
   </div>
-  <div>
+  <div class="header-center">
+    <button class="docs-btn" onclick="showModal('docsModal')">📖 Docs</button>
+  </div>
+  <div class="header-right">
     <button id="connect-wallet-btn">🔗 Connect Wallet</button>
     <div id="wallet-display"></div>
+  </div>
+</div>
+
+<!-- Documentation Modal -->
+<div id="docsModal" class="modal">
+  <div class="modal-content wide">
+    <button class="close-btn" onclick="closeModal('docsModal')">×</button>
+    <h2 style="color: #bb33ff; text-align: center;">📖 Panda Pawn Shop Documentation</h2>
+    <p style="text-align: center; color: #888;">Everything you need to know about NFT-backed PDA loans</p>
+
+    <!-- How It Works -->
+    <div class="docs-section">
+      <h3>🎯 How It Works</h3>
+      <p>Panda Pawn Shop allows you to get instant PDA liquidity by using your Proton Pandas NFTs as collateral. Lock your NFT, receive PDA, and repay within 14 days to get your NFT back!</p>
+      <ul class="docs-list">
+        <li>Connect your WebAuth wallet</li>
+        <li>Select a Proton Panda NFT from your wallet</li>
+        <li>Click "Lend NFT for PDA" to create a loan</li>
+        <li>Receive 5% of the floor price in PDA instantly</li>
+        <li>Repay the loan + 10% interest within 14 days</li>
+        <li>Get your NFT back!</li>
+      </ul>
+    </div>
+
+    <!-- Requirements -->
+    <div class="docs-section">
+      <h3>🔐 Requirements</h3>
+      <div class="docs-box highlight">
+        <p><strong>Minimum PDA Balance:</strong> You must hold at least <strong style="color: #00ff88;">555,555 PDA</strong> in your wallet to use the platform.</p>
+        <p style="margin-bottom: 0;"><a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" target="_blank" style="padding: 8px 16px; font-size: 0.9em;">Buy PDA on Alcor</a></p>
+      </div>
+    </div>
+
+    <!-- Loan Terms -->
+    <div class="docs-section">
+      <h3>💰 Loan Terms</h3>
+      <table class="docs-table">
+        <tr>
+          <th>Parameter</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>Loan Amount</td>
+          <td>5% of NFT Floor Price</td>
+        </tr>
+        <tr>
+          <td>Interest Rate</td>
+          <td>10% flat (not APR)</td>
+        </tr>
+        <tr>
+          <td>Loan Duration</td>
+          <td>14 Days</td>
+        </tr>
+        <tr>
+          <td>Interest Split</td>
+          <td>60% Burned 🔥 / 40% to Vault</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Calculator -->
+    <div class="docs-section">
+      <h3>🧮 How to Calculate Your Loan</h3>
+      <div class="docs-formula">
+        <strong>Loan Amount</strong> = Floor Price × 5%<br>
+        <strong>Interest</strong> = Loan Amount × 10%<br>
+        <strong>Total Repayment</strong> = Loan Amount + Interest
+      </div>
+      <div class="docs-box">
+        <p><strong>Example:</strong></p>
+        <p>If Floor Price = <strong>2,082,863 PDA</strong></p>
+        <ul class="docs-list">
+          <li>Loan Amount = 2,082,863 × 5% = <strong>104,143 PDA</strong></li>
+          <li>Interest = 104,143 × 10% = <strong>10,414 PDA</strong></li>
+          <li>Total Repayment = 104,143 + 10,414 = <strong>114,557 PDA</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- What Happens on Default -->
+    <div class="docs-section">
+      <h3>⚠️ What Happens If You Don't Repay?</h3>
+      <div class="docs-box warning">
+        <p><strong>If you fail to repay within 14 days:</strong></p>
+        <ul class="docs-list" style="color: #ff6b6b;">
+          <li style="color: #dacafa;">Your loan expires and becomes "defaulted"</li>
+          <li style="color: #dacafa;">Your NFT is transferred to the PandaVault</li>
+          <li style="color: #dacafa;">You keep the PDA you borrowed</li>
+          <li style="color: #dacafa;">Your NFT may be auctioned or sold</li>
+        </ul>
+        <p style="margin-bottom: 0; color: #ff4444;"><strong>⏰ Always repay on time to keep your NFT!</strong></p>
+      </div>
+    </div>
+
+    <!-- Interest Distribution -->
+    <div class="docs-section">
+      <h3>🔥 Interest Distribution</h3>
+      <p>When you repay your loan, the interest is split:</p>
+      <div class="docs-box">
+        <p>🔥 <strong style="color: #ff4444;">60% BURNED</strong> - Sent to token.burn, permanently removed from supply</p>
+        <p style="margin-bottom: 0;">🏦 <strong style="color: #00ff88;">40% TO VAULT</strong> - Goes to PandaVault treasury</p>
+      </div>
+      <p style="color: #888; font-size: 0.9em;">This deflationary mechanism helps maintain PDA scarcity!</p>
+    </div>
+
+    <!-- FAQ -->
+    <div class="docs-section">
+      <h3>❓ FAQ</h3>
+      <div class="docs-box">
+        <p><strong>Q: Can I repay early?</strong></p>
+        <p style="margin-bottom: 15px;">A: Yes! You can repay anytime before the 14-day deadline.</p>
+        
+        <p><strong>Q: Can I extend my loan?</strong></p>
+        <p style="margin-bottom: 15px;">A: No, loans cannot be extended. You must repay within 14 days.</p>
+        
+        <p><strong>Q: What collections are supported?</strong></p>
+        <p style="margin-bottom: 15px;">A: Currently only Proton Pandas. More collections coming soon!</p>
+        
+        <p><strong>Q: How is the floor price determined?</strong></p>
+        <p style="margin-bottom: 0;">A: The floor price is set by the admin and updated periodically based on market conditions.</p>
+      </div>
+    </div>
+
+    <button class="close-modal" onclick="closeModal('docsModal')" style="text-align: center; width: 100%;">Close Documentation</button>
   </div>
 </div>
 
@@ -1166,9 +1448,10 @@ function formatTimeRemaining(expiresAt) {
   else if (hours > 0) text = `${hours}h ${minutes}m ${seconds}s`;
   else text = `${minutes}m ${seconds}s`;
   
-  let timerClass = 'green';
-  if (days < 1) timerClass = 'warning';
-  if (hours < 6 && days === 0) timerClass = 'danger';
+  let timerClass = '';
+  if (days >= 7) timerClass = '';
+  else if (days >= 1) timerClass = 'warning';
+  else timerClass = 'danger';
   
   return { text, class: timerClass, days, hours };
 }

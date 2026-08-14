@@ -6,7 +6,6 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Favicon & Styles -->
   <link rel="icon" href="images/x-icon/og-panda-transparent.png" sizes="180x180">
   <link rel="icon" type="image/png" sizes="32x32" href="images/x-icon/og-panda-transparent.png">
   <link rel="icon" type="image/png" sizes="16x16" href="images/x-icon/og-panda-transparent.png">
@@ -14,7 +13,11 @@
   <link rel="stylesheet" href="css/style.css" />
 
   <style>
-    /* Global Styles */
+
+    /* ============================================================
+       GLOBAL
+    ============================================================ */
+
     html, body {
       background: #111 !important;
       margin: 0;
@@ -24,41 +27,44 @@
       min-height: 100vh;
     }
 
-    /* Neon Purple Pulsing Background */
     body {
-      background: linear-gradient(135deg, #1a0a2e 0%, #16082a 50%, #0d0618 100%) !important;
-      animation: purplePulse 3s ease-in-out infinite;
+      background:
+        radial-gradient(circle at 50% 10%, rgba(139, 92, 246, 0.20), transparent 35%),
+        linear-gradient(135deg, #1a0a2e 0%, #16082a 50%, #0d0618 100%) !important;
+      overflow-x: hidden;
     }
 
-    @keyframes purplePulse {
-      0%, 100% {
-        background: linear-gradient(135deg, #1a0a2e 0%, #16082a 50%, #0d0618 100%);
-        box-shadow: inset 0 0 100px rgba(139, 92, 246, 0.1);
-      }
-      50% {
-        background: linear-gradient(135deg, #2d1b4e 0%, #1f1038 50%, #150a28 100%);
-        box-shadow: inset 0 0 150px rgba(167, 139, 250, 0.15);
-      }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(0,255,0,0.035), transparent 25%),
+        radial-gradient(circle at 80% 70%, rgba(139,92,246,0.06), transparent 30%);
+      z-index: -1;
     }
 
-    /* Main content always visible */
-    #main-content { 
-      display: block !important; 
+    #main-content {
+      display: block !important;
       min-height: 100vh;
-    }
-
-    /* Header Styles */
-    header {
-      background: rgba(0, 0, 0, 0.5);
-      padding: 1rem 0;
-      border-bottom: 1px solid #333;
-      backdrop-filter: blur(10px);
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 1rem;
+    }
+
+    /* ============================================================
+       HEADER
+    ============================================================ */
+
+    header {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 1rem 0;
+      border-bottom: 1px solid #333;
+      backdrop-filter: blur(10px);
     }
 
     header .container {
@@ -82,7 +88,6 @@
       flex-wrap: wrap;
     }
 
-    /* Neon Green Glowing Pulsing Menu Links */
     .menu a {
       display: flex;
       align-items: center;
@@ -94,35 +99,28 @@
       transition: all 0.3s ease;
       font-size: 0.9rem;
       font-weight: 600;
-      background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(50, 205, 50, 0.15));
+      background: linear-gradient(
+        135deg,
+        rgba(0, 255, 0, 0.2),
+        rgba(50, 205, 50, 0.15)
+      );
       border: 1px solid rgba(0, 255, 0, 0.4);
-      box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), 0 0 20px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1);
-      animation: greenGlow 2s ease-in-out infinite;
-    }
-
-    @keyframes greenGlow {
-      0%, 100% {
-        box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), 0 0 20px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1);
-        border-color: rgba(0, 255, 0, 0.4);
-        background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(50, 205, 50, 0.15));
-      }
-      50% {
-        box-shadow: 0 0 15px rgba(0, 255, 0, 0.5), 0 0 30px rgba(0, 255, 0, 0.4), 0 0 45px rgba(0, 255, 0, 0.3), 0 0 60px rgba(0, 255, 0, 0.2);
-        border-color: rgba(0, 255, 0, 0.7);
-        background: linear-gradient(135deg, rgba(0, 255, 0, 0.35), rgba(50, 205, 50, 0.25));
-      }
+      box-shadow:
+        0 0 10px rgba(0, 255, 0, 0.3),
+        0 0 20px rgba(0, 255, 0, 0.2);
     }
 
     .menu a:hover {
-      background: linear-gradient(135deg, rgba(0, 255, 0, 0.4), rgba(50, 205, 50, 0.3));
       transform: translateY(-2px);
-      box-shadow: 0 0 20px rgba(0, 255, 0, 0.6), 0 0 40px rgba(0, 255, 0, 0.4), 0 0 60px rgba(0, 255, 0, 0.3);
+      box-shadow:
+        0 0 20px rgba(0,255,0,0.6),
+        0 0 40px rgba(0,255,0,0.4);
     }
 
     .menu a p {
       margin: 0;
       color: #00ff00;
-      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+      text-shadow: 0 0 10px rgba(0,255,0,0.5);
     }
 
     .menu img {
@@ -131,14 +129,17 @@
       border-radius: 2px;
     }
 
-    /* Main Section */
+    /* ============================================================
+       MAIN
+    ============================================================ */
+
     section.container {
       padding: 2rem 1rem;
     }
 
     .hero-section {
       text-align: center;
-      margin-bottom: 3rem;
+      margin-bottom: 1.5rem;
     }
 
     .hero-panda {
@@ -147,21 +148,25 @@
       height: auto;
       margin-bottom: 1rem;
       border-radius: 12px;
-      filter: drop-shadow(0 4px 28px rgba(139, 92, 246, 0.6));
+      filter:
+        drop-shadow(0 4px 28px rgba(139,92,246,0.6))
+        drop-shadow(0 0 18px rgba(0,255,0,0.12));
     }
 
     h1 {
       font-size: 2.5rem;
       margin: 1rem 0;
       text-align: center;
-      text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+      text-shadow:
+        0 0 20px rgba(139,92,246,0.5),
+        0 0 40px rgba(139,92,246,0.2);
     }
 
     h2 {
       font-size: 2rem;
       margin: 2rem 0 1rem 0;
       text-align: center;
-      text-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+      text-shadow: 0 0 15px rgba(139,92,246,0.4);
     }
 
     p {
@@ -170,15 +175,36 @@
       text-align: center;
     }
 
-    /* Neon Green Glowing Button Styles */
+    /* ============================================================
+       INFO SECTION
+    ============================================================ */
+
+    .info-section {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      margin: 2rem 0;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.1);
+    }
+
+    /* ============================================================
+       BUTTONS
+    ============================================================ */
+
     .green-button {
       display: inline-block;
       padding: 12px 28px;
-      background: linear-gradient(135deg, rgba(0, 255, 0, 0.25), rgba(50, 205, 50, 0.2));
+      background:
+        linear-gradient(
+          135deg,
+          rgba(0,255,0,0.25),
+          rgba(50,205,50,0.2)
+        );
       color: #00ff00;
       font-size: 16px;
       font-weight: 600;
-      border: 2px solid rgba(0, 255, 0, 0.5);
+      border: 2px solid rgba(0,255,0,0.5);
       border-radius: 8px;
       cursor: pointer;
       text-decoration: none;
@@ -189,19 +215,46 @@
       width: auto;
       white-space: nowrap;
       word-break: keep-all;
-      box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), 0 0 20px rgba(0, 255, 0, 0.2), 0 0 30px rgba(0, 255, 0, 0.1);
-      animation: greenGlow 2s ease-in-out infinite;
-      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+
+      box-shadow:
+        0 0 10px rgba(0,255,0,0.3),
+        0 0 20px rgba(0,255,0,0.2);
+
+      text-shadow: 0 0 10px rgba(0,255,0,0.5);
+
+      animation: greenButtonPulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes greenButtonPulse {
+      0%, 100% {
+        box-shadow:
+          0 0 10px rgba(0,255,0,0.3),
+          0 0 20px rgba(0,255,0,0.2);
+      }
+
+      50% {
+        box-shadow:
+          0 0 15px rgba(0,255,0,0.5),
+          0 0 30px rgba(0,255,0,0.35),
+          0 0 45px rgba(0,255,0,0.15);
+      }
     }
 
     .green-button:hover {
-      background: linear-gradient(135deg, rgba(0, 255, 0, 0.4), rgba(50, 205, 50, 0.35));
+      background:
+        linear-gradient(
+          135deg,
+          rgba(0,255,0,0.4),
+          rgba(50,205,50,0.35)
+        );
       color: #7fff00;
       transform: translateY(-3px);
-      box-shadow: 0 0 20px rgba(0, 255, 0, 0.6), 0 0 40px rgba(0, 255, 0, 0.4), 0 0 60px rgba(0, 255, 0, 0.3), 0 0 80px rgba(0, 255, 0, 0.2);
+      box-shadow:
+        0 0 20px rgba(0,255,0,0.6),
+        0 0 40px rgba(0,255,0,0.4),
+        0 0 60px rgba(0,255,0,0.3);
     }
 
-    /* Button Groups */
     .button-group {
       display: flex;
       flex-wrap: wrap;
@@ -211,7 +264,10 @@
       margin: 1.5rem 0;
     }
 
-    /* Token Section */
+    /* ============================================================
+       TOKEN
+    ============================================================ */
+
     .token-section {
       margin-bottom: 3rem;
     }
@@ -230,10 +286,9 @@
       width: 65px;
       height: 65px;
       border-radius: 8px;
-      filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.5));
+      filter: drop-shadow(0 0 15px rgba(139,92,246,0.5));
     }
 
-    /* Trading Section */
     .trading-section {
       margin: 2rem 0;
       text-align: center;
@@ -244,11 +299,13 @@
       width: 100%;
       max-width: 445px;
       margin: 0 auto 1.5rem auto;
-      background: rgba(17, 17, 17, 0.8);
+      background: rgba(17,17,17,0.8);
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 0 30px rgba(139, 92, 246, 0.3), 0 4px 20px rgba(0,0,0,0.5);
-      border: 1px solid rgba(139, 92, 246, 0.3);
+      box-shadow:
+        0 0 30px rgba(139,92,246,0.3),
+        0 4px 20px rgba(0,0,0,0.5);
+      border: 1px solid rgba(139,92,246,0.3);
     }
 
     .trading-iframe {
@@ -263,10 +320,9 @@
       font-size: 1.1rem;
       font-weight: 500;
       color: #b390ff;
-      text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+      text-shadow: 0 0 10px rgba(139,92,246,0.5);
     }
 
-    /* Token Info */
     .token-info {
       margin-top: 2rem;
     }
@@ -280,10 +336,276 @@
       max-width: 100%;
       height: auto;
       border-radius: 8px;
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+      box-shadow: 0 0 20px rgba(139,92,246,0.3);
     }
 
-    /* Donation Section */
+    /* ============================================================
+       PDA BURN METER
+    ============================================================ */
+
+    .burn-section {
+      position: relative;
+      max-width: 700px;
+      margin: 3rem auto 2.5rem;
+      padding: 1.8rem 1.5rem 1.5rem;
+      border-radius: 20px;
+
+      background:
+        radial-gradient(
+          circle at 50% 0%,
+          rgba(255,80,0,0.12),
+          transparent 48%
+        ),
+        linear-gradient(
+          145deg,
+          rgba(25,10,20,0.96),
+          rgba(8,7,13,0.95)
+        );
+
+      border: 1px solid rgba(255,102,0,0.3);
+
+      box-shadow:
+        0 0 30px rgba(255,70,0,0.10),
+        inset 0 0 35px rgba(0,0,0,0.35);
+
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .burn-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #ffb066;
+      text-shadow:
+        0 0 10px rgba(255,100,0,0.45),
+        0 0 20px rgba(255,60,0,0.2);
+    }
+
+    .burn-subtitle {
+      margin: 0.35rem 0 0;
+      color: #9f94a5;
+      font-size: 0.78rem;
+    }
+
+    .fire-display {
+      position: relative;
+      margin: 0.9rem auto 0.5rem;
+      height: 105px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .flame {
+      position: absolute;
+      bottom: 7px;
+      width: 46px;
+      height: 72px;
+      border-radius: 50% 50% 45% 45%;
+      opacity: 0.75;
+      filter: blur(1px);
+
+      background:
+        radial-gradient(
+          ellipse at 50% 70%,
+          #fff7a0 0%,
+          #ffcf33 20%,
+          #ff7b00 48%,
+          #ff3000 72%,
+          transparent 73%
+        );
+
+      transform-origin: bottom center;
+      animation: flameFlicker 0.45s infinite alternate;
+    }
+
+    .flame::before,
+    .flame::after {
+      content: "";
+      position: absolute;
+      bottom: 4px;
+      border-radius: 50% 50% 40% 40%;
+      background: linear-gradient(
+        to top,
+        #ff2400,
+        #ff8c00,
+        #ffe66d,
+        transparent
+      );
+    }
+
+    .flame::before {
+      left: -17px;
+      width: 34px;
+      height: 55px;
+      animation: flameLeft 0.55s infinite alternate;
+    }
+
+    .flame::after {
+      right: -15px;
+      width: 30px;
+      height: 48px;
+      animation: flameRight 0.38s infinite alternate;
+    }
+
+    @keyframes flameFlicker {
+      0% {
+        transform: scaleX(0.92) scaleY(0.94) rotate(-2deg);
+      }
+
+      100% {
+        transform: scaleX(1.08) scaleY(1.08) rotate(3deg);
+      }
+    }
+
+    @keyframes flameLeft {
+      from {
+        transform: translateX(2px) scaleY(0.9) rotate(-5deg);
+      }
+
+      to {
+        transform: translateX(-5px) scaleY(1.08) rotate(7deg);
+      }
+    }
+
+    @keyframes flameRight {
+      from {
+        transform: translateX(2px) scaleY(0.95) rotate(5deg);
+      }
+
+      to {
+        transform: translateX(6px) scaleY(1.08) rotate(-7deg);
+      }
+    }
+
+    .burn-coin {
+      position: absolute;
+      z-index: 5;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+
+      filter:
+        drop-shadow(0 0 8px rgba(139,92,246,0.75))
+        drop-shadow(0 0 16px rgba(255,120,0,0.4));
+
+      animation: coinGlow 1.5s ease-in-out infinite;
+    }
+
+    @keyframes coinGlow {
+      0%, 100% {
+        filter:
+          drop-shadow(0 0 7px rgba(139,92,246,0.65))
+          drop-shadow(0 0 12px rgba(255,120,0,0.25));
+      }
+
+      50% {
+        filter:
+          drop-shadow(0 0 12px rgba(139,92,246,0.95))
+          drop-shadow(0 0 22px rgba(255,120,0,0.5));
+      }
+    }
+
+    .burn-number {
+      margin: 0.4rem 0 0.2rem;
+      font-family: "Courier New", monospace;
+      font-size: clamp(2rem, 7vw, 3.4rem);
+      font-weight: 900;
+      line-height: 1;
+      color: white;
+      text-shadow:
+        0 0 12px rgba(255,255,255,0.18),
+        0 0 25px rgba(255,92,0,0.3);
+    }
+
+    .burn-number span {
+      font-size: 0.42em;
+      letter-spacing: 0;
+      color: #ffb066;
+    }
+
+    .burn-meter {
+      position: relative;
+      height: 18px;
+      margin-top: 1.2rem;
+      border-radius: 999px;
+      overflow: hidden;
+
+      background:
+        linear-gradient(
+          to bottom,
+          rgba(0,0,0,0.7),
+          rgba(30,10,10,0.9)
+        );
+
+      border: 1px solid rgba(255,102,0,0.35);
+
+      box-shadow:
+        inset 0 0 10px rgba(0,0,0,0.7),
+        0 0 12px rgba(255,70,0,0.12);
+    }
+
+    .burn-meter-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      border-radius: inherit;
+
+      background:
+        linear-gradient(
+          90deg,
+          #ff2600,
+          #ff6a00,
+          #ffc400,
+          #fff08a
+        );
+
+      box-shadow:
+        0 0 12px rgba(255,80,0,0.8),
+        0 0 25px rgba(255,130,0,0.4);
+
+      transition: width 0.15s linear;
+    }
+
+    /* IMPORTANT:
+       No ::after shimmer here.
+       This removes the faint white flashing bar. */
+
+    .burn-percent {
+      text-align: right;
+      color: #ffb066;
+      font-size: 0.72rem;
+      margin-top: 0.35rem;
+    }
+
+    .burn-status {
+      margin-top: 0.65rem;
+      font-size: 0.68rem;
+      color: #00ff00;
+      text-shadow: 0 0 8px rgba(0,255,0,0.4);
+    }
+
+    .burn-status.loading {
+      color: #b390ff;
+    }
+
+    .burn-status.error {
+      color: #ff8b8b;
+    }
+
+    /* ============================================================
+       DONATIONS
+    ============================================================ */
+
     .donation-section {
       margin-top: 3rem;
       text-align: center;
@@ -299,7 +621,7 @@
       width: 180px;
       height: auto;
       border-radius: 8px;
-      filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4));
+      filter: drop-shadow(0 0 15px rgba(139,92,246,0.4));
     }
 
     .donation-images {
@@ -316,81 +638,82 @@
       height: 150px;
       object-fit: cover;
       border-radius: 8px;
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow:
+        0 0 20px rgba(139,92,246,0.3),
+        0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* Info Section Styling */
-    .info-section {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 16px;
-      padding: 2rem;
-      margin: 2rem 0;
-      border: 1px solid rgba(139, 92, 246, 0.2);
-      box-shadow: 0 0 30px rgba(139, 92, 246, 0.1);
-    }
+    /* ============================================================
+       MOBILE
+    ============================================================ */
 
-    /* Mobile Responsive Styles */
     @media (max-width: 768px) {
+
       header .container {
         flex-direction: column;
         gap: 1rem;
       }
-      
+
       .menu {
         justify-content: center;
         gap: 0.8rem;
       }
-      
+
       .menu a {
         font-size: 0.8rem;
         padding: 0.5rem 0.8rem;
       }
-      
+
       h1 {
         font-size: 2rem;
       }
-      
+
       h2 {
         font-size: 1.5rem;
       }
-      
+
       .hero-panda {
         width: 180px;
       }
-      
+
       .green-button {
         font-size: 14px;
         padding: 12px 20px;
         margin: 4px 6px;
         max-width: 280px;
       }
-      
+
       .button-group {
         gap: 0.5rem;
       }
-      
+
       .trading-iframe {
         height: 500px;
       }
-      
+
       .iframe-container {
         max-width: 100%;
         margin: 0 auto 1rem auto;
       }
-      
+
+      .burn-section {
+        margin-top: 2.5rem;
+        padding: 1.5rem 1rem 1.3rem;
+      }
+
       .donation-images {
         gap: 0.5rem;
       }
-      
+
       .donation-images img {
         width: 120px;
         height: 120px;
       }
-      
+
       .donation-main-image img {
         width: 150px;
       }
-      
+
       .token-icon-container img {
         width: 55px;
         height: 55px;
@@ -402,157 +725,846 @@
     }
 
     @media (max-width: 480px) {
+
       section.container {
         padding: 1.5rem 0.5rem;
       }
-      
+
       .container {
         padding: 0 0.5rem;
       }
-      
+
       h1 {
         font-size: 1.8rem;
       }
-      
+
       .hero-panda {
         width: 160px;
       }
-      
+
       .green-button {
         font-size: 13px;
         padding: 10px 16px;
         max-width: 250px;
         white-space: normal;
       }
-      
+
       .trading-iframe {
         height: 450px;
       }
-      
+
+      .burn-section {
+        padding: 1.3rem 0.8rem 1.2rem;
+      }
+
+      .burn-title {
+        font-size: 1rem;
+      }
+
+      .burn-coin {
+        width: 45px;
+        height: 45px;
+      }
+
       .donation-images img {
         width: 100px;
         height: 100px;
       }
-      
+
       .donation-main-image img {
         width: 130px;
       }
-      
+
       .menu {
         gap: 0.5rem;
       }
-      
+
       .menu a {
         font-size: 0.75rem;
         padding: 0.4rem 0.6rem;
       }
     }
+
   </style>
 </head>
+
 <body>
 
-  <!-- Main Content - Now Always Visible -->
-  <div id="main-content">
-    <header>
-      <div class="container">
-        <div class="logo">
-          <a href="/"><img src="images/x-icon/favicon.ico" alt="Logo" /></a>
-        </div>
-        <div class="menu">
-          <a href="https://proton.alcor.exchange/positions/new?left=xpr-eosio.token&right=pda-xprpandas" target="_blank">
-            <img src="images/header/pda-favicon-32x32.png" alt="alcor" /><p>Provide Liquidity</p>
-          </a>
-          <a href="https://twitter.com/protonpandas" target="_blank">
-            <img src="images/header/x-favicon-16x16.png" /><p>X.com</p>
-          </a>
-          <a href="https://soon.market/collections/144534352512" target="_blank">
-            <img src="images/header/soon-market-favicon-16x16.png" /><p>Soon.Market</p>
-          </a>
-          <a href="https://t.me/+lPYmNDvlKAFlNzRh" target="_blank">
-            <img src="images/header/telegram-favicon-16x16.png" /><p>Telegram</p>
-          </a>
-        </div>
-      </div>
-    </header>
+<div id="main-content">
 
-    <section class="container">
-      <!-- Hero Section -->
-      <div class="hero-section">
-        <img src="images/header/protonpanda-gif.gif" class="hero-panda" alt="Proton Panda" />
-        <h1>🐼 Pandania NFT DaPP Portal</h1>
+  <!-- ==========================================================
+       HEADER
+  =========================================================== -->
+
+  <header>
+    <div class="container">
+
+      <div class="logo">
+        <a href="/">
+          <img src="images/x-icon/favicon.ico" alt="Logo" />
+        </a>
       </div>
 
-      <!-- Info Section -->
-      <div class="info-section">
-        <p>Launched on January 10th, 2022. One of the few OG NFT collections on XPR Network. Limited to 200 total NFTs.</p>
-        <p>NFT Rarity Breakdown: 80-Common | 50-Uncommon | 30-Epic | 25-Rare | 15-Ultra Rare</p>
+      <div class="menu">
 
-        <!-- Panda Collection Button -->
+        <a
+          href="https://proton.alcor.exchange/positions/new?left=xpr-eosio.token&right=pda-xprpandas"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img src="images/header/pda-favicon-32x32.png" alt="Alcor" />
+          <p>Provide Liquidity</p>
+        </a>
+
+        <a
+          href="https://twitter.com/protonpandas"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img src="images/header/x-favicon-16x16.png" alt="X" />
+          <p>X.com</p>
+        </a>
+
+        <a
+          href="https://soon.market/collections/144534352512"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img src="images/header/soon-market-favicon-16x16.png" alt="Soon Market" />
+          <p>Soon.Market</p>
+        </a>
+
+        <a
+          href="https://t.me/+lPYmNDvlKAFlNzRh"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img src="images/header/telegram-favicon-16x16.png" alt="Telegram" />
+          <p>Telegram</p>
+        </a>
+
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ==========================================================
+       MAIN CONTENT
+  =========================================================== -->
+
+  <section class="container">
+
+    <!-- HERO -->
+
+    <div class="hero-section">
+
+      <img
+        src="images/header/protonpanda-gif.gif"
+        class="hero-panda"
+        alt="Proton Panda"
+      />
+
+      <h1>🐼 Pandania NFT DaPP Portal</h1>
+
+    </div>
+
+
+    <!-- ========================================================
+         INFO SECTION
+    ========================================================= -->
+
+    <div class="info-section">
+
+      <p>
+        Launched on January 10th, 2022.
+        One of the few OG NFT collections on XPR Network.
+        Limited to 200 total NFTs.
+      </p>
+
+      <p>
+        NFT Rarity Breakdown:
+        80-Common |
+        50-Uncommon |
+        30-Epic |
+        25-Rare |
+        15-Ultra Rare
+      </p>
+
+
+      <div class="button-group">
+
+        <a
+          href="https://soon.market/collections/144534352512"
+          class="green-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Proton Pandas NFT Collection
+        </a>
+
+        <a
+          href="vote.html"
+          class="green-button"
+        >
+          Governance Voting
+        </a>
+
+        <a
+          href="wackapandee.html"
+          class="green-button"
+        >
+          Play Wackapandee! (P2E)
+        </a>
+
+        <a
+          href="http://pandania.xyz/pandapawnshop.html"
+          class="green-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          PandaPawnShop DeFi dApp (BETA)
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <!-- ========================================================
+         TOKEN SECTION
+    ========================================================= -->
+
+    <div class="token-section">
+
+      <p class="token-launch">
+        Token Launched on June 1st, 2023.
+      </p>
+
+      <div class="token-icon-container">
+
+        <img
+          src="images/x-icon/pda-xprpanda-65x65.png"
+          alt="PDA Token"
+        />
+
+      </div>
+
+
+      <h2>
+        Buy PDA on Alcor Exchange
+      </h2>
+
+
+      <div class="trading-section">
+
+        <div class="iframe-container">
+
+          <iframe
+            src="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas"
+            class="trading-iframe"
+            title="Alcor Exchange Swap"
+          ></iframe>
+
+        </div>
+
+
+        <a
+          href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas"
+          class="green-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Swap PDA
+        </a>
+
+
+        <p class="or-text">
+          Or
+        </p>
+
+
+        <a
+          href="https://blastpad.io/staking-pool?poolId=653"
+          class="green-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Stake PDA
+        </a>
+
+      </div>
+
+
+      <!-- ======================================================
+           PDA BURN METER
+      ======================================================= -->
+
+      <div class="burn-section">
+
+        <h3 class="burn-title">
+          PDA Burn
+        </h3>
+
+        <p class="burn-subtitle">
+          Permanently removed from circulation
+        </p>
+
+
+        <div class="fire-display">
+
+          <div class="flame"></div>
+
+          <img
+            src="images/x-icon/pda-xprpanda-65x65.png"
+            class="burn-coin"
+            alt="PDA"
+          />
+
+        </div>
+
+
+        <div class="burn-number">
+
+          <span id="burnNumber">
+            0
+          </span>
+
+          <span>
+            PDA
+          </span>
+
+        </div>
+
+
+        <div class="burn-meter">
+
+          <div
+            id="burnMeterFill"
+            class="burn-meter-fill"
+          ></div>
+
+        </div>
+
+
+        <div
+          id="burnPercent"
+          class="burn-percent"
+        >
+          0% of maximum supply
+        </div>
+
+
+        <div
+          id="burnStatus"
+          class="burn-status loading"
+        >
+          ● Loading
+        </div>
+
+      </div>
+
+
+      <div class="token-info">
+
+        <p>
+          Total Capped Supply:
+          555,555,555 PDA.
+          100% Circulating.
+        </p>
+
+
+        <div class="token-chart-container">
+
+          <img
+            src="images/header/Token-Pi.png"
+            alt="Token Distribution Chart"
+          />
+
+        </div>
+
+
+        <p>
+          Distribution:
+          65% Liquidity,
+          15% Community Wallet,
+          15% Founder,
+          5% Airdrop.
+        </p>
+
+
         <div class="button-group">
-          <a href="https://soon.market/collections/144534352512" class="green-button" target="_blank">Proton Pandas NFT Collection</a>
-          <!-- Governance Voting Button -->
-          <a href="vote.html" class="green-button">Governance Voting</a>
-          <!-- Play Wackapandee Button -->
-          <a href="wackapandee.html" class="green-button">Play Wackapandee! (P2E)</a>
-          <!-- UPDATED: PandaPawnShop DeFi dApp Button -->
-          <a href="http://pandania.xyz/pandapawnshop.html" class="green-button" target="_blank">PandaPawnShop DeFi dApp (BETA)</a>
+
+          <a
+            href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas"
+            class="green-button"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on XPR Explorer
+          </a>
+
         </div>
+
+
+        <p>
+          PDA is a Utility Token to empower a decentralized community on XPRNetwork.
+        </p>
+
+
+        <div class="button-group">
+
+          <a
+            href="https://t.me/+lPYmNDvlKAFlNzRh"
+            class="green-button"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Join the #PandaFam
+          </a>
+
+        </div>
+
       </div>
 
-      <!-- Token Section -->
-      <div class="token-section">
-        <p class="token-launch">Token Launched on June 1st, 2023.</p>
-        <div class="token-icon-container">
-          <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA Token" />
-        </div>
+    </div>
 
-        <h2>Buy PDA on Alcor Exchange</h2>
-        
-        <div class="trading-section">
-          <div class="iframe-container">
-            <iframe src="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="trading-iframe" title="Alcor Exchange Swap"></iframe>
-          </div>
-          
-          <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" class="green-button" target="_blank">Swap PDA</a>
-          <p class="or-text">Or</p>
-          <a href="https://blastpad.io/staking-pool?poolId=653" class="green-button" target="_blank">Stake PDA</a>
-        </div>
 
-        <div class="token-info">
-          <p>Total Capped Supply: 555,555,555 PDA. 100% Circulating.</p>
-          <div class="token-chart-container">
-            <img src="images/header/Token-Pi.png" alt="Token Distribution Chart" />
-          </div>
-          <p>Distribution: 65% Liquidity, 15% Community Wallet, 15% Founder, 5% Airdrop.</p>
-          
-          <div class="button-group">
-            <a href="https://explorer.xprnetwork.org/tokens/PDA-proton-xprpandas" class="green-button" target="_blank">View on XPR Explorer</a>
-          </div>
+    <!-- ========================================================
+         DONATION SECTION
+    ========================================================= -->
 
-          <p>PDA is a Utility Token to empower a decentralized community on XPRNetwork.</p>
-          
-          <div class="button-group">
-            <a href="https://t.me/+lPYmNDvlKAFlNzRh" class="green-button" target="_blank">Join the #PandaFam</a>
-          </div>
-        </div>
+    <div class="donation-section">
+
+      <h2>
+        $200 Donated So Far
+      </h2>
+
+      <p>
+        To the World Wildlife Foundation
+      </p>
+
+
+      <div class="donation-main-image">
+
+        <img
+          src="images/header/Conservation-planet.png"
+          alt="Conservation Planet"
+        />
+
       </div>
 
-      <!-- Donation Section -->
-      <div class="donation-section">
-        <h2>$200 Donated So Far</h2>
-        <p>To the World Wildlife Foundation</p>
-        
-        <div class="donation-main-image">
-          <img src="images/header/Conservation-planet.png" alt="Conservation Planet">
-        </div>
-        
-        <div class="donation-images">
-          <img src="images/header/Donation-Wwf.jpeg" alt="WWF Donation 1" />
-          <img src="images/header/Donation-Wwfl.png" alt="WWF Donation 2" />
-        </div>
+
+      <div class="donation-images">
+
+        <img
+          src="images/header/Donation-Wwf.jpeg"
+          alt="WWF Donation 1"
+        />
+
+        <img
+          src="images/header/Donation-Wwfl.png"
+          alt="WWF Donation 2"
+        />
+
       </div>
-    </section>
-  </div>
+
+    </div>
+
+  </section>
+
+</div>
+
+
+<!-- ============================================================
+     LIVE PDA BURN DATA
+============================================================= -->
+
+<script>
+
+(function () {
+
+  "use strict";
+
+
+  const CONFIG = {
+
+    PDA_MAX_SUPPLY: 555555555,
+
+    PDA_CONTRACT: "xprpandas",
+
+    BURN_ACCOUNT: "token.burn",
+
+    RPC_ENDPOINTS: [
+
+      "https://proton.light-api.net",
+
+      "https://xpr-mainnet-hyp-api.bloxprod.io",
+
+      "https://xpr-mainnet-api.bloxprod.io"
+
+    ],
+
+    REFRESH_INTERVAL: 60000
+
+  };
+
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+
+  function setStatus(id, text, type) {
+
+    const element = $(id);
+
+    if (!element) return;
+
+    element.textContent = "● " + text;
+
+    element.classList.remove(
+      "loading",
+      "error"
+    );
+
+    if (type) {
+      element.classList.add(type);
+    }
+
+  }
+
+
+  function formatNumber(number) {
+
+    if (!Number.isFinite(number)) {
+      return "0";
+    }
+
+    return Math.floor(number).toLocaleString(
+      "en-US"
+    );
+
+  }
+
+
+  function parseAsset(value) {
+
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const match = value.match(
+      /(-?\d+(?:\.\d+)?)\s+([A-Z0-9.]+)/
+    );
+
+    if (!match) {
+      return null;
+    }
+
+    return {
+
+      amount: Number(match[1]),
+
+      symbol: match[2]
+
+    };
+
+  }
+
+
+  async function fetchJSON(url) {
+
+    const response = await fetch(
+      url,
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "HTTP " + response.status
+      );
+    }
+
+    return await response.json();
+
+  }
+
+
+  async function getTableRows(
+    code,
+    scope,
+    table
+  ) {
+
+    const params = new URLSearchParams();
+
+    params.set("json", "true");
+    params.set("code", code);
+    params.set("scope", scope);
+    params.set("table", table);
+    params.set("limit", "100");
+
+
+    let lastError = null;
+
+
+    for (
+      const endpoint of CONFIG.RPC_ENDPOINTS
+    ) {
+
+      try {
+
+        const url =
+          endpoint.replace(/\/$/, "") +
+          "/v1/chain/get_table_rows?" +
+          params.toString();
+
+
+        const result =
+          await fetchJSON(url);
+
+
+        if (
+          result &&
+          Array.isArray(result.rows)
+        ) {
+
+          return result;
+
+        }
+
+      } catch (error) {
+
+        lastError = error;
+
+      }
+
+    }
+
+
+    throw lastError ||
+      new Error(
+        "Unable to query XPR Network."
+      );
+
+  }
+
+
+  async function getBurnedPDA() {
+
+    const result =
+      await getTableRows(
+        CONFIG.PDA_CONTRACT,
+        CONFIG.BURN_ACCOUNT,
+        "accounts"
+      );
+
+
+    let balance = 0;
+
+
+    for (
+      const row of result.rows || []
+    ) {
+
+      const asset =
+        parseAsset(
+          row.balance
+        );
+
+
+      if (
+        asset &&
+        asset.symbol === "PDA"
+      ) {
+
+        balance +=
+          asset.amount;
+
+      }
+
+    }
+
+
+    return Math.max(
+      0,
+      balance
+    );
+
+  }
+
+
+  function animateBurn(
+    burned
+  ) {
+
+    const burnNumber =
+      $("burnNumber");
+
+    const meter =
+      $("burnMeterFill");
+
+    const percent =
+      $("burnPercent");
+
+
+    if (!burnNumber || !meter || !percent) {
+      return;
+    }
+
+
+    const burnPercent =
+      Math.min(
+        100,
+        (
+          burned /
+          CONFIG.PDA_MAX_SUPPLY
+        ) * 100
+      );
+
+
+    const duration = 3000;
+
+    const start =
+      performance.now();
+
+
+    function frame(now) {
+
+      const progress =
+        Math.min(
+          (now - start) /
+          duration,
+          1
+        );
+
+
+      const eased =
+        1 -
+        Math.pow(
+          1 - progress,
+          3
+        );
+
+
+      const current =
+        Math.floor(
+          burned * eased
+        );
+
+
+      burnNumber.textContent =
+        formatNumber(current);
+
+
+      const currentPercent =
+        burnPercent * eased;
+
+
+      meter.style.width =
+        currentPercent + "%";
+
+
+      percent.textContent =
+        currentPercent.toFixed(4) +
+        "% of maximum supply";
+
+
+      if (progress < 1) {
+
+        requestAnimationFrame(
+          frame
+        );
+
+      } else {
+
+        burnNumber.textContent =
+          formatNumber(burned);
+
+
+        meter.style.width =
+          burnPercent + "%";
+
+
+        percent.textContent =
+          burnPercent.toFixed(4) +
+          "% of maximum supply";
+
+      }
+
+    }
+
+
+    requestAnimationFrame(
+      frame
+    );
+
+  }
+
+
+  async function loadBurn() {
+
+    try {
+
+      setStatus(
+        "burnStatus",
+        "Reading chain",
+        "loading"
+      );
+
+
+      const burned =
+        await getBurnedPDA();
+
+
+      animateBurn(
+        burned
+      );
+
+
+      setStatus(
+        "burnStatus",
+        "Live",
+        null
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "PDA burn error:",
+        error
+      );
+
+
+      setStatus(
+        "burnStatus",
+        "Unavailable",
+        "error"
+      );
+
+    }
+
+  }
+
+
+  loadBurn();
+
+
+  setInterval(
+    loadBurn,
+    CONFIG.REFRESH_INTERVAL
+  );
+
+
+})();
+
+</script>
+
+</body>
+</html>
 
 </body>
 </html>

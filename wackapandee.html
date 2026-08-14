@@ -1,1300 +1,4419 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Wack a Pandee - Mainnet</title>
+
 <style>
-  body {
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  position: relative;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  background:
+    radial-gradient(circle at 50% 20%, #25104a 0%, #0b0715 35%, #030306 75%);
+  color: white;
+  overflow-x: hidden;
+  padding: 20px 10px 50px;
+  touch-action: manipulation;
+}
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+h1 {
+  color: #fdeecc;
+  text-shadow:
+    0 0 8px #bb33ff,
+    0 0 18px #7b2cff,
+    2px 2px 5px #000;
+  margin: 5px auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 2em;
+  letter-spacing: 1px;
+}
+
+#titlePandaImage {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+}
+
+/* =========================================================
+   SCORE
+   ========================================================= */
+
+#scoreLine {
+  margin: 5px auto 8px;
+  font-size: 1.25em;
+  font-weight: bold;
+}
+
+#score {
+  color: #7dff73;
+  text-shadow:
+    0 0 8px #00ff00,
+    0 0 18px #00ff00;
+}
+
+#lives {
+  display: inline-block;
+  margin-left: 18px;
+  color: #ff3333;
+  text-shadow:
+    0 0 8px red,
+    0 0 18px red;
+}
+
+#multiplier {
+  margin-left: 18px;
+  color: #00ffff;
+  text-shadow:
+    0 0 8px #00ffff,
+    0 0 18px #00ffff;
+}
+
+@keyframes scorePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* =========================================================
+   GAME CONTAINER
+   ========================================================= */
+
+#gameContainer {
+  position: relative;
+  width: min(960px, 96vw);
+  margin: 20px auto 15px;
+  padding: 18px;
+
+  border-radius: 35px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #4a166e 0%,
+      #201039 18%,
+      #0a0c18 55%,
+      #35104d 100%
+    );
+
+  border: 4px solid #8e37ff;
+
+  box-shadow:
+    0 0 10px #bb33ff,
+    0 0 25px #8a2be2,
+    0 0 50px rgba(187,51,255,.65),
+    inset 0 0 25px rgba(0,0,0,.9),
+    inset 0 0 7px #e2c7ff;
+
+  overflow: visible;
+}
+
+/* Cabinet outer frame */
+
+#gameContainer::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 28px;
+
+  border: 2px solid rgba(0,255,255,.45);
+
+  box-shadow:
+    inset 0 0 15px rgba(0,255,255,.35),
+    inset 0 0 35px rgba(187,51,255,.25);
+
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Top marquee */
+
+#gameContainer::after {
+  content: "🐼  WACK A PANDEE  •  PANDA ARCADE  •  🐼";
+  position: absolute;
+
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 75%;
+
+  padding: 7px 15px;
+
+  border-radius: 15px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #161a38,
+      #5420a0,
+      #161a38
+    );
+
+  border: 2px solid #bb33ff;
+
+  color: #fff;
+
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+
+  text-shadow:
+    0 0 8px #00ffff,
+    0 0 16px #bb33ff;
+
+  box-shadow:
+    0 0 12px #bb33ff,
+    inset 0 0 10px #000;
+
+  z-index: 20;
+}
+
+/* =========================================================
+   CANVAS
+   ========================================================= */
+
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+
+  margin: 0 auto;
+
+  background: transparent;
+
+  border-radius: 25px;
+
+  border: 2px solid #5e35b1;
+
+  box-shadow:
+    inset 0 0 25px #000,
+    0 0 10px rgba(0,255,255,.4);
+
+  touch-action: none;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+#playButton {
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  padding: 20px 60px;
+
+  font-size: 1.5em;
+  font-weight: 900;
+
+  background:
+    linear-gradient(
+      145deg,
+      #d94cff,
+      #7924d8,
+      #421080
+    );
+
+  color: white;
+
+  border: 3px solid #d9a4ff;
+
+  border-radius: 18px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 0 15px #bb33ff,
+    0 0 35px #8a2be2,
+    inset 0 0 10px rgba(255,255,255,.2);
+
+  transition: .2s;
+
+  z-index: 30;
+}
+
+#playButton:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.07);
+
+  box-shadow:
+    0 0 20px #00ffff,
+    0 0 50px #bb33ff;
+}
+
+#playButton:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+#playButton.hidden {
+  display: none;
+}
+
+#playAgainBtn {
+  display: none;
+
+  padding: 12px 30px;
+
+  margin: 10px auto;
+
+  border-radius: 12px;
+
+  border: 2px solid #bb33ff;
+
+  background:
+    linear-gradient(135deg, #6d20a8, #351050);
+
+  color: white;
+
+  font-size: 1.1em;
+  font-weight: bold;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 0 15px #8a2be2;
+}
+
+#playAgainBtn:hover {
+  box-shadow:
+    0 0 20px #00ffff,
+    0 0 30px #bb33ff;
+}
+
+/* =========================================================
+   GAME OVER
+   ========================================================= */
+
+#gameOver {
+  display: none;
+
+  color: #ff3939;
+
+  font-size: 1.6em;
+  font-weight: bold;
+
+  margin: 8px auto;
+
+  text-shadow:
+    0 0 8px red,
+    0 0 20px red;
+}
+
+/* =========================================================
+   WALLET
+   ========================================================= */
+
+#walletSection {
+  position: absolute;
+
+  top: 28px;
+  left: 25px;
+
+  width: 245px;
+
+  padding: 15px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(36,15,62,.97),
+      rgba(9,7,20,.97)
+    );
+
+  border: 2px solid #bb33ff;
+  border-radius: 16px;
+
+  color: white;
+
+  z-index: 100;
+
+  box-shadow:
+    0 0 15px #bb33ff,
+    0 0 35px rgba(138,43,226,.5);
+
+  font-family: Arial, sans-serif;
+}
+
+#connectWalletBtn {
+  width: 100%;
+
+  padding: 12px;
+
+  border: 0;
+  border-radius: 10px;
+
+  color: white;
+
+  font-weight: bold;
+  font-size: 1em;
+
+  background:
+    linear-gradient(
+      135deg,
+      #bb33ff,
+      #7425d4
+    );
+
+  cursor: pointer;
+
+  box-shadow:
+    0 0 12px rgba(187,51,255,.5);
+}
+
+#connectWalletBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 0 20px #bb33ff;
+}
+
+#connectWalletBtn:disabled {
+  opacity: .6;
+}
+
+#walletInfo {
+  display: none;
+  margin-top: 10px;
+}
+
+#walletName {
+  color: #caffff;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#walletStatus {
+  color: #7dff73;
+  font-size: .85em;
+  margin-top: 3px;
+}
+
+/* =========================================================
+   LEADERBOARD
+   ========================================================= */
+
+#leaderboard {
+  position: absolute;
+
+  top: 28px;
+  right: 25px;
+
+  width: 250px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(36,15,62,.97),
+      rgba(9,7,20,.97)
+    );
+
+  border: 2px solid #bb33ff;
+
+  border-radius: 16px;
+
+  z-index: 100;
+
+  box-shadow:
+    0 0 15px #bb33ff,
+    0 0 35px rgba(138,43,226,.5);
+
+  overflow: hidden;
+}
+
+.lb-title {
+  padding: 12px;
+
+  font-size: 1.25em;
+  font-weight: 900;
+
+  color: #e2c7ff;
+
+  border-bottom: 1px solid #bb33ff55;
+
+  text-shadow:
+    0 0 8px #bb33ff;
+}
+
+.lb-entries {
+  padding: 10px 14px;
+}
+
+.lb-row {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 5px 0;
+
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.lb-wallet {
+  max-width: 155px;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: #d9bfff;
+
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.lb-score {
+  color: #caffff;
+  font-weight: bold;
+}
+
+/* =========================================================
+   INSTRUCTIONS
+   ========================================================= */
+
+#gameplayInstructions {
+  width: min(900px, 95vw);
+
+  margin: 15px auto;
+
+  padding: 15px 20px;
+
+  color: #fff;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(29,16,50,.9),
+      rgba(5,5,12,.9)
+    );
+
+  border:
+    1px solid #8a2be2;
+
+  border-radius: 14px;
+
+  box-shadow:
+    0 0 15px rgba(138,43,226,.3);
+
+  text-align: left;
+
+  line-height: 1.55;
+}
+
+/* =========================================================
+   SCOREBOARD
+   ========================================================= */
+
+#scoreboard {
+  display: block;
+
+  width: fit-content;
+
+  margin: 15px auto;
+
+  padding: 8px 20px;
+
+  background: #111522;
+
+  border: 1px solid #8a2be2;
+
+  border-radius: 10px;
+
+  box-shadow:
+    0 0 15px rgba(138,43,226,.3);
+
+  color: #fdeecc;
+
+  font-weight: bold;
+}
+
+/* =========================================================
+   CLAIM
+   ========================================================= */
+
+#claimRewardsBtn {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  margin: 30px auto 0;
+
+  padding: 15px 35px;
+
+  border-radius: 12px;
+
+  font-size: 1.1em;
+
+  background: #4c2b62;
+
+  color: #fde7ff;
+
+  border: 2px solid #bb33ff;
+
+  cursor: pointer;
+
+  font-weight: 900;
+
+  opacity: .4;
+
+  filter: grayscale(1);
+
+  pointer-events: none;
+
+  box-shadow:
+    0 0 15px #2c1045;
+}
+
+#claimRewardsBtn.lit {
+  opacity: 1;
+
+  filter: none;
+
+  pointer-events: auto;
+
+  background:
+    linear-gradient(
+      120deg,
+      #bb33ff,
+      #762dff
+    );
+
+  box-shadow:
+    0 0 25px #bb33ff,
+    0 0 50px #762dff;
+}
+
+#claimRewardsBtn img {
+  width: 28px;
+  height: 28px;
+}
+
+#claimStatus {
+  display: block;
+
+  min-height: 24px;
+
+  margin: 12px auto;
+
+  color: #dacafa;
+
+  text-shadow:
+    0 0 8px #a020f0;
+}
+
+/* =========================================================
+   AUDIO
+   ========================================================= */
+
+#audioControls {
+  position: fixed;
+
+  bottom: 18px;
+  left: 18px;
+
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #191528ee;
+
+  border: 2px solid #b390ff;
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 15px #bb33ff;
+
+  z-index: 300;
+}
+
+.audioBtn {
+  border: 0;
+  background: transparent;
+
+  font-size: 1.7em;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   ACCESS MODAL
+   ========================================================= */
+
+#accessDeniedModal {
+  display: none;
+
+  position: fixed;
+
+  inset: 0;
+
+  background: rgba(0,0,0,.92);
+
+  z-index: 10000;
+
+  align-items: center;
+  justify-content: center;
+}
+
+#accessDeniedModal.show {
+  display: flex;
+}
+
+.modal-content {
+  width: min(500px, 90vw);
+
+  padding: 35px 25px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #25123b,
+      #08050e
+    );
+
+  border: 3px solid #bb33ff;
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 0 30px #bb33ff;
+
+  text-align: center;
+}
+
+.modal-content h2 {
+  color: #ff3939;
+
+  text-shadow:
+    0 0 15px red;
+}
+
+.modal-content p {
+  color: white;
+
+  font-size: 1.15em;
+
+  line-height: 1.5;
+}
+
+.modal-content a {
+  display: inline-block;
+
+  padding: 13px 25px;
+
+  margin-top: 15px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #00ff00,
+      #00aa00
+    );
+
+  color: #000;
+
+  border-radius: 10px;
+
+  font-weight: bold;
+
+  text-decoration: none;
+}
+
+/* =========================================================
+   SHAKE
+   ========================================================= */
+
+@keyframes shake {
+  0% { transform: translate(2px,0); }
+  20% { transform: translate(-5px,0); }
+  40% { transform: translate(4px,2px); }
+  60% { transform: translate(-3px,-2px); }
+  80% { transform: translate(2px,1px); }
+  100% { transform: translate(0); }
+}
+
+canvas.shake {
+  animation: shake .38s both;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media(max-width: 1000px) {
+
+  #walletSection,
+  #leaderboard {
     position: relative;
-    text-align: center;
-    font-family: Arial, sans-serif;
-    background: #111;
-    margin: 0;
-    overflow-x: hidden;
-    padding: 20px 10px;
-    touch-action: manipulation;
-  }
 
-  h1 {
-    color: #fdeecc;
-    text-shadow: 2px 2px 5px #222;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
+    top: auto;
+    left: auto;
+    right: auto;
 
-  #titlePandaImage {
-    width: 65px;
-    height: 65px;
-    vertical-align: middle;
+    margin: 10px auto;
+
+    width: min(330px, 90vw);
   }
 
   #gameContainer {
-    position: relative;
-    display: inline-block;
-    margin: 20px auto;
+    margin-top: 25px;
+  }
+}
+
+@media(max-width: 600px) {
+
+  body {
+    padding: 10px 5px 40px;
   }
 
-  canvas { 
-    background: #a3d9a5; 
-    border-radius: 20px; 
-    display: block; 
-    margin: 0 auto; 
-    border: 2px solid #bb33ff;
-    box-shadow: 0 0 10px #a020f0, 0 0 20px #a020f0, 0 0 40px #a020f0, 0 0 60px #a020f0, 0 0 90px #a020f0;
-    animation: neonPulse 1.7s ease-in-out infinite;
-    max-width: 100%;
-    height: auto;
-    touch-action: none;
+  h1 {
+    font-size: 1.4em;
   }
 
-  @keyframes neonPulse {
-    0%, 100% {
-      box-shadow: 0 0 10px #a020f0, 0 0 20px #a020f0, 0 0 40px #a020f0, 0 0 60px #a020f0, 0 0 90px #a020f0;
-      border-color: #bb33ff;
-    }
-    50% {
-      box-shadow: 0 0 20px #bb33ff, 0 0 40px #d175ff, 0 0 80px #e2c7ff, 0 0 120px #bb33ff;
-      border-color: #e2c7ff;
-    }
+  #titlePandaImage {
+    width: 45px;
+    height: 45px;
   }
 
-  @keyframes greenPulse {
-    0%, 100% {
-      text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
-    }
-    50% {
-      text-shadow: 0 0 20px #7fff00, 0 0 40px #7fff00, 0 0 60px #7fff00;
-    }
+  #gameContainer {
+    padding: 8px;
+
+    border-radius: 22px;
   }
 
-  @keyframes redPulse {
-    0%, 100% {
-      text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
-    }
-    50% {
-      text-shadow: 0 0 20px #ff6666, 0 0 40px #ff6666, 0 0 60px #ff6666;
-    }
-  }
+  #gameContainer::after {
+    width: 90%;
 
-  #score {
-    color: #00ff00;
-    animation: greenPulse 1.5s ease-in-out infinite;
-    font-weight: bold;
-  }
+    font-size: 8px;
 
-  #lives {
-    display: inline-block;
-    margin-left: 15px;
-    vertical-align: middle;
-    animation: redPulse 1.5s ease-in-out infinite;
-  }
-  
-  #lives span {
-    color: red;
-    font-size: 1.5em;
-    margin: 0 3px;
-  }
-  
-  #multiplier {
-    font-weight: bold;
-    font-size: 1.2em;
-    margin-left: 15px;
-    color: #00ff00;
-    animation: greenPulse 1.5s ease-in-out infinite;
-  }
-
-  #playButton {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px 50px;
-    font-size: 1.5em;
-    font-weight: bold;
-    background: linear-gradient(135deg, #bb33ff, #8a2be2);
-    color: white;
-    border: 3px solid #e2c7ff;
-    border-radius: 15px;
-    cursor: pointer;
-    box-shadow: 0 0 20px #bb33ff, 0 0 40px #a020f0;
-    transition: all 0.3s ease;
-    z-index: 10;
-  }
-
-  #playButton:hover:not(:disabled) {
-    background: linear-gradient(135deg, #d175ff, #bb33ff);
-    transform: translate(-50%, -50%) scale(1.05);
-    box-shadow: 0 0 30px #bb33ff, 0 0 60px #a020f0;
-  }
-
-  #playButton:disabled {
-    background: #666;
-    cursor: not-allowed;
-    opacity: 0.5;
-    box-shadow: none;
-  }
-
-  #playButton.hidden {
-    display: none;
-  }
-
-  #gameOver { 
-    color: red; 
-    font-size: 2em; 
-    display: none; 
-  }
-  
-  #playAgainBtn {
-    display: none;
-    font-size: 1.2em;
-    padding: 10px 20px;
-    margin-top: 15px;
-    cursor: pointer;
-    border-radius: 8px;
-    background: #453c2c;
-    color: #fff;
-    border: none;
-    box-shadow: 0 2px 8px #222;
+    letter-spacing: 1px;
   }
 
   #gameplayInstructions {
-    color: white;
-    font-size: 0.95em;
-    line-height: 1.6;
-    max-width: 600px;
-    margin: 20px auto 15px auto;
-    padding: 15px 20px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 10px;
-    text-align: left;
-  }
-
-  #gameplayInstructions strong {
-    font-weight: bold;
-  }
-  
-  #scoreboard {
-    margin: 15px auto 0 auto;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 8px 18px;
-    border-radius: 10px;
-    background: #282e1f;
-    color: #fdeecc;
-    display: block;
-    width: fit-content;
-    box-shadow: 0 2px 16px #111;
-  }
-  
-  @keyframes shake {
-    0%   { transform: translate(2px, 0); }
-    20%  { transform: translate(-4px, 0); }
-    40%  { transform: translate(3px, 2px); }
-    60%  { transform: translate(-2px, -2px); }
-    80%  { transform: translate(1px, 1px); }
-    100% { transform: translate(0); }
-  }
-  
-  canvas.shake {
-    animation: shake 0.38s cubic-bezier(.36,.07,.19,.97) both;
-  }
-  
-  #walletSection {
-    position: absolute;
-    top: 32px;
-    left: 36px;
-    width: 250px;
-    background: #191528ee;
-    border-radius: 16px;
-    border: 2px solid #b390ff;
-    box-shadow: 0 0 12px #bb33ff, 0 0 24px #a020f0, 0 0 44px #b390ff;
-    color: #fdeecc;
-    z-index: 20;
-    overflow: hidden;
-    animation: neonPulse 2.1s infinite;
-    font-family: "Orbitron", Arial, sans-serif;
-    padding: 16px;
-  }
-  
-  #connectWalletBtn {
-    width: 100%;
-    padding: 12px 16px;
-    font-size: 1.1em;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #bb33ff, #8a2be2);
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(187, 51, 255, 0.3);
-  }
-  
-  #connectWalletBtn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #d175ff, #bb33ff);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(187, 51, 255, 0.4);
-  }
-  
-  #connectWalletBtn:disabled {
-    background: #666;
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-  
-  #walletInfo {
-    margin-top: 12px;
-    text-align: center;
-    display: none;
-  }
-  
-  #walletName {
-    font-weight: bold;
-    color: #caffff;
-    font-size: 1.1em;
-    margin-bottom: 4px;
-  }
-  
-  #walletStatus {
-    font-size: 0.9em;
-    color: #b390ff;
-  }
-  
-  #leaderboard {
-    position: absolute;
-    top: 32px;
-    right: 36px;
-    width: 265px;
-    background: #191528ee;
-    border-radius: 16px;
-    border: 2px solid #b390ff;
-    box-shadow: 0 0 12px #bb33ff, 0 0 24px #a020f0, 0 0 44px #b390ff;
-    color: #fdeecc;
-    z-index: 20;
-    overflow: hidden;
-    animation: neonPulse 2.1s infinite;
-    font-family: "Orbitron", Arial, sans-serif;
-  }
-  
-  .lb-title {
-    text-align: center;
-    padding: 13px 0 8px 0;
-    font-size: 1.38em;
-    font-weight: 900;
-    letter-spacing: 1.3px;
-    color: #e2c7ff;
-    text-shadow: 0 0 8px #bb33ff;
-    border-bottom: 1.2px solid #bb33ff4a;
-  }
-  
-  .lb-entries {
-    padding: 12px 16px 14px 12px;
-  }
-  
-  .lb-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-    gap: 20px;
-    font-size: 1.13em;
-  }
-  
-  .lb-wallet {
-    text-align: left;
-    color: #d9bfff;
-    font-weight: 700;
-    font-family: "Fira Mono", monospace, Arial, sans-serif;
-    letter-spacing: 0.3px;
-    max-width: 140px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  
-  .lb-score {
-    text-align: right;
-    color: #caffff;
-    font-weight: bold;
-    font-size: 1.19em;
-    min-width: 42px;
-  }
-
-  #claimRewardsBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin: 40px auto 0 auto;
-    padding: 15px 36px;
-    border-radius: 12px;
-    font-size: 1.15em;
-    font-family: 'Orbitron', Arial, sans-serif;
-    background: #7a2bf8;
-    color: #fde7ff;
-    border: 2px solid #bb33ff;
-    cursor: pointer;
-    font-weight: 900;
-    letter-spacing: 1px;
-    transition: filter 0.2s, background 0.22s;
-    opacity: 0.4;
-    filter: grayscale(1);
-    pointer-events: none;
-    box-shadow: 0 0 20px #2c1045;
-    text-shadow: 0 0 12px #bb33ff;
-  }
-
-  #claimRewardsBtn img {
-    width: 30px;
-    height: 30px;
-    vertical-align: middle;
-  }
-  
-  #claimRewardsBtn.lit {
-    opacity: 1;
-    filter: none;
-    background: linear-gradient(120deg, #bb33ff, #892dff 74%);
-    box-shadow: 0 0 36px #bb33ff, 0 0 70px #892dff60;
-    pointer-events: auto;
-  }
-  
-  #claimStatus {
-    display: block;
-    margin: 13px auto 0 auto;
-    font-size: 1.08em;
-    color: #dacafa;
-    text-shadow: 0 0 8px #a020f0;
-    text-align: center;
-    min-height: 24px;
+    font-size: .85em;
   }
 
   #audioControls {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    background: #191528ee;
-    padding: 10px;
-    border-radius: 50%;
-    border: 2px solid #b390ff;
-    box-shadow: 0 0 12px #bb33ff;
-    z-index: 30;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    bottom: 12px;
+    left: 12px;
   }
-
-  .audioBtn {
-    background: none;
-    border: none;
-    font-size: 1.8em;
-    cursor: pointer;
-    transition: transform 0.2s, opacity 0.2s;
-    opacity: 1;
-  }
-
-  .audioBtn:hover {
-    transform: scale(1.1);
-  }
-
-  .audioBtn.muted {
-    opacity: 0.5;
-  }
-
-  /* Access Denied Modal */
-  #accessDeniedModal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 10000;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #accessDeniedModal.show {
-    display: flex;
-  }
-
-  .modal-content {
-    background: #191528;
-    border: 3px solid #b390ff;
-    border-radius: 20px;
-    padding: 40px;
-    max-width: 500px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 0 30px #bb33ff;
-  }
-
-  .modal-content h2 {
-    color: #ff3939;
-    font-size: 2.5em;
-    margin-bottom: 20px;
-    text-shadow: 0 0 10px #ff3939;
-  }
-
-  .modal-content p {
-    color: #fff;
-    font-size: 1.3em;
-    margin: 20px 0;
-    line-height: 1.6;
-  }
-
-  .modal-content a {
-    display: inline-block;
-    margin-top: 20px;
-    padding: 15px 30px;
-    background: linear-gradient(135deg, #00ff00, #00cc00);
-    color: #000;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 1.2em;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-  }
-
-  .modal-content a:hover {
-    background: linear-gradient(135deg, #00cc00, #009900);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 255, 0, 0.4);
-  }
-
-  /* Mobile Responsive */
-  @media (max-width: 768px) {
-    body {
-      padding: 10px;
-    }
-
-    h1 {
-      font-size: 1.5em;
-      margin-top: 10px;
-    }
-
-    #titlePandaImage {
-      width: 45px;
-      height: 45px;
-    }
-
-    #walletSection {
-      position: relative;
-      top: auto;
-      left: auto;
-      width: 90%;
-      max-width: 300px;
-      margin: 10px auto;
-    }
-
-    #leaderboard {
-      position: relative;
-      top: auto;
-      right: auto;
-      width: 90%;
-      max-width: 300px;
-      margin: 20px auto;
-    }
-
-    #gameContainer {
-      margin: 20px auto;
-    }
-
-    canvas {
-      width: 100% !important;
-      height: auto !important;
-      max-width: 600px;
-    }
-
-    #playButton {
-      font-size: 1.2em;
-      padding: 15px 40px;
-    }
-
-    #gameplayInstructions {
-      font-size: 0.85em;
-      padding: 12px 15px;
-      margin: 15px auto 12px auto;
-    }
-
-    #claimRewardsBtn {
-      font-size: 1em;
-      padding: 12px 28px;
-    }
-
-    #audioControls {
-      bottom: 15px;
-      left: 15px;
-      width: 45px;
-      height: 45px;
-    }
-
-    .audioBtn {
-      font-size: 1.5em;
-    }
-
-    .modal-content {
-      padding: 30px 20px;
-    }
-
-    .modal-content h2 {
-      font-size: 2em;
-    }
-
-    .modal-content p {
-      font-size: 1.1em;
-    }
-  }
+}
 </style>
 </head>
-<body>
-<h1>Wack a Pandee <img id="titlePandaImage" src="images/rebranded panda85x85.png" alt="🐼"></h1>
 
-<!-- Wallet Connection Section -->
+<body>
+
+<h1>
+  Wack a Pandee
+  <img id="titlePandaImage"
+       src="images/rebranded panda85x85.png"
+       alt="Panda">
+</h1>
+
+<!-- =====================================================
+     WALLET
+===================================================== -->
+
 <div id="walletSection">
-  <button id="connectWalletBtn">Connect Wallet</button>
+
+  <button id="connectWalletBtn">
+    Connect Wallet
+  </button>
+
   <div id="walletInfo">
+
     <div id="walletName"></div>
-    <div id="walletStatus">Connected ✅</div>
+
+    <div id="walletStatus">
+      Connected ✅
+    </div>
+
   </div>
+
 </div>
 
-<p>
-  Score: <span id="score">0</span>
-  <span id="lives">❤️❤️❤️</span>
-  <span id="multiplier">(x1)</span>
+<!-- =====================================================
+     SCORE
+===================================================== -->
+
+<p id="scoreLine">
+
+  Score:
+  <span id="score">0</span>
+
+  <span id="lives">
+    ❤️❤️❤️
+  </span>
+
+  <span id="multiplier">
+    (x1)
+  </span>
+
 </p>
-<p id="gameOver">Game Over! You clicked a bomb or missed 3 moles.</p>
+
+<p id="gameOver">
+  Game Over!
+</p>
+
+<!-- =====================================================
+     ARCADE MACHINE
+===================================================== -->
 
 <div id="gameContainer">
-  <canvas id="gameCanvas" width="600" height="400"></canvas>
-  <button id="playButton" disabled>🎮 PLAY</button>
+
+  <canvas
+    id="gameCanvas"
+    width="900"
+    height="600">
+  </canvas>
+
+  <button
+    id="playButton"
+    disabled>
+    🎮 PLAY
+  </button>
+
 </div>
 
-<button id="playAgainBtn">Play Again</button>
-
-<!-- Gameplay Instructions -->
-<div id="gameplayInstructions">
-  <strong>Gameplay:</strong> Whack mind controlled pandee's to get a high score but don't get blown up in the process! Once a player reaches 10 whacks they receive a 2x boost!<br><br>
-  <strong>🐼Tips:</strong> all NFT holders Receive an automated 2x boost throughout every game! (Only players who claim rewards show on the leaderboard!)
-</div>
-
-<div id="scoreboard">High Score: <span id="highScore">0</span></div>
-
-<!-- Leaderboard -->
-<div id="leaderboard">
-  <div class="lb-title">Leaderboard</div>
-  <div class="lb-entries"></div>
-</div>
-
-<!-- Claim Rewards Button -->
-<button id="claimRewardsBtn">
-  <span>Claim Rewards</span>
+<button id="playAgainBtn">
+  Play Again
 </button>
+
+<!-- =====================================================
+     INSTRUCTIONS
+===================================================== -->
+
+<div id="gameplayInstructions">
+
+  <strong>Gameplay:</strong>
+  Whack the mind-controlled Pandees to get a high score,
+  but don't get blown up by the bombs!
+
+  Once a player reaches 10 whacks they receive a 2x boost.
+
+  <br><br>
+
+  <strong>🐼 Tips:</strong>
+  NFT holders receive an automated 2x boost throughout
+  every game.
+
+  <br><br>
+
+  <strong>🔨 Arcade:</strong>
+  Click or tap a Pandee to swing the hammer.
+  Avoid the bombs!
+
+  <br><br>
+
+  <strong>💰 Rewards:</strong>
+  Players who finish with at least 10 points can claim PDA.
+  Only players who claim rewards appear on the leaderboard.
+
+</div>
+
+<!-- =====================================================
+     HIGH SCORE
+===================================================== -->
+
+<div id="scoreboard">
+
+  High Score:
+  <span id="highScore">0</span>
+
+</div>
+
+<!-- =====================================================
+     LEADERBOARD
+===================================================== -->
+
+<div id="leaderboard">
+
+  <div class="lb-title">
+    🏆 LEADERBOARD
+  </div>
+
+  <div class="lb-entries">
+    Loading...
+  </div>
+
+</div>
+
+<!-- =====================================================
+     CLAIM
+===================================================== -->
+
+<button id="claimRewardsBtn">
+
+  <span>
+    Claim Rewards
+  </span>
+
+</button>
+
 <span id="claimStatus"></span>
 
-<!-- Audio Controls -->
+<!-- =====================================================
+     AUDIO
+===================================================== -->
+
 <div id="audioControls">
-  <button id="muteAllBtn" class="audioBtn" title="Mute All Sounds">🔊</button>
+
+  <button
+    id="muteAllBtn"
+    class="audioBtn"
+    title="Mute All Sounds">
+
+    🔊
+
+  </button>
+
 </div>
 
-<!-- Access Denied Modal -->
+<!-- =====================================================
+     ACCESS DENIED
+===================================================== -->
+
 <div id="accessDeniedModal">
+
   <div class="modal-content">
-    <h2>🚫 ACCESS DENIED</h2>
-    <p>🐼 You need at least <strong>555,555 PDA</strong> tokens to play Wack a Pandee!</p>
-    <a href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas" target="_blank">Buy PDA on Alcor Exchange</a>
+
+    <h2>
+      🚫 ACCESS DENIED
+    </h2>
+
+    <p>
+      🐼 You need at least
+      <strong>555,555 PDA</strong>
+      tokens to play Wack a Pandee!
+    </p>
+
+    <a
+      href="https://proton.alcor.exchange/swap?input=XPR-eosio.token&output=PDA-xprpandas"
+      target="_blank">
+
+      Buy PDA on Alcor Exchange
+
+    </a>
+
   </div>
+
 </div>
 
-<!-- Load Proton Web SDK -->
+<!-- =====================================================
+     PROTON SDK
+===================================================== -->
+
 <script src="https://unpkg.com/@proton/web-sdk@latest"></script>
 
 <script>
-  let connectedWallet = null;
-  let protonSession = null;
-  let protonLink = null;
-  let hasNFTBoost = false;
-  let gameStarted = false;
 
-  // MAINNET CONFIGURATION - CORS-friendly endpoints
-  const RPC_ENDPOINTS = [
-    "https://proton.eosusa.io",
-    "https://proton.greymass.com",
-    "https://proton.pink.gg"
-  ];
-  const PROTON_ENDPOINT = RPC_ENDPOINTS[0];
-  const PDA_CONTRACT = "xprpandas";
-  const GAME_CONTRACT = "pandagames";
-  const ARCADE_ACCOUNT = "pandaarcade";
-  const NFT_SCHEMA = "144534352512";
-  const REQUIRED_PDA = 555555;
+/* =========================================================
+   WALLET / BLOCKCHAIN VARIABLES
+========================================================= */
 
-  // AUDIO SETUP
-  const backgroundMusic = new Audio('sounds/backgroundmusic.mp3');
-  backgroundMusic.loop = true;
-  backgroundMusic.volume = 0.3;
-  
-  const boomSound = new Audio('sounds/boom.mp3');
-  boomSound.volume = 0.5;
-  
-  const wackSound = new Audio('sounds/wack.mp3');
-  wackSound.volume = 0.5;
-  
-  const wickSound = new Audio('sounds/wick.mp3');
-  wickSound.volume = 0.5;
+let connectedWallet = null;
+let protonSession = null;
+let protonLink = null;
+let hasNFTBoost = false;
+let gameStarted = false;
 
-  const activeWickSounds = new Map();
-  let allMuted = false;
+const RPC_ENDPOINTS = [
+  "https://proton.eosusa.io",
+  "https://proton.greymass.com",
+  "https://proton.pink.gg"
+];
 
-  const muteAllBtn = document.getElementById('muteAllBtn');
+const PDA_CONTRACT = "xprpandas";
+const GAME_CONTRACT = "pandagames";
+const ARCADE_ACCOUNT = "pandaarcade";
+const NFT_SCHEMA = "144534352512";
+const REQUIRED_PDA = 555555;
 
-  muteAllBtn.addEventListener('click', () => {
-    allMuted = !allMuted;
-    if (allMuted) {
-      backgroundMusic.pause();
-      boomSound.muted = true;
-      wackSound.muted = true;
-      wickSound.muted = true;
-      muteAllBtn.textContent = '🔇';
-      muteAllBtn.classList.add('muted');
-    } else {
-      backgroundMusic.play().catch(e => console.log('Music play failed:', e));
-      boomSound.muted = false;
-      wackSound.muted = false;
-      wickSound.muted = false;
-      muteAllBtn.textContent = '🔊';
-      muteAllBtn.classList.remove('muted');
-    }
-  });
 
-  window.addEventListener('load', () => {
-    backgroundMusic.play().catch(err => {
-      console.log('Autoplay prevented, will start on user interaction');
-      document.body.addEventListener('click', () => {
-        if (!allMuted) {
-          backgroundMusic.play().catch(e => console.log('Background music play failed:', e));
-        }
-      }, { once: true });
+/* =========================================================
+   AUDIO
+========================================================= */
+
+const backgroundMusic =
+  new Audio("sounds/backgroundmusic.mp3");
+
+backgroundMusic.loop = true;
+backgroundMusic.volume = .3;
+
+const boomSound =
+  new Audio("sounds/boom.mp3");
+
+boomSound.volume = .5;
+
+const wackSound =
+  new Audio("sounds/wack.mp3");
+
+wackSound.volume = .5;
+
+const wickSound =
+  new Audio("sounds/wick.mp3");
+
+wickSound.volume = .5;
+
+const activeWickSounds =
+  new Map();
+
+let allMuted = false;
+
+const muteAllBtn =
+  document.getElementById("muteAllBtn");
+
+muteAllBtn.addEventListener("click", () => {
+
+  allMuted = !allMuted;
+
+  if (allMuted) {
+
+    backgroundMusic.pause();
+
+    boomSound.muted = true;
+    wackSound.muted = true;
+    wickSound.muted = true;
+
+    muteAllBtn.textContent = "🔇";
+
+  } else {
+
+    backgroundMusic.play()
+      .catch(() => {});
+
+    boomSound.muted = false;
+    wackSound.muted = false;
+    wickSound.muted = false;
+
+    muteAllBtn.textContent = "🔊";
+  }
+
+});
+
+window.addEventListener("load", () => {
+
+  backgroundMusic.play()
+    .catch(() => {
+
+      document.body.addEventListener(
+        "click",
+        () => {
+
+          if (!allMuted) {
+            backgroundMusic.play()
+              .catch(() => {});
+          }
+
+        },
+        { once: true }
+      );
+
     });
-  });
 
-  // Fetch with endpoint fallback
-  async function fetchWithFallback(path, options) {
-    for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
-      try {
-        console.log(`Trying endpoint: ${RPC_ENDPOINTS[i]}`);
-        const response = await fetch(`${RPC_ENDPOINTS[i]}${path}`, options);
-        if (response.ok) {
-          return response;
-        }
-      } catch (error) {
-        console.warn(`Endpoint ${RPC_ENDPOINTS[i]} failed:`, error);
-        if (i === RPC_ENDPOINTS.length - 1) throw error;
+});
+
+
+/* =========================================================
+   RPC
+========================================================= */
+
+async function fetchWithFallback(path, options) {
+
+  for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+
+    try {
+
+      console.log(
+        "Trying endpoint:",
+        RPC_ENDPOINTS[i]
+      );
+
+      const response =
+        await fetch(
+          RPC_ENDPOINTS[i] + path,
+          options
+        );
+
+      if (response.ok) {
+        return response;
       }
-    }
-    throw new Error('All endpoints failed');
-  }
 
-  async function checkPDABalance(session) {
-    try {
-      const response = await fetchWithFallback('/v1/chain/get_currency_balance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: PDA_CONTRACT,
-          account: session.auth.actor,
-          symbol: 'PDA'
-        })
-      });
-      const balances = await response.json();
-      console.log('PDA Balance:', balances);
-      const balance = parseFloat((balances[0] || '0 PDA').split(' ')[0]);
-      return balance >= REQUIRED_PDA;
     } catch (error) {
-      console.error('Error checking PDA balance:', error);
-      return false;
+
+      console.warn(
+        "Endpoint failed:",
+        RPC_ENDPOINTS[i],
+        error
+      );
+
     }
+
   }
 
-  async function connectWallet() {
-    const connectBtn = document.getElementById('connectWalletBtn');
-    const walletInfo = document.getElementById('walletInfo');
-    const walletName = document.getElementById('walletName');
-    const playButton = document.getElementById('playButton');
-    const accessDeniedModal = document.getElementById('accessDeniedModal');
-    
-    try {
-      connectBtn.textContent = 'Connecting...';
-      connectBtn.disabled = true;
-      if (!window.ProtonWebSDK) {
-        alert("Proton SDK not loaded yet. Please try again.");
-        connectBtn.textContent = 'Connect Wallet';
-        connectBtn.disabled = false;
+  throw new Error("All RPC endpoints failed");
+
+}
+
+
+/* =========================================================
+   PDA BALANCE
+========================================================= */
+
+async function checkPDABalance(session) {
+
+  try {
+
+    const response =
+      await fetchWithFallback(
+        "/v1/chain/get_currency_balance",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+
+            code: PDA_CONTRACT,
+
+            account:
+              session.auth.actor,
+
+            symbol: "PDA"
+
+          })
+
+        }
+      );
+
+    const balances =
+      await response.json();
+
+    const balance =
+      parseFloat(
+        (balances[0] || "0 PDA")
+          .split(" ")[0]
+      );
+
+    console.log(
+      "PDA balance:",
+      balance
+    );
+
+    return balance >= REQUIRED_PDA;
+
+  } catch (error) {
+
+    console.error(
+      "PDA balance check failed:",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================================
+   CONNECT WALLET
+========================================================= */
+
+async function connectWallet() {
+
+  const connectBtn =
+    document.getElementById(
+      "connectWalletBtn"
+    );
+
+  const walletInfo =
+    document.getElementById(
+      "walletInfo"
+    );
+
+  const walletName =
+    document.getElementById(
+      "walletName"
+    );
+
+  const playButton =
+    document.getElementById(
+      "playButton"
+    );
+
+  const accessDeniedModal =
+    document.getElementById(
+      "accessDeniedModal"
+    );
+
+  try {
+
+    connectBtn.textContent =
+      "Connecting...";
+
+    connectBtn.disabled = true;
+
+    if (!window.ProtonWebSDK) {
+
+      alert(
+        "Proton SDK not loaded yet. Please try again."
+      );
+
+      connectBtn.textContent =
+        "Connect Wallet";
+
+      connectBtn.disabled = false;
+
+      return;
+    }
+
+    const {
+      session,
+      link
+    } =
+      await window.ProtonWebSDK({
+
+        linkOptions: {
+
+          endpoints:
+            RPC_ENDPOINTS,
+
+          restoreSession:
+            false
+
+        },
+
+        selectorOptions: {
+
+          appName:
+            "Wack a Pandee",
+
+          appLogo:
+            "https://bloks.io/cdn-cgi/image/width=70,height=70/https://lh3.googleusercontent.com/a/AAcHTtfsatkCTk0jlH6Iyg5S4HEEVtkMWXlHJrauBcYw=s288-c-rg-br100",
+
+          customStyleOptions: {
+
+            modalBackgroundColor:
+              "#F4F7FA",
+
+            logoBackgroundColor:
+              "indigo",
+
+            isLogoRound:
+              true,
+
+            optionBackgroundColor:
+              "white",
+
+            optionFontColor:
+              "black",
+
+            primaryFontColor:
+              "black",
+
+            secondaryFontColor:
+              "#6B727F",
+
+            linkColor:
+              "#752EEB"
+
+          }
+
+        },
+
+        transportOptions: {
+
+          requestAccount:
+            GAME_CONTRACT
+
+        }
+
+      });
+
+    protonSession = session;
+    protonLink = link;
+
+    if (
+      session &&
+      session.auth &&
+      session.auth.actor
+    ) {
+
+      const hasAccess =
+        await checkPDABalance(session);
+
+      if (!hasAccess) {
+
+        accessDeniedModal.classList.add(
+          "show"
+        );
+
+        connectBtn.textContent =
+          "Connect Wallet";
+
+        connectBtn.disabled =
+          false;
+
         return;
       }
-      
-      console.log('Initializing Proton Web SDK (Mainnet)...');
-      
-      const { session, link } = await window.ProtonWebSDK({
-        linkOptions: {
-          endpoints: RPC_ENDPOINTS,
-          restoreSession: false
-        },
-        selectorOptions: {
-          appName: "Wack a Pandee",
-          appLogo: "https://bloks.io/cdn-cgi/image/width=70,height=70/https://lh3.googleusercontent.com/a/AAcHTtfsatkCTk0jlH6Iyg5S4HEEVtkMWXlHJrauBcYw=s288-c-rg-br100",
-          customStyleOptions: {
-            modalBackgroundColor: "#F4F7FA",
-            logoBackgroundColor: "indigo",
-            isLogoRound: true,
-            optionBackgroundColor: "white",
-            optionFontColor: "black",
-            primaryFontColor: "black",
-            secondaryFontColor: "#6B727F",
-            linkColor: "#752EEB"
-          }
-        },
-        transportOptions: {
-          requestAccount: GAME_CONTRACT
-        }
-      });
-      
-      protonSession = session;
-      protonLink = link;
-      
-      console.log('Session:', session);
-      console.log('Link:', link);
-      
-      if (session && session.auth && session.auth.actor) {
-        const hasAccess = await checkPDABalance(session);
-        
-        if (!hasAccess) {
-          accessDeniedModal.classList.add('show');
-          connectBtn.textContent = 'Connect Wallet';
-          connectBtn.disabled = false;
-          return;
-        }
-        
-        connectedWallet = session.auth.actor;
-        walletName.textContent = connectedWallet;
-        walletInfo.style.display = 'block';
-        connectBtn.style.display = 'none';
-        playButton.disabled = false;
-        await loadLeaderboard();
-        updateClaimableRewards();
-        console.log('Wallet connected (Mainnet):', connectedWallet);
-        
-        hasNFTBoost = await checkNFTBoost(connectedWallet);
-        if (hasNFTBoost) {
-          console.log('NFT boost active: 2x score multiplier!');
-        }
-      } else {
-        throw new Error('No account returned from login');
+
+      connectedWallet =
+        session.auth.actor;
+
+      walletName.textContent =
+        connectedWallet;
+
+      walletInfo.style.display =
+        "block";
+
+      connectBtn.style.display =
+        "none";
+
+      playButton.disabled =
+        false;
+
+      await loadLeaderboard();
+
+      updateClaimableRewards();
+
+      hasNFTBoost =
+        await checkNFTBoost(
+          connectedWallet
+        );
+
+      if (hasNFTBoost) {
+
+        console.log(
+          "NFT boost active: 2x"
+        );
+
       }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      alert('Failed to connect wallet. Please try again.');
-      connectBtn.textContent = 'Connect Wallet';
-      connectBtn.disabled = false;
-    }
-  }
-  
-  document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
 
-  async function checkNFTBoost(wallet) {
-    try {
-      const response = await fetchWithFallback('/v1/chain/get_table_rows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: true,
-          code: 'atomicassets',
-          scope: wallet,
-          table: 'assets',
-          limit: 100
-        })
-      });
-      const data = await response.json();
-      if (data.rows && data.rows.length > 0) {
-        return data.rows.some(asset => asset.schema_name === NFT_SCHEMA);
-      }
-      return false;
-    } catch (e) {
-      console.error("NFT boost ownership check failed", e);
-      return false;
-    }
-  }
+    } else {
 
-  async function loadLeaderboard() {
-    try {
-      console.log('=== LOADING LEADERBOARD ===');
-      const response = await fetchWithFallback('/v1/chain/get_table_rows', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          json: true,
-          code: GAME_CONTRACT,
-          scope: GAME_CONTRACT,
-          table: 'leaderboard',
-          limit: 100
-        })
-      });
-      
-      const data = await response.json();
-      console.log('Leaderboard Response:', data);
-      console.log('Number of rows:', data.rows ? data.rows.length : 0);
-      
-      if (data.rows && data.rows.length > 0) {
-        console.log('Raw leaderboard data:', JSON.stringify(data.rows, null, 2));
-        
-        const sortedLeaderboard = data.rows
-          .map(entry => ({
-            player: entry.player,
-            score: typeof entry.score === 'string' ? parseInt(entry.score, 10) : entry.score
-          }))
-          .sort((a, b) => b.score - a.score);
-        
-        console.log('Sorted leaderboard:', sortedLeaderboard);
-        renderLeaderboard(sortedLeaderboard.slice(0, 10));
-      } else {
-        console.warn('No leaderboard entries found');
-        renderLeaderboard([]);
-      }
-    } catch (error) {
-      console.error('LEADERBOARD ERROR:', error);
-      console.error('Error details:', error.message);
-      renderLeaderboard([]);
-    }
-  }
-
-  function renderLeaderboard(entries) {
-    const lb = document.querySelector('.lb-entries');
-    console.log('Rendering', entries.length, 'leaderboard entries');
-    
-    if (entries.length === 0) {
-      lb.innerHTML = '<div style="text-align:center;color:#888;padding:1rem;">No entries yet. Be the first!</div>';
-      return;
-    }
-    
-    lb.innerHTML = '';
-    entries.forEach((entry, index) => {
-      console.log(`Entry ${index + 1}:`, entry.player, '-', entry.score);
-      lb.innerHTML += `
-        <div class="lb-row">
-          <span class="lb-wallet">${entry.player}</span>
-          <span class="lb-score">${entry.score}</span>
-        </div>
-      `;
-    });
-  }
-
-  const claimBtn = document.getElementById('claimRewardsBtn');
-  const claimStatus = document.getElementById('claimStatus');
-
-  function calculateReward(finalScore) {
-    const reward = Math.floor(finalScore / 10) * 10;
-    return Math.min(reward, 100);
-  }
-
-  function updateClaimableRewards() {
-    if (!connectedWallet) {
-      claimBtn.classList.remove('lit');
-      claimBtn.innerHTML = '<span>Claim Rewards</span>';
-      claimBtn.disabled = true;
-      claimStatus.textContent = "";
-      return;
-    }
-    if (!gameOver || score < 10) {
-      claimBtn.classList.remove('lit');
-      claimBtn.innerHTML = '<span>Claim Rewards</span>';
-      claimStatus.textContent = score < 10 ? "Score at least 10 to claim." : "";
-      claimBtn.disabled = true;
-      return;
-    }
-    const rewardAmount = calculateReward(score);
-    claimBtn.classList.add('lit');
-    claimBtn.disabled = false;
-    claimBtn.innerHTML = `<span>Claim ${rewardAmount}</span> <img src="images/x-icon/pda-xprpanda-65x65.png" alt="PDA"> <span>PDA</span>`;
-    claimStatus.textContent = "";
-  }
-
-  claimBtn.onclick = async () => {
-    if (!connectedWallet) {
-      claimStatus.textContent = "Connect wallet to claim rewards.";
-      return;
-    }
-    if (!gameOver || score < 10) {
-      claimStatus.textContent = "You must finish a game with score >= 10 to claim.";
-      return;
-    }
-    if (!protonSession) {
-      claimStatus.textContent = "Wallet connection not fully established. Please reconnect.";
-      return;
-    }
-    
-    const rewardAmount = calculateReward(score);
-    claimBtn.disabled = true;
-    claimStatus.textContent = "Claiming, please approve in your wallet...";
-    
-    try {
-      console.log('Sending claim transaction...');
-      console.log('Wallet:', connectedWallet);
-      console.log('Score:', score);
-      console.log('Reward:', rewardAmount);
-      
-      const result = await protonSession.transact(
-        {
-          actions: [
-            {
-              account: GAME_CONTRACT,
-              name: "gameend",
-              authorization: [{ actor: connectedWallet, permission: "active" }],
-              data: { player: connectedWallet, score: score }
-            }
-          ]
-        },
-        { broadcast: true }
+      throw new Error(
+        "No account returned"
       );
-      
-      console.log('Transaction successful:', result);
-      claimStatus.textContent = `Success! ${rewardAmount} PDA claimed and will appear in your wallet soon.`;
-      claimBtn.classList.remove('lit');
-      claimBtn.disabled = true;
-      
-      // Wake up the reward bot immediately
-      fetch('https://wackapandee.pandania.xyz/wake')
-        .then(res => res.json())
-        .then(data => console.log('✅ Bot woken up:', data))
-        .catch(err => console.log('⚠️ Wake ping failed (bot may be sleeping):', err));
-      
-      // Reload leaderboard with delays
-      [3000, 6000, 12000, 20000].forEach(delay => {
-        setTimeout(() => {
-          console.log(`Refreshing leaderboard (${delay}ms delay)...`);
-          loadLeaderboard();
-        }, delay);
-      });
-      
-    } catch (err) {
-      console.error('Claim transaction failed:', err);
-      claimStatus.textContent = "Claim failed: " + (err.message || err);
-      claimBtn.disabled = false;
+
     }
+
+  } catch (error) {
+
+    console.error(
+      "Wallet connection failed:",
+      error
+    );
+
+    alert(
+      "Failed to connect wallet. Please try again."
+    );
+
+    connectBtn.textContent =
+      "Connect Wallet";
+
+    connectBtn.disabled =
+      false;
+
+  }
+
+}
+
+document
+  .getElementById("connectWalletBtn")
+  .addEventListener(
+    "click",
+    connectWallet
+  );
+
+
+/* =========================================================
+   NFT BOOST
+========================================================= */
+
+async function checkNFTBoost(wallet) {
+
+  try {
+
+    const response =
+      await fetchWithFallback(
+        "/v1/chain/get_table_rows",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+
+            json: true,
+
+            code: "atomicassets",
+
+            scope: wallet,
+
+            table: "assets",
+
+            limit: 100
+
+          })
+
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      data.rows &&
+      data.rows.length
+    ) {
+
+      return data.rows.some(
+        asset =>
+          asset.schema_name ===
+          NFT_SCHEMA
+      );
+
+    }
+
+    return false;
+
+  } catch (error) {
+
+    console.error(
+      "NFT check failed:",
+      error
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================================
+   LEADERBOARD
+========================================================= */
+
+async function loadLeaderboard() {
+
+  try {
+
+    const response =
+      await fetchWithFallback(
+        "/v1/chain/get_table_rows",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+
+            json: true,
+
+            code:
+              GAME_CONTRACT,
+
+            scope:
+              GAME_CONTRACT,
+
+            table:
+              "leaderboard",
+
+            limit: 100
+
+          })
+
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      data.rows &&
+      data.rows.length
+    ) {
+
+      const sorted =
+        data.rows
+          .map(entry => ({
+
+            player:
+              entry.player,
+
+            score:
+              typeof entry.score ===
+              "string"
+
+                ? parseInt(
+                    entry.score,
+                    10
+                  )
+
+                : entry.score
+
+          }))
+          .sort(
+            (a,b) =>
+              b.score - a.score
+          );
+
+      renderLeaderboard(
+        sorted.slice(0,10)
+      );
+
+    } else {
+
+      renderLeaderboard([]);
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "Leaderboard error:",
+      error
+    );
+
+    renderLeaderboard([]);
+
+  }
+
+}
+
+
+function renderLeaderboard(entries) {
+
+  const lb =
+    document.querySelector(
+      ".lb-entries"
+    );
+
+  if (!entries.length) {
+
+    lb.innerHTML =
+      `<div style="padding:15px;color:#888;">
+        No entries yet. Be the first!
+      </div>`;
+
+    return;
+  }
+
+  lb.innerHTML = "";
+
+  entries.forEach(
+    (entry,index) => {
+
+      lb.innerHTML += `
+
+        <div class="lb-row">
+
+          <span class="lb-wallet">
+            ${index + 1}. ${entry.player}
+          </span>
+
+          <span class="lb-score">
+            ${entry.score}
+          </span>
+
+        </div>
+
+      `;
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   CLAIM REWARDS
+========================================================= */
+
+const claimBtn =
+  document.getElementById(
+    "claimRewardsBtn"
+  );
+
+const claimStatus =
+  document.getElementById(
+    "claimStatus"
+  );
+
+function calculateReward(finalScore) {
+
+  const reward =
+    Math.floor(
+      finalScore / 10
+    ) * 10;
+
+  return Math.min(
+    reward,
+    100
+  );
+
+}
+
+
+function updateClaimableRewards() {
+
+  if (!connectedWallet) {
+
+    claimBtn.classList.remove("lit");
+
+    claimBtn.innerHTML =
+      "<span>Claim Rewards</span>";
+
+    claimBtn.disabled =
+      true;
+
+    claimStatus.textContent =
+      "";
+
+    return;
+  }
+
+  if (!gameOver || score < 10) {
+
+    claimBtn.classList.remove("lit");
+
+    claimBtn.innerHTML =
+      "<span>Claim Rewards</span>";
+
+    claimBtn.disabled =
+      true;
+
+    claimStatus.textContent =
+      score < 10
+        ? "Score at least 10 to claim."
+        : "";
+
+    return;
+  }
+
+  const rewardAmount =
+    calculateReward(score);
+
+  claimBtn.classList.add("lit");
+
+  claimBtn.disabled =
+    false;
+
+  claimBtn.innerHTML = `
+
+    <span>Claim ${rewardAmount}</span>
+
+    <img
+      src="images/x-icon/pda-xprpanda-65x65.png"
+      alt="PDA">
+
+    <span>PDA</span>
+
+  `;
+
+  claimStatus.textContent =
+    "";
+
+}
+
+
+claimBtn.onclick =
+  async () => {
+
+    if (!connectedWallet) {
+
+      claimStatus.textContent =
+        "Connect wallet to claim.";
+
+      return;
+    }
+
+    if (!gameOver || score < 10) {
+
+      claimStatus.textContent =
+        "Finish a game with score >= 10.";
+
+      return;
+    }
+
+    if (!protonSession) {
+
+      claimStatus.textContent =
+        "Please reconnect your wallet.";
+
+      return;
+    }
+
+    const rewardAmount =
+      calculateReward(score);
+
+    claimBtn.disabled =
+      true;
+
+    claimStatus.textContent =
+      "Claiming... approve the transaction in your wallet.";
+
+    try {
+
+      const result =
+        await protonSession.transact(
+
+          {
+
+            actions: [
+
+              {
+
+                account:
+                  GAME_CONTRACT,
+
+                name:
+                  "gameend",
+
+                authorization: [
+
+                  {
+
+                    actor:
+                      connectedWallet,
+
+                    permission:
+                      "active"
+
+                  }
+
+                ],
+
+                data: {
+
+                  player:
+                    connectedWallet,
+
+                  score:
+                    score
+
+                }
+
+              }
+
+            ]
+
+          },
+
+          {
+            broadcast:
+              true
+          }
+
+        );
+
+      console.log(
+        "Claim transaction:",
+        result
+      );
+
+      claimStatus.textContent =
+        `Success! ${rewardAmount} PDA claimed and will appear in your wallet soon.`;
+
+      claimBtn.classList.remove(
+        "lit"
+      );
+
+      claimBtn.disabled =
+        true;
+
+      fetch(
+        "https://wackapandee.pandania.xyz/wake"
+      )
+      .then(
+        res => res.json()
+      )
+      .then(
+        data =>
+          console.log(
+            "Bot wake:",
+            data
+          )
+      )
+      .catch(
+        err =>
+          console.log(
+            "Wake failed:",
+            err
+          )
+      );
+
+      [
+        3000,
+        6000,
+        12000,
+        20000
+      ].forEach(
+        delay => {
+
+          setTimeout(
+            () => {
+              loadLeaderboard();
+            },
+            delay
+          );
+
+        }
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Claim failed:",
+        error
+      );
+
+      claimStatus.textContent =
+        "Claim failed: " +
+        (
+          error.message ||
+          error
+        );
+
+      claimBtn.disabled =
+        false;
+
+    }
+
   };
 
-  // GAME CODE
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
-  const circleRadius = 45;
-  const moleImg = new Image();
-  const bombImg = new Image();
-  let moleImgLoaded = false;
-  let bombImgLoaded = false;
 
-  function checkImagesLoaded() {
-    if (moleImgLoaded && bombImgLoaded) {
-      drawHoles();
-    }
-  }
-  
-  moleImg.src = 'images/wackapandeemega.png';
-  moleImg.onload = () => { moleImgLoaded = true; checkImagesLoaded(); };
-  bombImg.src = 'images/wackapandeebomb.png';
-  bombImg.onload = () => { bombImgLoaded = true; checkImagesLoaded(); };
-  moleImg.onerror = () => { moleImgLoaded = true; checkImagesLoaded(); };
-  bombImg.onerror = () => { bombImgLoaded = true; checkImagesLoaded(); };
+/* =========================================================
+   CANVAS / ARCADE ENGINE
+========================================================= */
 
-  const rows = 4;
-  const cols = 6;
-  const circleSpacingX = 100;
-  const circleSpacingY = 100;
-  const startX = 50;
-  const startY = 50;
-  const spawnPositions = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      if ((row + col) % 2 === 0) {
-        spawnPositions.push({x: startX + col * circleSpacingX, y: startY + row * circleSpacingY});
-      }
-    }
-  }
+const canvas =
+  document.getElementById(
+    "gameCanvas"
+  );
 
-  let score, lives, streak, multiplier, circles, gameOver;
-  const maxLives = 3;
-  const scoreDisplay = document.getElementById('score');
-  const livesDisplay = document.getElementById('lives');
-  const multiplierDisplay = document.getElementById('multiplier');
-  const gameOverDisplay = document.getElementById('gameOver');
-  const playAgainBtn = document.getElementById('playAgainBtn');
-  const highScoreDisplay = document.getElementById('highScore');
-  let highScore = 0;
-  let moleUpTime, spawnInterval, lastSpawnTime, maxCirclesOnScreen, animationFrameId;
+const ctx =
+  canvas.getContext(
+    "2d"
+  );
 
-  const playButton = document.getElementById('playButton');
-  playButton.addEventListener('click', () => {
-    if (!connectedWallet) return;
-    playButton.classList.add('hidden');
-    gameStarted = true;
-    initializeGame();
-    gameLoop();
-  });
+const moleImg =
+  new Image();
 
-  function drawHoles() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const pos of spawnPositions) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.ellipse(pos.x, pos.y + circleRadius / 2, circleRadius * 0.95, circleRadius * 0.55, 0, 0, 2 * Math.PI);
-      ctx.fillStyle = '#453c2c';
-      ctx.shadowColor = "#222";
-      ctx.shadowBlur = 12;
-      ctx.fill();
-      ctx.restore();
-    }
-  }
+const bombImg =
+  new Image();
 
-  function drawCircle(circle) {
-    const pos = spawnPositions[circle.positionIndex];
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y + circleRadius / 2, circleRadius * 0.55, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fill();
-    ctx.restore();
-    if (circle.type === 'mole' && moleImg.complete && moleImg.naturalWidth > 0) {
-      ctx.drawImage(moleImg, pos.x - circleRadius, pos.y - circleRadius - 10, circleRadius * 2, circleRadius * 2);
-    } else if (circle.type === 'bomb' && bombImg.complete && bombImg.naturalWidth > 0) {
-      ctx.drawImage(bombImg, pos.x - circleRadius, pos.y - circleRadius - 10, circleRadius * 2, circleRadius * 2);
-    } else {
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, circleRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = circle.type === 'mole' ? '#8B4513' : '#FF4500';
-      ctx.fill();
-      ctx.strokeStyle = circle.type === 'mole' ? '#654321' : '#CC3300';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-  }
+let moleImgLoaded =
+  false;
 
-  function clearCircle(circle) {
-    const pos = spawnPositions[circle.positionIndex];
-    ctx.clearRect(pos.x - circleRadius - 5, pos.y - circleRadius - 15, circleRadius * 2 + 10, circleRadius * 2 + 20);
-  }
+let bombImgLoaded =
+  false;
 
-  function initializeGame() {
-    score = 0;
-    lives = maxLives;
-    streak = 0;
-    multiplier = hasNFTBoost ? 2 : 1;
-    circles = [];
-    gameOver = false;
-    moleUpTime = 900;
-    spawnInterval = 1200;
-    maxCirclesOnScreen = 3;
-    lastSpawnTime = Date.now();
-    scoreDisplay.textContent = score;
-    updateLivesDisplay();
-    updateMultiplierDisplay();
-    gameOverDisplay.style.display = 'none';
-    playAgainBtn.style.display = 'none';
-    highScoreDisplay.textContent = highScore;
-    updateClaimableRewards();
-  }
+moleImg.src =
+  "images/wackapandeemega.png";
 
-  function spawnCircle() {
-    if (circles.length >= maxCirclesOnScreen) return;
-    const occupiedPositions = new Set(circles.map(c => c.positionIndex));
-    let freePositions = spawnPositions.map((_, i) => i).filter(i => !occupiedPositions.has(i));
-    if (freePositions.length === 0) return;
-    const posIndex = freePositions[Math.floor(Math.random() * freePositions.length)];
-    const isBomb = Math.random() < 0.2;
-    const circle = {type: isBomb ? 'bomb' : 'mole', positionIndex: posIndex, appearedAt: Date.now()};
-    circles.push(circle);
-    
-    if (isBomb) {
-      const wickSoundInstance = new Audio('sounds/wick.mp3');
-      wickSoundInstance.volume = 0.5;
-      wickSoundInstance.play().catch(e => console.log('Wick sound play failed:', e));
-      activeWickSounds.set(circle, wickSoundInstance);
-    }
-  }
+bombImg.src =
+  "images/wackapandeebomb.png";
 
-  function removeCircle(index, missed = false) {
-    const circle = circles[index];
-    
-    if (circle.type === 'bomb' && activeWickSounds.has(circle)) {
-      const wickSoundInstance = activeWickSounds.get(circle);
-      wickSoundInstance.pause();
-      wickSoundInstance.currentTime = 0;
-      activeWickSounds.delete(circle);
-    }
-    
-    clearCircle(circle);
-    circles.splice(index, 1);
-    if (missed && circle.type === 'mole') {
-      lives--;
-      streak = 0;
-      multiplier = hasNFTBoost ? 2 : 1;
-      updateLivesDisplay();
-      updateMultiplierDisplay();
-      if (lives <= 0) {
-        endGame('You missed 3 pandees!');
-      }
-    }
-  }
+moleImg.onload =
+  () => {
 
-  function updateCircles() {
-    const now = Date.now();
-    for (let i = circles.length - 1; i >= 0; i--) {
-      if (now - circles[i].appearedAt > moleUpTime) {
-        removeCircle(i, true);
-      }
-    }
-  }
+    moleImgLoaded = true;
+    drawArcade();
 
-  function updateDifficulty() {
-    const speedupStep = 10;
-    const maxSpeed = 500;
-    if (score > 0 && score % speedupStep === 0) {
-      moleUpTime = Math.max(moleUpTime - 50, maxSpeed);
-      spawnInterval = Math.max(spawnInterval - 75, maxSpeed);
-      maxCirclesOnScreen = Math.min(maxCirclesOnScreen + 1, spawnPositions.length);
-    }
-  }
+  };
 
-  function updateLivesDisplay() {
-    livesDisplay.textContent = '❤️'.repeat(lives) + '♡'.repeat(maxLives - lives);
-  }
+bombImg.onload =
+  () => {
 
-  function updateMultiplierDisplay() {
-    multiplierDisplay.textContent = `(x${multiplier})`;
-  }
+    bombImgLoaded = true;
+    drawArcade();
 
-  function handleMoleHit() {
-    wackSound.currentTime = 0;
-    wackSound.play().catch(e => console.log('Wack sound play failed:', e));
-    
-    streak++;
-    updateStreakMultiplier();
-    score += multiplier;
-    scoreDisplay.textContent = score;
-    if (score > highScore) {
-      highScore = score;
-      highScoreDisplay.textContent = highScore;
-    }
-    updateDifficulty();
-  }
+  };
 
-  function updateStreakMultiplier() {
-    if (hasNFTBoost) {
-      multiplier = 2;
-      updateMultiplierDisplay();
-      return;
-    }
-    if (streak >= 100) multiplier = 10;
-    else if (streak >= 50) multiplier = 5;
-    else if (streak >= 10) multiplier = 2;
-    else multiplier = 1;
-    updateMultiplierDisplay();
-  }
+moleImg.onerror =
+  () => {
 
-  function endGame(message) {
-    gameOver = true;
-    gameOverDisplay.textContent = `Game Over! ${message}`;
-    gameOverDisplay.style.display = 'block';
-    playAgainBtn.style.display = 'inline-block';
-    cancelAnimationFrame(animationFrameId);
-    canvas.classList.add('shake');
-    setTimeout(() => canvas.classList.remove('shake'), 400);
-    updateClaimableRewards();
-    
-    activeWickSounds.forEach(sound => {
-      sound.pause();
-      sound.currentTime = 0;
+    moleImgLoaded = true;
+
+    drawArcade();
+
+  };
+
+bombImg.onerror =
+  () => {
+
+    bombImgLoaded = true;
+
+    drawArcade();
+
+  };
+
+
+/* =========================================================
+   PLAYFIELD
+
+   3 rows x 4 columns = 12 holes
+========================================================= */
+
+const rows = 3;
+const cols = 4;
+
+const spawnPositions = [];
+
+const holeX = [
+  150,
+  350,
+  550,
+  750
+];
+
+const holeY = [
+  175,
+  310,
+  445
+];
+
+for (let row = 0; row < rows; row++) {
+
+  for (let col = 0; col < cols; col++) {
+
+    spawnPositions.push({
+
+      x:
+        holeX[col],
+
+      y:
+        holeY[row]
+
     });
-    activeWickSounds.clear();
+
   }
 
-  function gameLoop() {
-    if (gameOver) return;
-    drawHoles();
-    const now = Date.now();
-    if (now - lastSpawnTime > spawnInterval) {
-      spawnCircle();
-      lastSpawnTime = now;
-    }
-    updateCircles();
-    for (const circle of circles) drawCircle(circle);
-    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+
+/* =========================================================
+   GAME STATE
+========================================================= */
+
+let score = 0;
+let lives = 3;
+let streak = 0;
+let multiplier = 1;
+
+let circles = [];
+
+let gameOver = false;
+
+const maxLives = 3;
+
+let highScore = 0;
+
+let moleUpTime = 900;
+let spawnInterval = 1200;
+let maxCirclesOnScreen = 3;
+
+let lastSpawnTime = 0;
+
+let animationFrameId;
+
+
+/* =========================================================
+   HAMMER STATE
+========================================================= */
+
+let hammer = {
+
+  visible: false,
+
+  x: 0,
+
+  y: 0,
+
+  angle: -0.55,
+
+  targetAngle: -0.55,
+
+  progress: 0,
+
+  active: false,
+
+  hitX: 0,
+
+  hitY: 0
+
+};
+
+
+/* =========================================================
+   PARTICLE EFFECTS
+========================================================= */
+
+let particles = [];
+
+function createHitParticles(x,y,type) {
+
+  const count =
+    type === "bomb"
+      ? 28
+      : 16;
+
+  for (
+    let i = 0;
+    i < count;
+    i++
+  ) {
+
+    const angle =
+      Math.random() *
+      Math.PI * 2;
+
+    const speed =
+      1.5 +
+      Math.random() * 4;
+
+    particles.push({
+
+      x: x,
+
+      y: y,
+
+      vx:
+        Math.cos(angle) *
+        speed,
+
+      vy:
+        Math.sin(angle) *
+        speed,
+
+      life: 1,
+
+      size:
+        2 +
+        Math.random() * 5,
+
+      type:
+        type
+
+    });
+
   }
 
-  function handleCanvasInteraction(event) {
-    if (gameOver || !gameStarted) return;
-    
-    event.preventDefault();
-    event.stopPropagation();
-    
-    const rect = canvas.getBoundingClientRect();
-    let clickX, clickY;
-    
-    if (event.type === 'touchend') {
-      const touch = event.changedTouches[0];
-      clickX = touch.clientX - rect.left;
-      clickY = touch.clientY - rect.top;
-    } else {
-      clickX = event.clientX - rect.left;
-      clickY = event.clientY - rect.top;
+}
+
+
+function updateParticles() {
+
+  for (
+    let i = particles.length - 1;
+    i >= 0;
+    i--
+  ) {
+
+    const p =
+      particles[i];
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    p.vy += .08;
+
+    p.life -= .035;
+
+    if (p.life <= 0) {
+
+      particles.splice(
+        i,
+        1
+      );
+
     }
-    
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    clickX *= scaleX;
-    clickY *= scaleY;
-    
-    for (let i = 0; i < circles.length; i++) {
-      const circle = circles[i];
-      const pos = spawnPositions[circle.positionIndex];
-      const dist = Math.sqrt((clickX - pos.x) ** 2 + (clickY - pos.y) ** 2);
-      if (dist <= circleRadius) {
-        if (circle.type === 'mole') {
-          handleMoleHit();
-          removeCircle(i);
-        } else if (circle.type === 'bomb') {
-          boomSound.currentTime = 0;
-          boomSound.play().catch(e => console.log('Boom sound play failed:', e));
-          endGame('You clicked a bomb!');
-        }
-        break;
+
+  }
+
+}
+
+
+/* =========================================================
+   DRAW ARCADE BACKGROUND
+========================================================= */
+
+function drawArcadeBackground() {
+
+  /* Entire machine */
+
+  const bg =
+    ctx.createLinearGradient(
+      0,
+      0,
+      0,
+      canvas.height
+    );
+
+  bg.addColorStop(
+    0,
+    "#252a43"
+  );
+
+  bg.addColorStop(
+    .25,
+    "#15192b"
+  );
+
+  bg.addColorStop(
+    .65,
+    "#090b14"
+  );
+
+  bg.addColorStop(
+    1,
+    "#03040a"
+  );
+
+  ctx.fillStyle =
+    bg;
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+
+  /* =====================================================
+     TOP MARQUEE
+  ===================================================== */
+
+  const marquee =
+    ctx.createLinearGradient(
+      0,
+      0,
+      0,
+      105
+    );
+
+  marquee.addColorStop(
+    0,
+    "#6326a4"
+  );
+
+  marquee.addColorStop(
+    .4,
+    "#25144a"
+  );
+
+  marquee.addColorStop(
+    1,
+    "#0a0b14"
+  );
+
+  ctx.fillStyle =
+    marquee;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    25,
+    20,
+    850,
+    90,
+    20
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#bb33ff";
+
+  ctx.lineWidth =
+    4;
+
+  ctx.shadowColor =
+    "#bb33ff";
+
+  ctx.shadowBlur =
+    15;
+
+  ctx.stroke();
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* marquee lights */
+
+  for (
+    let x = 50;
+    x < 850;
+    x += 35
+  ) {
+
+    const pulse =
+      Math.sin(
+        Date.now()/180 +
+        x
+      );
+
+    ctx.beginPath();
+
+    ctx.arc(
+      x,
+      30,
+      3 +
+      pulse,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fillStyle =
+      x % 70 === 0
+        ? "#00ffff"
+        : "#ff33dd";
+
+    ctx.shadowColor =
+      ctx.fillStyle;
+
+    ctx.shadowBlur =
+      10;
+
+    ctx.fill();
+
+  }
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* marquee title */
+
+  ctx.textAlign =
+    "center";
+
+  ctx.font =
+    "900 35px Arial";
+
+  ctx.fillStyle =
+    "#ffffff";
+
+  ctx.shadowColor =
+    "#bb33ff";
+
+  ctx.shadowBlur =
+    15;
+
+  ctx.fillText(
+    "WACK A PANDEE",
+    450,
+    70
+  );
+
+  ctx.shadowBlur =
+    0;
+
+  ctx.font =
+    "bold 11px Arial";
+
+  ctx.fillStyle =
+    "#8fffff";
+
+  ctx.fillText(
+    "PANDA ARCADE • XPR NETWORK",
+    450,
+    92
+  );
+
+
+  /* =====================================================
+     PLAYFIELD FRAME
+  ===================================================== */
+
+  const frame =
+    ctx.createLinearGradient(
+      0,
+      110,
+      0,
+      565
+    );
+
+  frame.addColorStop(
+    0,
+    "#525a70"
+  );
+
+  frame.addColorStop(
+    .2,
+    "#252b3b"
+  );
+
+  frame.addColorStop(
+    .6,
+    "#0d101a"
+  );
+
+  frame.addColorStop(
+    1,
+    "#05060b"
+  );
+
+  ctx.fillStyle =
+    frame;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    35,
+    115,
+    830,
+    440,
+    30
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#00d9ff";
+
+  ctx.lineWidth =
+    3;
+
+  ctx.shadowColor =
+    "#00d9ff";
+
+  ctx.shadowBlur =
+    14;
+
+  ctx.stroke();
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* =====================================================
+     PLAYFIELD INNER SURFACE
+  ===================================================== */
+
+  const inner =
+    ctx.createLinearGradient(
+      0,
+      140,
+      0,
+      540
+    );
+
+  inner.addColorStop(
+    0,
+    "#1c2030"
+  );
+
+  inner.addColorStop(
+    .5,
+    "#0b0d15"
+  );
+
+  inner.addColorStop(
+    1,
+    "#17111f"
+  );
+
+  ctx.fillStyle =
+    inner;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    60,
+    135,
+    780,
+    390,
+    25
+  );
+
+  ctx.fill();
+
+
+  /* =====================================================
+     SIDE NEON STRIPS
+  ===================================================== */
+
+  ctx.shadowColor =
+    "#bb33ff";
+
+  ctx.shadowBlur =
+    15;
+
+  ctx.fillStyle =
+    "#bb33ff";
+
+  ctx.fillRect(
+    48,
+    155,
+    4,
+    350
+  );
+
+  ctx.fillRect(
+    848,
+    155,
+    4,
+    350
+  );
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* =====================================================
+     BOTTOM CONTROL DECK
+  ===================================================== */
+
+  const deck =
+    ctx.createLinearGradient(
+      0,
+      500,
+      0,
+      600
+    );
+
+  deck.addColorStop(
+    0,
+    "#34394a"
+  );
+
+  deck.addColorStop(
+    .35,
+    "#191c29"
+  );
+
+  deck.addColorStop(
+    1,
+    "#07080d"
+  );
+
+  ctx.fillStyle =
+    deck;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    30,
+    500,
+    840,
+    90,
+    25
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#8a2be2";
+
+  ctx.lineWidth =
+    3;
+
+  ctx.stroke();
+
+
+  /* control buttons */
+
+  drawControlButton(
+    105,
+    545,
+    22,
+    "#ff2b55"
+  );
+
+  drawControlButton(
+    795,
+    545,
+    22,
+    "#00eaff"
+  );
+
+
+  /* center coin/control plate */
+
+  ctx.fillStyle =
+    "#080a10";
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    450,
+    548,
+    115,
+    23,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#5f6475";
+
+  ctx.stroke();
+
+
+  ctx.fillStyle =
+    "#bb33ff";
+
+  ctx.font =
+    "900 13px Arial";
+
+  ctx.textAlign =
+    "center";
+
+  ctx.shadowColor =
+    "#bb33ff";
+
+  ctx.shadowBlur =
+    10;
+
+  ctx.fillText(
+    "PANDA POWER",
+    450,
+    553
+  );
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* corner screws */
+
+  drawScrew(
+    52,
+    130
+  );
+
+  drawScrew(
+    848,
+    130
+  );
+
+  drawScrew(
+    52,
+    540
+  );
+
+  drawScrew(
+    848,
+    540
+  );
+
+}
+
+
+function drawControlButton(
+  x,
+  y,
+  r,
+  color
+) {
+
+  const gradient =
+    ctx.createRadialGradient(
+      x-5,
+      y-5,
+      2,
+      x,
+      y,
+      r
+    );
+
+  gradient.addColorStop(
+    0,
+    "#ffffff"
+  );
+
+  gradient.addColorStop(
+    .15,
+    color
+  );
+
+  gradient.addColorStop(
+    1,
+    "#09090e"
+  );
+
+  ctx.fillStyle =
+    gradient;
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y,
+    r,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.shadowColor =
+    color;
+
+  ctx.shadowBlur =
+    12;
+
+  ctx.fill();
+
+  ctx.shadowBlur =
+    0;
+
+  ctx.strokeStyle =
+    "#777";
+
+  ctx.stroke();
+
+}
+
+
+function drawScrew(x,y) {
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y,
+    5,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle =
+    "#08090d";
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#777";
+
+  ctx.stroke();
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    x-2,
+    y-2
+  );
+
+  ctx.lineTo(
+    x+2,
+    y+2
+  );
+
+  ctx.strokeStyle =
+    "#ccc";
+
+  ctx.stroke();
+
+}
+
+
+/* =========================================================
+   RECESSED ARCADE HOLE
+========================================================= */
+
+function drawPortal(
+  pos,
+  pulseOffset = 0
+) {
+
+  const time =
+    Date.now()/650;
+
+  const pulse =
+    Math.sin(
+      time +
+      pulseOffset
+    ) * 2;
+
+
+  const outer =
+    56 +
+    pulse;
+
+
+  /* floor shadow */
+
+  ctx.save();
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y + 22,
+    62,
+    24,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle =
+    "rgba(0,0,0,.8)";
+
+  ctx.fill();
+
+  ctx.restore();
+
+
+  /* metallic raised rim */
+
+  const rim =
+    ctx.createRadialGradient(
+      pos.x-14,
+      pos.y-18,
+      5,
+      pos.x,
+      pos.y+8,
+      outer
+    );
+
+  rim.addColorStop(
+    0,
+    "#aab3c5"
+  );
+
+  rim.addColorStop(
+    .25,
+    "#596173"
+  );
+
+  rim.addColorStop(
+    .55,
+    "#303747"
+  );
+
+  rim.addColorStop(
+    .8,
+    "#151923"
+  );
+
+  rim.addColorStop(
+    1,
+    "#05060b"
+  );
+
+  ctx.fillStyle =
+    rim;
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y+8,
+    outer,
+    outer*.72,
+    0,
+    0,
+    Math.PI*2
+  );
+
+  ctx.shadowColor =
+    "#000";
+
+  ctx.shadowBlur =
+    15;
+
+  ctx.shadowOffsetY =
+    8;
+
+  ctx.fill();
+
+  ctx.shadowBlur =
+    0;
+
+  ctx.shadowOffsetY =
+    0;
+
+
+  /* purple illuminated inner rim */
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y+8,
+    outer-9,
+    (outer-9)*.67,
+    0,
+    0,
+    Math.PI*2
+  );
+
+  ctx.strokeStyle =
+    "#8a2be2";
+
+  ctx.lineWidth =
+    4;
+
+  ctx.shadowColor =
+    "#bb33ff";
+
+  ctx.shadowBlur =
+    13;
+
+  ctx.stroke();
+
+  ctx.shadowBlur =
+    0;
+
+
+  /* deep hole */
+
+  const hole =
+    ctx.createRadialGradient(
+      pos.x,
+      pos.y,
+      2,
+      pos.x,
+      pos.y+12,
+      outer*.75
+    );
+
+  hole.addColorStop(
+    0,
+    "#000"
+  );
+
+  hole.addColorStop(
+    .55,
+    "#010105"
+  );
+
+  hole.addColorStop(
+    1,
+    "#141722"
+  );
+
+  ctx.fillStyle =
+    hole;
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y+13,
+    outer*.67,
+    outer*.42,
+    0,
+    0,
+    Math.PI*2
+  );
+
+  ctx.fill();
+
+
+  /* inner purple edge */
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y+13,
+    outer*.62,
+    outer*.38,
+    0,
+    0,
+    Math.PI*2
+  );
+
+  ctx.strokeStyle =
+    "rgba(187,51,255,.7)";
+
+  ctx.lineWidth =
+    2;
+
+  ctx.stroke();
+
+
+  /* tiny light reflection */
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x-25,
+    pos.y-7,
+    13,
+    4,
+    -.35,
+    0,
+    Math.PI*2
+  );
+
+  ctx.fillStyle =
+    "rgba(255,255,255,.16)";
+
+  ctx.fill();
+
+}
+
+
+/* =========================================================
+   PANDEE / BOMB
+========================================================= */
+
+function drawCircle(
+  circle
+) {
+
+  const pos =
+    spawnPositions[
+      circle.positionIndex
+    ];
+
+
+  /* hole */
+
+  drawPortal(
+    pos,
+    circle.positionIndex
+  );
+
+
+  /* character shadow */
+
+  ctx.save();
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    pos.x,
+    pos.y+8,
+    38,
+    10,
+    0,
+    0,
+    Math.PI*2
+  );
+
+  ctx.fillStyle =
+    "rgba(0,0,0,.8)";
+
+  ctx.fill();
+
+  ctx.restore();
+
+
+  const imageSize =
+    circle.type === "bomb"
+      ? 95
+      : 105;
+
+
+  if (
+    circle.type === "mole" &&
+    moleImgLoaded &&
+    moleImg.complete &&
+    moleImg.naturalWidth
+  ) {
+
+    ctx.save();
+
+    ctx.shadowColor =
+      "#bb33ff";
+
+    ctx.shadowBlur =
+      18;
+
+    ctx.drawImage(
+
+      moleImg,
+
+      pos.x -
+        imageSize/2,
+
+      pos.y -
+        imageSize +
+        5,
+
+      imageSize,
+
+      imageSize
+
+    );
+
+    ctx.restore();
+
+  } else if (
+    circle.type === "bomb" &&
+    bombImgLoaded &&
+    bombImg.complete &&
+    bombImg.naturalWidth
+  ) {
+
+    ctx.save();
+
+    ctx.shadowColor =
+      "#ff2222";
+
+    ctx.shadowBlur =
+      25;
+
+    ctx.drawImage(
+
+      bombImg,
+
+      pos.x -
+        imageSize/2,
+
+      pos.y -
+        imageSize +
+        5,
+
+      imageSize,
+
+      imageSize
+
+    );
+
+    ctx.restore();
+
+  } else {
+
+    /* fallback */
+
+    ctx.save();
+
+    ctx.beginPath();
+
+    ctx.arc(
+      pos.x,
+      pos.y-20,
+      38,
+      0,
+      Math.PI*2
+    );
+
+    ctx.fillStyle =
+      circle.type === "mole"
+        ? "#111"
+        : "#8b0000";
+
+    ctx.fill();
+
+    ctx.strokeStyle =
+      circle.type === "mole"
+        ? "#bb33ff"
+        : "#ff2222";
+
+    ctx.lineWidth =
+      5;
+
+    ctx.stroke();
+
+    ctx.restore();
+
+  }
+
+}
+
+
+/* =========================================================
+   HAMMER
+========================================================= */
+
+function drawHammer() {
+
+  if (!hammer.visible)
+    return;
+
+
+  ctx.save();
+
+  ctx.translate(
+    hammer.x,
+    hammer.y
+  );
+
+  ctx.rotate(
+    hammer.angle
+  );
+
+
+  /* hammer shadow */
+
+  ctx.shadowColor =
+    "rgba(0,0,0,.8)";
+
+  ctx.shadowBlur =
+    18;
+
+
+  /* handle */
+
+  const handle =
+    ctx.createLinearGradient(
+      -12,
+      0,
+      12,
+      0
+    );
+
+  handle.addColorStop(
+    0,
+    "#4c1d0c"
+  );
+
+  handle.addColorStop(
+    .35,
+    "#b96b2c"
+  );
+
+  handle.addColorStop(
+    .55,
+    "#e6a35a"
+  );
+
+  handle.addColorStop(
+    1,
+    "#3c1608"
+  );
+
+  ctx.fillStyle =
+    handle;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    -9,
+    0,
+    18,
+    145,
+    9
+  );
+
+  ctx.fill();
+
+
+  ctx.strokeStyle =
+    "#1b0a04";
+
+  ctx.lineWidth =
+    3;
+
+  ctx.stroke();
+
+
+  /* handle grip */
+
+  ctx.fillStyle =
+    "#17131a";
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    -12,
+    110,
+    24,
+    38,
+    8
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#777";
+
+  ctx.stroke();
+
+
+  /* hammer head */
+
+  const head =
+    ctx.createLinearGradient(
+      0,
+      -35,
+      0,
+      35
+    );
+
+  head.addColorStop(
+    0,
+    "#eef5ff"
+  );
+
+  head.addColorStop(
+    .25,
+    "#8e9aac"
+  );
+
+  head.addColorStop(
+    .5,
+    "#454d5c"
+  );
+
+  head.addColorStop(
+    .8,
+    "#202633"
+  );
+
+  head.addColorStop(
+    1,
+    "#090c12"
+  );
+
+  ctx.fillStyle =
+    head;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    -52,
+    -35,
+    104,
+    68,
+    18
+  );
+
+  ctx.fill();
+
+  ctx.strokeStyle =
+    "#bfc8d8";
+
+  ctx.lineWidth =
+    3;
+
+  ctx.stroke();
+
+
+  /* center hammer highlight */
+
+  ctx.fillStyle =
+    "rgba(255,255,255,.2)";
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    -40,
+    -25,
+    80,
+    10,
+    5
+  );
+
+  ctx.fill();
+
+
+  /* neon edge */
+
+  ctx.strokeStyle =
+    hammer.active
+      ? "#00ffff"
+      : "#bb33ff";
+
+  ctx.lineWidth =
+    3;
+
+  ctx.shadowColor =
+    hammer.active
+      ? "#00ffff"
+      : "#bb33ff";
+
+  ctx.shadowBlur =
+    hammer.active
+      ? 20
+      : 10;
+
+  ctx.beginPath();
+
+  ctx.roundRect(
+    -52,
+    -35,
+    104,
+    68,
+    18
+  );
+
+  ctx.stroke();
+
+
+  ctx.restore();
+
+}
+
+
+/* =========================================================
+   HIT EFFECTS
+========================================================= */
+
+function drawParticles() {
+
+  for (
+    const p of particles
+  ) {
+
+    ctx.save();
+
+    ctx.globalAlpha =
+      Math.max(
+        0,
+        p.life
+      );
+
+    ctx.beginPath();
+
+    ctx.arc(
+      p.x,
+      p.y,
+      p.size,
+      0,
+      Math.PI*2
+    );
+
+    ctx.fillStyle =
+      p.type === "bomb"
+        ? "#ff3333"
+        : "#00ffff";
+
+    ctx.shadowColor =
+      ctx.fillStyle;
+
+    ctx.shadowBlur =
+      10;
+
+    ctx.fill();
+
+    ctx.restore();
+
+  }
+
+}
+
+
+/* =========================================================
+   DRAW COMPLETE MACHINE
+========================================================= */
+
+function drawArcade() {
+
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  drawArcadeBackground();
+
+
+  /* empty holes */
+
+  for (
+    let i = 0;
+    i < spawnPositions.length;
+    i++
+  ) {
+
+    drawPortal(
+      spawnPositions[i],
+      i*.55
+    );
+
+  }
+
+
+  /* active characters */
+
+  for (
+    const circle of circles
+  ) {
+
+    drawCircle(
+      circle
+    );
+
+  }
+
+
+  /* particles */
+
+  drawParticles();
+
+
+  /* hammer */
+
+  drawHammer();
+
+}
+
+
+/* =========================================================
+   HAMMER ANIMATION
+========================================================= */
+
+function triggerHammer(
+  x,
+  y
+) {
+
+  hammer.visible =
+    true;
+
+  hammer.active =
+    true;
+
+  hammer.x =
+    x + 70;
+
+  hammer.y =
+    y - 170;
+
+  hammer.hitX =
+    x;
+
+  hammer.hitY =
+    y;
+
+  hammer.progress =
+    0;
+
+  hammer.angle =
+    -0.8;
+
+  hammer.targetAngle =
+    0.35;
+
+}
+
+
+function updateHammer() {
+
+  if (!hammer.visible)
+    return;
+
+
+  if (hammer.active) {
+
+    hammer.progress +=
+      .12;
+
+    const p =
+      Math.min(
+        hammer.progress,
+        1
+      );
+
+    hammer.x =
+      hammer.hitX +
+      75 -
+      p*75;
+
+    hammer.y =
+      hammer.hitY -
+      150 +
+      p*125;
+
+    hammer.angle =
+      -.8 +
+      p*1.25;
+
+    if (p >= 1) {
+
+      hammer.active =
+        false;
+
+    }
+
+  } else {
+
+    hammer.progress -=
+      .10;
+
+    if (
+      hammer.progress <= 0
+    ) {
+
+      hammer.progress =
+        0;
+
+      hammer.visible =
+        false;
+
+    }
+
+    const p =
+      hammer.progress;
+
+    hammer.x =
+      hammer.hitX +
+      75 -
+      p*75;
+
+    hammer.y =
+      hammer.hitY -
+      150 +
+      p*125;
+
+    hammer.angle =
+      -.8 +
+      p*1.25;
+
+  }
+
+}
+
+
+/* =========================================================
+   GAME INITIALIZATION
+========================================================= */
+
+function initializeGame() {
+
+  score =
+    0;
+
+  lives =
+    maxLives;
+
+  streak =
+    0;
+
+  multiplier =
+    hasNFTBoost
+      ? 2
+      : 1;
+
+  circles =
+    [];
+
+  particles =
+    [];
+
+  gameOver =
+    false;
+
+  moleUpTime =
+    900;
+
+  spawnInterval =
+    1200;
+
+  maxCirclesOnScreen =
+    3;
+
+  lastSpawnTime =
+    Date.now();
+
+  scoreDisplay.textContent =
+    score;
+
+  updateLivesDisplay();
+
+  updateMultiplierDisplay();
+
+  gameOverDisplay.style.display =
+    "none";
+
+  playAgainBtn.style.display =
+    "none";
+
+  highScoreDisplay.textContent =
+    highScore;
+
+  updateClaimableRewards();
+
+}
+
+
+/* =========================================================
+   SPAWN
+========================================================= */
+
+function spawnCircle() {
+
+  if (
+    circles.length >=
+    maxCirclesOnScreen
+  ) {
+    return;
+  }
+
+  const occupied =
+    new Set(
+      circles.map(
+        c =>
+          c.positionIndex
+      )
+    );
+
+  const free =
+    spawnPositions
+      .map(
+        (_,i) => i
+      )
+      .filter(
+        i =>
+          !occupied.has(i)
+      );
+
+  if (!free.length)
+    return;
+
+  const posIndex =
+    free[
+      Math.floor(
+        Math.random() *
+        free.length
+      )
+    ];
+
+  const isBomb =
+    Math.random() <
+    .20;
+
+  const circle = {
+
+    type:
+      isBomb
+        ? "bomb"
+        : "mole",
+
+    positionIndex:
+      posIndex,
+
+    appearedAt:
+      Date.now()
+
+  };
+
+  circles.push(
+    circle
+  );
+
+  if (isBomb) {
+
+    const sound =
+      new Audio(
+        "sounds/wick.mp3"
+      );
+
+    sound.volume =
+      .5;
+
+    sound.play()
+      .catch(() => {});
+
+    activeWickSounds.set(
+      circle,
+      sound
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   REMOVE CIRCLE
+========================================================= */
+
+function removeCircle(
+  index,
+  missed = false
+) {
+
+  const circle =
+    circles[index];
+
+  if (
+    circle.type === "bomb" &&
+    activeWickSounds.has(circle)
+  ) {
+
+    const sound =
+      activeWickSounds.get(
+        circle
+      );
+
+    sound.pause();
+
+    sound.currentTime =
+      0;
+
+    activeWickSounds.delete(
+      circle
+    );
+
+  }
+
+  circles.splice(
+    index,
+    1
+  );
+
+  if (
+    missed &&
+    circle.type === "mole"
+  ) {
+
+    lives--;
+
+    streak =
+      0;
+
+    multiplier =
+      hasNFTBoost
+        ? 2
+        : 1;
+
+    updateLivesDisplay();
+
+    updateMultiplierDisplay();
+
+    if (
+      lives <= 0
+    ) {
+
+      endGame(
+        "You missed 3 pandees!"
+      );
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   UPDATE CIRCLES
+========================================================= */
+
+function updateCircles() {
+
+  const now =
+    Date.now();
+
+  for (
+    let i =
+      circles.length - 1;
+
+    i >= 0;
+
+    i--
+  ) {
+
+    if (
+      now -
+      circles[i].appearedAt
+      >
+      moleUpTime
+    ) {
+
+      removeCircle(
+        i,
+        true
+      );
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   DIFFICULTY
+========================================================= */
+
+function updateDifficulty() {
+
+  const speedupStep =
+    10;
+
+  const maxSpeed =
+    500;
+
+  if (
+    score > 0 &&
+    score % speedupStep === 0
+  ) {
+
+    moleUpTime =
+      Math.max(
+        moleUpTime - 50,
+        maxSpeed
+      );
+
+    spawnInterval =
+      Math.max(
+        spawnInterval - 75,
+        maxSpeed
+      );
+
+    maxCirclesOnScreen =
+      Math.min(
+        maxCirclesOnScreen + 1,
+        spawnPositions.length
+      );
+
+  }
+
+}
+
+
+/* =========================================================
+   HUD
+========================================================= */
+
+const scoreDisplay =
+  document.getElementById(
+    "score"
+  );
+
+const livesDisplay =
+  document.getElementById(
+    "lives"
+  );
+
+const multiplierDisplay =
+  document.getElementById(
+    "multiplier"
+  );
+
+const gameOverDisplay =
+  document.getElementById(
+    "gameOver"
+  );
+
+const playAgainBtn =
+  document.getElementById(
+    "playAgainBtn"
+  );
+
+const highScoreDisplay =
+  document.getElementById(
+    "highScore"
+  );
+
+function updateLivesDisplay() {
+
+  livesDisplay.textContent =
+    "❤️".repeat(lives) +
+    "♡".repeat(
+      maxLives-lives
+    );
+
+}
+
+
+function updateMultiplierDisplay() {
+
+  multiplierDisplay.textContent =
+    `(x${multiplier})`;
+
+}
+
+
+/* =========================================================
+   HIT PANDEE
+========================================================= */
+
+function handleMoleHit(
+  circle
+) {
+
+  wackSound.currentTime =
+    0;
+
+  wackSound.play()
+    .catch(() => {});
+
+  const pos =
+    spawnPositions[
+      circle.positionIndex
+    ];
+
+  triggerHammer(
+    pos.x,
+    pos.y
+  );
+
+  createHitParticles(
+    pos.x,
+    pos.y-20,
+    "mole"
+  );
+
+  streak++;
+
+  updateStreakMultiplier();
+
+  score +=
+    multiplier;
+
+  scoreDisplay.textContent =
+    score;
+
+  if (
+    score >
+    highScore
+  ) {
+
+    highScore =
+      score;
+
+    highScoreDisplay.textContent =
+      highScore;
+
+  }
+
+  updateDifficulty();
+
+}
+
+
+/* =========================================================
+   STREAK
+========================================================= */
+
+function updateStreakMultiplier() {
+
+  if (hasNFTBoost) {
+
+    multiplier =
+      2;
+
+  } else if (
+    streak >= 100
+  ) {
+
+    multiplier =
+      10;
+
+  } else if (
+    streak >= 50
+  ) {
+
+    multiplier =
+      5;
+
+  } else if (
+    streak >= 10
+  ) {
+
+    multiplier =
+      2;
+
+  } else {
+
+    multiplier =
+      1;
+
+  }
+
+  updateMultiplierDisplay();
+
+}
+
+
+/* =========================================================
+   END GAME
+========================================================= */
+
+function endGame(
+  message
+) {
+
+  gameOver =
+    true;
+
+  gameOverDisplay.textContent =
+    `Game Over! ${message}`;
+
+  gameOverDisplay.style.display =
+    "block";
+
+  playAgainBtn.style.display =
+    "inline-block";
+
+  cancelAnimationFrame(
+    animationFrameId
+  );
+
+  canvas.classList.add(
+    "shake"
+  );
+
+  setTimeout(
+    () =>
+      canvas.classList.remove(
+        "shake"
+      ),
+    400
+  );
+
+  updateClaimableRewards();
+
+  activeWickSounds.forEach(
+    sound => {
+
+      sound.pause();
+
+      sound.currentTime =
+        0;
+
+    }
+  );
+
+  activeWickSounds.clear();
+
+}
+
+
+/* =========================================================
+   GAME LOOP
+========================================================= */
+
+function gameLoop() {
+
+  if (gameOver)
+    return;
+
+  updateHammer();
+
+  updateParticles();
+
+  const now =
+    Date.now();
+
+  if (
+    now -
+    lastSpawnTime
+    >
+    spawnInterval
+  ) {
+
+    spawnCircle();
+
+    lastSpawnTime =
+      now;
+
+  }
+
+  updateCircles();
+
+  drawArcade();
+
+  animationFrameId =
+    requestAnimationFrame(
+      gameLoop
+    );
+
+}
+
+
+/* =========================================================
+   PLAY BUTTON
+========================================================= */
+
+const playButton =
+  document.getElementById(
+    "playButton"
+  );
+
+playButton.addEventListener(
+  "click",
+  () => {
+
+    if (!connectedWallet)
+      return;
+
+    playButton.classList.add(
+      "hidden"
+    );
+
+    gameStarted =
+      true;
+
+    initializeGame();
+
+    gameLoop();
+
+  }
+);
+
+
+/* =========================================================
+   CANVAS INTERACTION
+========================================================= */
+
+function handleCanvasInteraction(
+  event
+) {
+
+  if (
+    gameOver ||
+    !gameStarted
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+
+  event.stopPropagation();
+
+  const rect =
+    canvas.getBoundingClientRect();
+
+  let clickX;
+  let clickY;
+
+  if (
+    event.type ===
+    "touchend"
+  ) {
+
+    const touch =
+      event.changedTouches[0];
+
+    clickX =
+      touch.clientX -
+      rect.left;
+
+    clickY =
+      touch.clientY -
+      rect.top;
+
+  } else {
+
+    clickX =
+      event.clientX -
+      rect.left;
+
+    clickY =
+      event.clientY -
+      rect.top;
+
+  }
+
+  const scaleX =
+    canvas.width /
+    rect.width;
+
+  const scaleY =
+    canvas.height /
+    rect.height;
+
+  clickX *=
+    scaleX;
+
+  clickY *=
+    scaleY;
+
+
+  /* =====================================================
+     FIND CLICKED CHARACTER
+  ===================================================== */
+
+  for (
+    let i = 0;
+    i < circles.length;
+    i++
+  ) {
+
+    const circle =
+      circles[i];
+
+    const pos =
+      spawnPositions[
+        circle.positionIndex
+      ];
+
+    const distance =
+      Math.sqrt(
+        (
+          clickX -
+          pos.x
+        ) ** 2 +
+
+        (
+          clickY -
+          pos.y
+        ) ** 2
+      );
+
+    if (
+      distance <= 65
+    ) {
+
+      if (
+        circle.type ===
+        "mole"
+      ) {
+
+        handleMoleHit(
+          circle
+        );
+
+        removeCircle(
+          i
+        );
+
+      } else {
+
+        /* bomb */
+
+        triggerHammer(
+          pos.x,
+          pos.y
+        );
+
+        createHitParticles(
+          pos.x,
+          pos.y,
+          "bomb"
+        );
+
+        boomSound.currentTime =
+          0;
+
+        boomSound.play()
+          .catch(() => {});
+
+        endGame(
+          "You clicked a bomb!"
+        );
+
       }
+
+      break;
+
     }
+
   }
 
-  canvas.addEventListener('click', handleCanvasInteraction);
-  canvas.addEventListener('touchend', handleCanvasInteraction);
+}
 
-  playAgainBtn.addEventListener('click', () => {
-    circles.forEach(clearCircle);
-    circles = [];
-    playButton.classList.remove('hidden');
-    gameStarted = false;
-    drawHoles();
-  });
 
-  setInterval(() => {
-    console.log('Auto-refreshing leaderboard...');
+/* =========================================================
+   MOUSE + TOUCH
+========================================================= */
+
+canvas.addEventListener(
+  "click",
+  handleCanvasInteraction
+);
+
+canvas.addEventListener(
+  "touchend",
+  handleCanvasInteraction,
+  {
+    passive: false
+  }
+);
+
+
+/* =========================================================
+   PLAY AGAIN
+========================================================= */
+
+playAgainBtn.addEventListener(
+  "click",
+  () => {
+
+    cancelAnimationFrame(
+      animationFrameId
+    );
+
+    circles =
+      [];
+
+    particles =
+      [];
+
+    hammer.visible =
+      false;
+
+    hammer.active =
+      false;
+
+    playButton.classList.remove(
+      "hidden"
+    );
+
+    gameStarted =
+      false;
+
+    drawArcade();
+
+  }
+);
+
+
+/* =========================================================
+   INITIAL DRAW
+========================================================= */
+
+drawArcade();
+
+
+/* =========================================================
+   LEADERBOARD AUTO REFRESH
+========================================================= */
+
+setInterval(
+  () => {
+
     loadLeaderboard();
-  }, 30000);
 
-  loadLeaderboard();
+  },
+  30000
+);
+
+loadLeaderboard();
+
 </script>
+
 </body>
 </html>

@@ -1,18 +1,33 @@
 from pathlib import Path
+import re
 
 path = Path('Adventures Of Pandania The Lost Realms/index.html')
 text = path.read_text(encoding='utf-8')
 
-start_marker = '/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */'
-end_marker = '/* ===== END PANDANIA EQUIPMENT PATCH v1 ===== */'
-new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
+# Remove every copy of the old v2 patch. The repository currently contains it twice.
+text = re.sub(
+    r'/\* ===== PANDANIA GAMEPLAY PATCH v2 ===== \*/.*?/\* ===== END PANDANIA GAMEPLAY PATCH v2 ===== \*/',
+    '',
+    text,
+    flags=re.S,
+)
+# Remove any previous v3 copy so this script is safe to run again.
+text = re.sub(
+    r'/\* ===== PANDANIA GAMEPLAY PATCH v3 ===== \*/.*?/\* ===== END PANDANIA GAMEPLAY PATCH v3 ===== \*/',
+    '',
+    text,
+    flags=re.S,
+)
+
+new_patch = r'''/* ===== PANDANIA GAMEPLAY PATCH v3 ===== */
 (function(){
   'use strict';
 
-  player.attackDX = 0;
-  player.attackDY = 1;
-  player.facingX = 0;
-  player.facingY = 1;
+  /* ---------- Direction / movement ---------- */
+  player.attackDX = player.attackDX || 0;
+  player.attackDY = player.attackDY || 1;
+  player.facingX = player.facingX || 0;
+  player.facingY = player.facingY || 1;
 
   function setPlayerDirection(dx,dy){
     if(!dx && !dy) return;
@@ -27,13 +42,18 @@ new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
 
   window.addEventListener('keydown',function(e){
     const k=e.key.toLowerCase();
-    const d={w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1],a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0]}[k];
+    const d={
+      w:[0,-1],arrowup:[0,-1],
+      s:[0,1],arrowdown:[0,1],
+      a:[-1,0],arrowleft:[-1,0],
+      d:[1,0],arrowright:[1,0]
+    }[k];
     if(d) setPlayerDirection(d[0],d[1]);
   },true);
 
-  const oldUpdatePlayerV2=updatePlayer;
+  const baseUpdatePlayer=updatePlayer;
   updatePlayer=function(){
-    oldUpdatePlayerV2();
+    baseUpdatePlayer();
     let dx=0,dy=0;
     if(keys['a']||keys['arrowleft']) dx--;
     if(keys['d']||keys['arrowright']) dx++;
@@ -42,6 +62,7 @@ new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
     if(dx||dy) setPlayerDirection(dx,dy);
   };
 
+  /* ---------- Directional sword combat ---------- */
   swordAttack=function(target=null){
     if(player.attackCooldown>0) return;
     player.attackCooldown=22;
@@ -49,27 +70,40 @@ new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
     swordSound();
 
     if(target && monsters.includes(target)){
-      const dx=target.x-player.x,dy=target.y-player.y,d=Math.hypot(dx,dy)||1;
-      setPlayerDirection(dx,dy);
-    } else {
+      const tx=target.x-player.x,ty=target.y-player.y;
+      setPlayerDirection(tx,ty);
+    }else{
       const ax=player.attackDX||0,ay=player.attackDY||1;
       let best=null,bestScore=-Infinity;
       for(const m of monsters){
-        const dx=m.x-player.x,dy=m.y-player.y,d=Math.hypot(dx,dy);
-        if(!d || d>105) continue;
-        const dot=(dx/d)*ax+(dy/d)*ay;
-        if(dot<0.15) continue;
-        const score=dot*3-(d/105);
+        const dx=m.x-player.x,dy=m.y-player.y;
+        const dist=Math.hypot(dx,dy);
+        if(!dist || dist>110) continue;
+        const dot=(dx/dist)*ax+(dy/dist)*ay;
+        if(dot<0.25) continue;
+        const score=dot*3-(dist/110);
         if(score>bestScore){bestScore=score;best=m;}
       }
       target=best;
     }
 
-    if(!target){showMessage('⚔️ Swinging '+(equippedWeapon||'Wooden Sword')+' toward your facing!');return;}
-    const d=Math.hypot(target.x-player.x,target.y-player.y);
-    if(d>105){showMessage('⚔️ Too far away!');return;}
+    if(!target){
+      showMessage('⚔️ Swinging '+(equippedWeapon||'Wooden Sword')+' toward your facing!');
+      return;
+    }
 
-    const weaponDamage={'Wooden Sword':8,'Weapon 1':22,'Weapon 2':30,'Weapon 3':42}[equippedWeapon||'Wooden Sword']||8;
+    const dist=Math.hypot(target.x-player.x,target.y-player.y);
+    if(dist>110){
+      showMessage('⚔️ Too far away!');
+      return;
+    }
+
+    const weaponDamage={
+      'Wooden Sword':8,
+      'Weapon 1':22,
+      'Weapon 2':30,
+      'Weapon 3':42
+    }[equippedWeapon||'Wooden Sword']||8;
     const damage=15+player.level*3+weaponDamage;
     target.hp-=damage;
     target.hitFlash=8;
@@ -78,27 +112,52 @@ new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
     if(target.hp<=0) killMonster(target);
   };
 
+  /* ---------- Keep monster images proportional ---------- */
   drawMonster=function(m){
     ctx.save();
     const img=images[m.image];
-    const baseH=m.boss?126:96;
-    let w=baseH;
-    if(img && img.naturalWidth && img.naturalHeight) w=Math.max(1,Math.round(baseH*(img.naturalWidth/img.naturalHeight)));
+    const h=m.boss?126:96;
+    const w=(img&&img.naturalWidth&&img.naturalHeight)
+      ?Math.max(1,Math.round(h*(img.naturalWidth/img.naturalHeight)))
+      :h;
     ctx.fillStyle='rgba(0,0,0,.32)';
-    ctx.beginPath();ctx.ellipse(m.x,m.y+5,Math.max(18,w*.34),8,0,0,Math.PI*2);ctx.fill();
-    if(img){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,Math.round(m.x-w/2),Math.round(m.y-baseH),w,baseH);}
-    else{ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y-baseH*.45,m.boss?42:30,0,Math.PI*2);ctx.fill();}
+    ctx.beginPath();
+    ctx.ellipse(m.x,m.y+5,Math.max(18,w*.34),8,0,0,Math.PI*2);
+    ctx.fill();
+    if(img){
+      ctx.imageSmoothingEnabled=false;
+      ctx.drawImage(img,Math.round(m.x-w/2),Math.round(m.y-h),w,h);
+    }else{
+      ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';
+      ctx.beginPath();
+      ctx.arc(m.x,m.y-h*.45,m.boss?42:30,0,Math.PI*2);
+      ctx.fill();
+    }
     const bw=m.boss?Math.min(170,Math.max(100,w+25)):Math.min(105,Math.max(62,w+10));
-    const by=m.y-baseH-10;
-    ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,by,bw,8);
-    ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,by,bw*Math.max(0,m.hp/m.maxHp),8);
-    ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'bold 10px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,by-5);
-    if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,by-20);}
-    if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.32)';ctx.beginPath();ctx.arc(m.x,m.y-baseH*.48,Math.max(25,w*.38),0,Math.PI*2);ctx.fill();}
+    const by=m.y-h-10;
+    ctx.fillStyle='#191919';
+    ctx.fillRect(m.x-bw/2,by,bw,8);
+    ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';
+    ctx.fillRect(m.x-bw/2,by,bw*Math.max(0,m.hp/m.maxHp),8);
+    ctx.fillStyle='#fff';
+    ctx.font=m.boss?'bold 13px Arial':'bold 10px Arial';
+    ctx.textAlign='center';
+    ctx.fillText(m.name,m.x,by-5);
+    if(m.boss){
+      ctx.fillStyle='#ffd36b';
+      ctx.font='bold 11px Arial';
+      ctx.fillText('BOSS',m.x,by-20);
+    }
+    if(m.hitFlash){
+      ctx.fillStyle='rgba(255,70,70,.32)';
+      ctx.beginPath();
+      ctx.arc(m.x,m.y-h*.48,Math.max(25,w*.38),0,Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
   };
 
-  /* npc1 is the Panda Guard; npc2 is King Pandee. There is only one King. */
+  /* ---------- NPC cleanup ---------- */
   npcs.splice(0,npcs.length,
     {x:760,y:420,name:'Panda Guard',image:'npc1',wander:false,quest:false},
     {x:1000,y:350,name:'King Pandee',image:'npc2',wander:false,quest:true},
@@ -108,69 +167,115 @@ new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
     {x:900,y:620,name:'Panda Guard',image:'npc1',wander:true,quest:false},
     {x:1250,y:480,name:'Panda Guard',image:'npc1',wander:true,quest:false}
   );
-  npcs.forEach(n=>{n.homeX=n.x;n.homeY=n.y;n.targetX=n.x;n.targetY=n.y;n.walkTimer=0;});
+  npcs.forEach(n=>{
+    n.homeX=n.x;n.homeY=n.y;n.targetX=n.x;n.targetY=n.y;n.walkTimer=0;
+  });
 
+  /* ---------- Equipment / paper doll ---------- */
   equippedWeapon=equippedWeapon||'Wooden Sword';
   equippedArmor=equippedArmor||null;
   equippedTool=equippedTool||null;
 
+  function ensureEquipmentUI(){
+    const bag=document.getElementById('bagWindow');
+    const bagItems=document.getElementById('bagItems');
+    if(!bag || !bagItems || document.getElementById('pandaniaEquipment')) return;
+    bagItems.insertAdjacentHTML('beforebegin',`
+      <div id="pandaniaEquipment" style="margin:0 0 16px;padding:14px;border:1px solid #6b5130;border-radius:12px;background:linear-gradient(180deg,#21170f,#100d09);">
+        <div style="text-align:center;color:#ffd86a;font-size:18px;font-weight:bold;margin-bottom:10px;">🧍 Pandee's Equipment</div>
+        <div style="display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;align-items:center;max-width:620px;margin:auto;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="equipSlot" data-slot="weapon" id="equipWeapon" style="padding:9px;border:1px solid #705333;border-radius:8px;background:#17120d;text-align:center;">⚔️ Weapon</div>
+            <div class="equipSlot" data-slot="tool" id="equipTool" style="padding:9px;border:1px solid #705333;border-radius:8px;background:#17120d;text-align:center;">🛠️ Tool</div>
+          </div>
+          <div style="height:130px;border:2px solid #8b683e;border-radius:12px;background:#0b0b0b;display:flex;align-items:center;justify-content:center;font-size:64px;">🐼</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="equipSlot" data-slot="armor" id="equipArmor" style="padding:9px;border:1px solid #705333;border-radius:8px;background:#17120d;text-align:center;">🛡️ Armor</div>
+            <div style="padding:9px;border:1px solid #705333;border-radius:8px;background:#17120d;text-align:center;color:#a9977d;font-size:12px;">Double-click an item below to equip it.</div>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  function slotHTML(label,icon,item){
+    const safe=item||'Empty';
+    return `<div style="font-weight:bold;color:#e7bd73;">${icon} ${label}</div><div class="slotItem" style="margin:5px 0;color:${item?'#fff':'#777'};">${safe}</div>${item?'<button type="button" class="unequipBtn" style="border:1px solid #a75b4b;background:#49251f;color:#fff;border-radius:5px;padding:4px 8px;cursor:pointer;">Unequip</button>':''}`;
+  }
+
+  function renderEquipment(){
+    ensureEquipmentUI();
+    const w=document.getElementById('equipWeapon');
+    const a=document.getElementById('equipArmor');
+    const t=document.getElementById('equipTool');
+    if(!w||!a||!t) return;
+    w.innerHTML=slotHTML('Weapon','⚔️',equippedWeapon);
+    a.innerHTML=slotHTML('Armor','🛡️',equippedArmor);
+    t.innerHTML=slotHTML('Tool','🛠️',equippedTool);
+    [[w,equippedWeapon],[a,equippedArmor],[t,equippedTool]].forEach(([slot,item])=>{
+      const btn=slot.querySelector('.unequipBtn');
+      if(btn) btn.onclick=function(e){e.stopPropagation();unequipItem(item);};
+      slot.ondblclick=function(){if(item) unequipItem(item);};
+    });
+  }
+
   function equipFromBag(name){
     const item=inventory[name];
     if(!item || !item.count) return;
-    if(name==='Wooden Sword'||name==='Weapon 1'||name==='Weapon 2'||name==='Weapon 3') equippedWeapon=name;
+    if(/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3)$/.test(name)) equippedWeapon=name;
     else if(name==='Iron Armor') equippedArmor=name;
-    else if(name==='Woodcutting Axe'||name==='Fishing Rod') equippedTool=name;
-    renderEquipment();updateUI();showMessage('⚔️ '+name+' equipped!');
+    else if(/^(Woodcutting Axe|Fishing Rod)$/.test(name)) equippedTool=name;
+    else {showMessage('That item cannot be equipped.');return;}
+    renderEquipment();
+    updateUI();
+    showMessage('⚔️ '+name+' equipped!');
   }
+
   function unequipItem(name){
     if(equippedWeapon===name) equippedWeapon='';
     if(equippedArmor===name) equippedArmor=null;
     if(equippedTool===name) equippedTool=null;
-    renderEquipment();updateUI();showMessage('↩️ '+name+' unequipped.');
+    renderEquipment();
+    updateUI();
+    showMessage('↩️ '+name+' unequipped.');
   }
 
   function bindEquipmentInteractions(){
+    ensureEquipmentUI();
     document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
       const name=card.querySelector('.itemName')?.textContent?.trim();
-      if(!name || !/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)) return;
-      card.setAttribute('draggable','true');
-      card.ondblclick=e=>{e.preventDefault();equipFromBag(name);};
-      card.ondragstart=e=>{e.dataTransfer.setData('text/pandania-item',name);e.dataTransfer.effectAllowed='move';};
-    });
-    document.querySelectorAll('#pandaniaSlots .equipSlot').forEach(slot=>{
-      slot.ondragover=e=>{e.preventDefault();slot.style.outline='2px solid #d7a55a';};
-      slot.ondragleave=()=>slot.style.outline='';
-      slot.ondrop=e=>{
-        e.preventDefault();slot.style.outline='';
-        const name=e.dataTransfer.getData('text/pandania-item');if(!name)return;
-        const weapon=/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3)$/.test(name),armor=name==='Iron Armor',tool=/^(Woodcutting Axe|Fishing Rod)$/.test(name);
-        const label=(slot.textContent||'').toLowerCase();
-        if((weapon&&label.includes('weapon'))||(armor&&label.includes('armor'))||(tool&&label.includes('tool'))) equipFromBag(name);
-        else showMessage('That item does not fit this equipment slot.');
-      };
-      slot.ondblclick=()=>{const text=slot.querySelector('.slotItem')?.textContent||'';if(text&&text!=='Empty')unequipItem(text);};
+      if(!name) return;
+      if(!/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)) return;
+      card.ondblclick=function(e){e.preventDefault();equipFromBag(name);};
     });
   }
-  const oldRenderEquipment=renderEquipment;
-  renderEquipment=function(){oldRenderEquipment();bindEquipmentInteractions();};
-  document.addEventListener('dblclick',e=>{const card=e.target.closest('#bagWindow .itemCard');if(!card)return;const name=card.querySelector('.itemName')?.textContent?.trim();if(name) equipFromBag(name);});
 
-  const oldInteract=interact;
-  interact=function(){
-    const king=npcs.find(n=>n.quest&&n.name==='King Pandee');
-    if(king && Math.hypot(player.x-king.x,player.y-king.y)<100){player.targetX=null;player.targetY=null;player.targetMonster=null;}
-    return oldInteract();
+  const baseRenderBag=renderBag;
+  renderBag=function(){
+    baseRenderBag();
+    ensureEquipmentUI();
+    renderEquipment();
+    bindEquipmentInteractions();
   };
 
-  window.PandaniaGameplayV2=true;
+  /* Prevent interaction with King Pandee from selecting a target to walk into. */
+  const baseInteract=interact;
+  interact=function(){
+    const king=npcs.find(n=>n.quest&&n.name==='King Pandee');
+    if(king && Math.hypot(player.x-king.x,player.y-king.y)<100){
+      player.targetX=null;player.targetY=null;player.targetMonster=null;
+    }
+    return baseInteract();
+  };
+
+  ensureEquipmentUI();
+  window.PandaniaGameplayV3=true;
 })();
-/* ===== END PANDANIA GAMEPLAY PATCH v2 ===== */'''
+/* ===== END PANDANIA GAMEPLAY PATCH v3 ===== */'''
 
-if start_marker not in text or end_marker not in text:
-    raise SystemExit('Existing v1 patch markers not found')
-
-start=text.index(start_marker)
-end=text.index(end_marker,start)+len(end_marker)
-text=text[:start]+new_patch.strip()+text[end:]
+insert='\n'+new_patch.strip()+'\n'
+marker='</script>'
+if marker not in text:
+    raise SystemExit('Could not find closing script tag')
+text=text.replace(marker,insert+marker,1)
 path.write_text(text,encoding='utf-8')
-print('Pandania gameplay patch upgraded to v2')
+print('Pandania gameplay patch rebuilt as v3')

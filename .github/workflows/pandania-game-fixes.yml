@@ -1,0 +1,162 @@
+name: Apply Pandania gameplay fixes
+
+on:
+  push:
+    paths:
+      - '.github/workflows/pandania-game-fixes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-game:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout game
+        uses: actions/checkout@v4
+
+      - name: Patch game
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('Adventures Of Pandania The Lost Realms/index.html')
+          text = path.read_text(encoding='utf-8')
+          marker = '/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */'
+          if marker in text:
+              print('Patch already present; nothing to do.')
+              raise SystemExit(0)
+          patch = r'''/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */
+let equippedWeapon = "Wooden Sword";
+let equippedArmor = null;
+let equippedTool = null;
+player.attackDX = 1;
+player.attackDY = 0;
+
+window.addEventListener("keydown", function(e){
+    const k=e.key.toLowerCase();
+    const map={w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1],a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0]};
+    if(map[k]){ player.attackDX=map[k][0]; player.attackDY=map[k][1]; }
+});
+
+const _pandaniaOriginalUpdatePlayer=updatePlayer;
+updatePlayer=function(){
+    if(player.targetMonster && monsters.includes(player.targetMonster)){
+        const m=player.targetMonster, dx=m.x-player.x, dy=m.y-player.y, d=Math.hypot(dx,dy);
+        if(d>0){ player.attackDX=dx/d; player.attackDY=dy/d; }
+    }
+    _pandaniaOriginalUpdatePlayer();
+};
+
+swordAttack=function(target=null){
+    if(player.attackCooldown>0) return;
+    player.attackCooldown=22; player.swordSwing=12; swordSound();
+    if(target && monsters.includes(target)){
+        const dx=target.x-player.x, dy=target.y-player.y, d=Math.hypot(dx,dy);
+        if(d>0){ player.attackDX=dx/d; player.attackDY=dy/d; if(Math.abs(dx)>Math.abs(dy)) player.facing=dx<0?-1:1; }
+    }else{
+        let best=null,bestScore=-Infinity;
+        const ax=player.attackDX||player.facing||1, ay=player.attackDY||0;
+        for(const m of monsters){
+            const dx=m.x-player.x,dy=m.y-player.y,d=Math.hypot(dx,dy);
+            if(d>95||d===0) continue;
+            const dot=(dx/d)*ax+(dy/d)*ay;
+            if(dot<.20) continue;
+            const score=dot*2-d/100;
+            if(score>bestScore){bestScore=score;best=m;}
+        }
+        target=best;
+    }
+    if(!target){ showMessage("⚔️ Sword swing!"); return; }
+    const d=Math.hypot(target.x-player.x,target.y-player.y);
+    if(d>92){ showMessage("⚔️ Too far away!"); return; }
+    const weaponDamage={"Wooden Sword":8,"Weapon 1":22,"Weapon 2":30,"Weapon 3":42}[equippedWeapon]||8;
+    const damage=15+player.level*3+weaponDamage;
+    target.hp-=damage; target.hitFlash=8; hitSound();
+    showMessage("⚔️ "+equippedWeapon+" hit "+target.name+" for "+damage+" damage!");
+    if(target.hp<=0) killMonster(target);
+};
+
+/* Preserve original monster aspect ratios. */
+drawMonster=function(m){
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2); ctx.fill();
+    const img=images[m.image];
+    const targetH=m.boss?120:78;
+    let targetW=targetH;
+    if(img&&img.naturalWidth&&img.naturalHeight) targetW=targetH*(img.naturalWidth/img.naturalHeight);
+    if(img){ ctx.imageSmoothingEnabled=false; ctx.drawImage(img,m.x-targetW/2,m.y-targetH,targetW,targetH); }
+    else { ctx.fillStyle=m.boss?"#5b1d32":"#75a83f"; ctx.beginPath(); ctx.arc(m.x,m.y-25,m.boss?40:22,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+    const barWidth=m.boss?Math.min(150,targetW):Math.min(90,Math.max(50,targetW)),barY=m.y-targetH-8;
+    ctx.fillStyle="#191919"; ctx.fillRect(m.x-barWidth/2,barY,barWidth,7);
+    ctx.fillStyle=m.boss?"#d7263d":"#e74c3c"; ctx.fillRect(m.x-barWidth/2,barY,barWidth*Math.max(0,m.hp/m.maxHp),7);
+    ctx.fillStyle="#fff"; ctx.font=m.boss?"bold 13px Arial":"9px Arial"; ctx.textAlign="center"; ctx.fillText(m.name,m.x,barY-4);
+    if(m.boss){ctx.fillStyle="#ffd36b";ctx.font="bold 11px Arial";ctx.fillText("BOSS",m.x,barY-19);}
+    if(m.hitFlash){ctx.fillStyle="rgba(255,70,70,.35)";ctx.beginPath();ctx.arc(m.x,m.y-targetH*.45,Math.max(22,targetW*.35),0,Math.PI*2);ctx.fill();}
+};
+
+(function(){
+    const style=document.createElement('style');
+    style.textContent=`#pandaniaEquipment{position:absolute;z-index:60;top:50%;left:calc(50% + 375px);transform:translateY(-50%);width:270px;max-height:620px;overflow:auto;padding:14px;border:2px solid #6f4b2b;border-radius:12px;background:rgba(20,15,11,.98);box-shadow:0 12px 40px rgba(0,0,0,.75);font-family:Arial,sans-serif;color:#fff}#pandaniaEquipment h3{margin:0 0 10px;color:#e7bd73;text-align:center;font-family:Georgia,serif}.paperDoll{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.equipSlot{min-height:62px;padding:7px;border:1px solid #765333;border-radius:7px;background:#151b24;text-align:center;font-size:11px}.equipSlot .slotName{color:#9eabbc;font-size:10px;margin-bottom:4px}.equipSlot .slotItem{font-weight:bold;color:#f3d38c}.equipList{border-top:1px solid #3d2e20;padding-top:10px}.equipItem{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px}.equipBtn{border:1px solid #d0a45e;background:#563b22;color:#fff;border-radius:5px;padding:4px 7px;cursor:pointer;font-size:10px;font-weight:bold}.equipBtn:hover{filter:brightness(1.25)}@media(max-width:1050px){#pandaniaEquipment{left:50%;top:auto;bottom:12px;transform:translateX(-50%);width:min(92%,520px);max-height:260px}.paperDoll{grid-template-columns:repeat(4,1fr)}}@media(max-width:700px){#pandaniaEquipment{bottom:8px;max-height:230px}.paperDoll{grid-template-columns:repeat(2,1fr)}}`;
+    document.head.appendChild(style);
+    const panel=document.createElement('div'); panel.id='pandaniaEquipment'; panel.style.display='none';
+    panel.innerHTML='<h3>🛡️ Equipment</h3><div class="paperDoll" id="pandaniaSlots"></div><div class="equipList" id="pandaniaEquipList"></div>';
+    document.getElementById('gameWrap').appendChild(panel);
+})();
+
+function equipmentSlotHTML(label,item){return '<div class="equipSlot"><div class="slotName">'+label+'</div><div class="slotItem">'+(item||'Empty')+'</div></div>';}
+function renderEquipment(){
+    const slots=document.getElementById('pandaniaSlots'),list=document.getElementById('pandaniaEquipList'); if(!slots||!list)return;
+    slots.innerHTML=equipmentSlotHTML('⚔️ Weapon',equippedWeapon)+equipmentSlotHTML('🛡️ Armor',equippedArmor)+equipmentSlotHTML('🔧 Tool',equippedTool)+equipmentSlotHTML('🐼 Adventurer','Pandee');
+    const names=['Wooden Sword','Weapon 1','Weapon 2','Weapon 3','Iron Armor','Woodcutting Axe','Fishing Rod'];
+    list.innerHTML='<div style="color:#d0c0a5;font-size:11px;margin-bottom:5px">Bag equipment</div>';
+    for(const name of names){
+        const item=inventory[name]; if(!item||!item.count)continue;
+        const isWeapon=name==='Wooden Sword'||name.startsWith('Weapon '),isArmor=name==='Iron Armor',isTool=name==='Woodcutting Axe'||name==='Fishing Rod';
+        const equipped=(isWeapon&&equippedWeapon===name)||(isArmor&&equippedArmor===name)||(isTool&&equippedTool===name);
+        const row=document.createElement('div');row.className='equipItem';
+        const label=document.createElement('span');label.textContent=(item.icon||'📦')+' '+name+' ×'+item.count;
+        const btn=document.createElement('button');btn.className='equipBtn';btn.textContent=equipped?'Unequip':'Equip';
+        btn.onclick=function(){
+            if(isWeapon){if(equipped)equippedWeapon='';else{equippedWeapon=name;equippedArmor=null;}}
+            else if(isArmor)equippedArmor=equipped?null:name;
+            else if(isTool)equippedTool=equipped?null:name;
+            renderEquipment();updateUI();showMessage((equipped?'↩️ ':'⚔️ ')+name+(equipped?' unequipped.':' equipped.'));
+        };
+        row.appendChild(label);row.appendChild(btn);list.appendChild(row);
+    }
+    if(list.children.length===1)list.innerHTML='<div style="color:#8fa0b5;font-size:11px">No equipment items yet.</div>';
+}
+
+const _pandaniaOriginalOpenBag=openBag;
+const _pandaniaOriginalCloseWindows=closeWindows;
+openBag=function(){_pandaniaOriginalOpenBag();const panel=document.getElementById('pandaniaEquipment');if(panel){panel.style.display='block';renderEquipment();}};
+closeWindows=function(){_pandaniaOriginalCloseWindows();const panel=document.getElementById('pandaniaEquipment');if(panel)panel.style.display='none';};
+
+saveGame=function(){
+    const save={player:{x:player.x,y:player.y,hp:player.hp,maxHp:player.maxHp,mana:player.mana,maxMana:player.maxMana,level:player.level,xp:player.xp,xpNext:player.xpNext,gold:player.gold,fish:player.fish,loot:player.loot},inventory,equippedWeapon,equippedArmor,equippedTool,questStarted,questKills,questComplete};
+    localStorage.setItem('pandaniaAdventuresSave',JSON.stringify(save));showMessage('💾 Game saved with equipment!');
+};
+loadGame=function(){
+    const data=localStorage.getItem('pandaniaAdventuresSave');if(!data){showMessage('No saved game found.');return;}
+    try{const save=JSON.parse(data);if(save.player)Object.assign(player,save.player);if(save.inventory)Object.keys(save.inventory).forEach(name=>inventory[name]=save.inventory[name]);equippedWeapon=save.equippedWeapon||'Wooden Sword';equippedArmor=save.equippedArmor||null;equippedTool=save.equippedTool||null;questStarted=save.questStarted||false;questKills=save.questKills||0;questComplete=save.questComplete||false;updateUI();renderEquipment();showMessage('📂 Game loaded with equipment!');}catch(e){console.error(e);showMessage('Could not load save.');}
+};
+
+/* ===== END PANDANIA EQUIPMENT PATCH v1 ===== */
+'''
+          pos = text.rfind('</script>')
+          if pos < 0:
+              raise RuntimeError('Could not find closing script tag')
+          text = text[:pos] + '\n' + patch + '\n' + text[pos:]
+          path.write_text(text, encoding='utf-8')
+          print('Gameplay patch inserted.')
+
+      - name: Commit patched game
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "Adventures Of Pandania The Lost Realms/index.html"
+          if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
+          git commit -m "Add facing combat and equipment system [skip ci]"
+          git push

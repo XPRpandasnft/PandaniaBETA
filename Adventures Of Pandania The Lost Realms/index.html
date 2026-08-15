@@ -1,0 +1,6564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>Adventures Of Pandania The Lost Realms</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#080b10;
+    font-family:Arial,sans-serif;
+    color:#fff;
+}
+
+body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+#gameWrap{
+    position:relative;
+    width:min(1200px,100vw);
+    height:min(760px,100vh);
+    overflow:hidden;
+    background:#101722;
+    border:3px solid #3c2b1d;
+    box-shadow:0 0 50px rgba(0,0,0,.9);
+}
+
+canvas{
+    display:block;
+    width:100%;
+    height:100%;
+    cursor:crosshair;
+}
+
+/* =========================================================
+   START SCREEN
+========================================================= */
+
+#startScreen{
+    position:absolute;
+    inset:0;
+    z-index:100;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    background:
+        linear-gradient(
+            rgba(27,18,11,.35),
+            rgba(8,10,8,.88)
+        ),
+        radial-gradient(
+            ellipse at center,
+            rgba(112,79,40,.4),
+            rgba(8,10,8,.97) 75%
+        );
+}
+
+#startScreen:before{
+    content:"";
+    position:absolute;
+    inset:0;
+    opacity:.28;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 5px,
+            rgba(255,255,255,.025) 6px
+        );
+    pointer-events:none;
+}
+
+.rusticBox{
+    position:relative;
+    width:min(680px,92%);
+    padding:42px 45px 38px;
+    text-align:center;
+    border:4px solid #5d3d24;
+    border-radius:18px;
+    background:
+        linear-gradient(
+            rgba(55,36,21,.94),
+            rgba(28,22,16,.97)
+        );
+    box-shadow:
+        0 25px 70px rgba(0,0,0,.9),
+        inset 0 0 0 2px #9a7042,
+        inset 0 0 45px rgba(0,0,0,.65);
+}
+
+.rusticBox:before{
+    content:"";
+    position:absolute;
+    inset:10px;
+    border:1px solid rgba(224,183,116,.45);
+    border-radius:10px;
+    pointer-events:none;
+}
+
+.lantern{
+    position:absolute;
+    top:18px;
+    width:24px;
+    height:38px;
+    border-radius:7px;
+    background:#d49a43;
+    box-shadow:
+        0 0 12px #ffb52e,
+        0 0 30px rgba(255,166,45,.6);
+}
+
+.lantern:after{
+    content:"";
+    position:absolute;
+    left:7px;
+    top:-7px;
+    width:10px;
+    height:9px;
+    border:2px solid #55361f;
+    border-bottom:0;
+}
+
+.lantern.left{left:35px}
+.lantern.right{right:35px}
+
+.startPanda{
+    font-size:72px;
+    filter:drop-shadow(0 7px 5px rgba(0,0,0,.7));
+    margin-bottom:4px;
+}
+
+.startTitle{
+    font-family:Georgia,serif;
+    font-size:43px;
+    font-weight:bold;
+    letter-spacing:2px;
+    color:#e7bd73;
+    text-shadow:
+        2px 2px 0 #2a1a10,
+        0 0 18px rgba(231,189,115,.25);
+}
+
+.startDivider{
+    width:240px;
+    height:2px;
+    margin:14px auto;
+    background:linear-gradient(
+        90deg,
+        transparent,
+        #b88a4c,
+        transparent
+    );
+}
+
+.startSub{
+    color:#d9c7aa;
+    line-height:1.6;
+    font-size:15px;
+    margin:0 auto 22px;
+    max-width:500px;
+}
+
+.startFeatures{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:25px;
+}
+
+.feature{
+    padding:7px 11px;
+    border:1px solid #765333;
+    border-radius:6px;
+    background:rgba(0,0,0,.25);
+    color:#d7c09a;
+    font-size:11px;
+}
+
+.startButtons{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+#playButton,
+#connectWalletButton{
+    min-width:210px;
+    border-radius:8px;
+    padding:13px 25px;
+    font-size:17px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:.15s;
+}
+
+#playButton{
+    border:2px solid #d7a55a;
+    background:linear-gradient(#a46d32,#633b20);
+    color:#fff4dc;
+    box-shadow:
+        0 5px 15px rgba(0,0,0,.5),
+        inset 0 1px rgba(255,255,255,.2);
+}
+
+#playButton:hover{
+    transform:translateY(-2px);
+    filter:brightness(1.2);
+}
+
+#connectWalletButton{
+    border:2px solid #43d8ff;
+    background:linear-gradient(#176d86,#103b4c);
+    color:#e7faff;
+    box-shadow:
+        0 0 12px rgba(53,213,255,.25),
+        0 5px 15px rgba(0,0,0,.5);
+}
+
+#connectWalletButton:hover{
+    transform:translateY(-2px);
+    filter:brightness(1.2);
+}
+
+#walletStatus{
+    margin-top:15px;
+    min-height:20px;
+    color:#9cc5d1;
+    font-size:12px;
+}
+
+#walletStatus.connected{
+    color:#64ff9a;
+}
+
+/* =========================================================
+   HUD
+========================================================= */
+
+#hud{
+    position:absolute;
+    top:10px;
+    left:10px;
+    right:10px;
+    display:flex;
+    justify-content:space-between;
+    pointer-events:none;
+    z-index:10;
+}
+
+.panel{
+    background:rgba(7,11,18,.90);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;
+    box-shadow:0 5px 20px rgba(0,0,0,.4);
+    backdrop-filter:blur(5px);
+}
+
+#stats{
+    width:245px;
+    padding:10px;
+}
+
+.name{
+    font-weight:bold;
+    color:#f2f5fa;
+    margin-bottom:7px;
+}
+
+.bar{
+    height:12px;
+    border-radius:8px;
+    overflow:hidden;
+    background:#252c36;
+    margin-bottom:6px;
+}
+
+#hpFill{
+    width:100%;
+    height:100%;
+    background:linear-gradient(90deg,#d72828,#ff6969);
+}
+
+#xpFill{
+    width:0%;
+    height:100%;
+    background:linear-gradient(90deg,#9745ff,#db8cff);
+}
+
+#manaFill{
+    width:100%;
+    height:100%;
+    background:linear-gradient(90deg,#2687ff,#73c6ff);
+}
+
+#gold{
+    color:#ffd75a;
+    font-weight:bold;
+}
+
+#manaText{
+    color:#65b7ff;
+}
+
+#quest{
+    position:absolute;
+    left:50%;
+    top:10px;
+    transform:translateX(-50%);
+    width:280px;
+    padding:10px;
+    text-align:center;
+    pointer-events:none;
+}
+
+#questTitle{
+    color:#ffdc70;
+    font-weight:bold;
+    margin-bottom:4px;
+}
+
+#questText{
+    color:#d9e2ec;
+    font-size:12px;
+    line-height:1.35;
+}
+
+#inventoryMini{
+    width:190px;
+    padding:10px;
+    font-size:13px;
+}
+
+.invRow{
+    display:flex;
+    justify-content:space-between;
+    padding:3px 0;
+    border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+#message{
+    position:absolute;
+    bottom:105px;
+    left:50%;
+    transform:translateX(-50%);
+    min-width:300px;
+    max-width:720px;
+    padding:10px 16px;
+    text-align:center;
+    background:rgba(6,10,18,.94);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:9px;
+    opacity:0;
+    transition:opacity .15s;
+    pointer-events:none;
+    z-index:20;
+}
+
+#message.show{
+    opacity:1;
+}
+
+/* =========================================================
+   DUNGEON INDICATOR
+========================================================= */
+
+#zoneLabel{
+    position:absolute;
+    left:50%;
+    top:78px;
+    transform:translateX(-50%);
+    padding:7px 16px;
+    background:rgba(20,10,5,.82);
+    border:1px solid rgba(255,190,80,.45);
+    border-radius:8px;
+    color:#ffd98b;
+    font-weight:bold;
+    font-size:13px;
+    opacity:0;
+    pointer-events:none;
+    z-index:12;
+    transition:.2s;
+}
+
+#zoneLabel.show{
+    opacity:1;
+}
+
+/* =========================================================
+   CONTROLS
+========================================================= */
+
+#controls{
+    position:absolute;
+    bottom:10px;
+    left:10px;
+    padding:8px 12px;
+    font-size:11px;
+    color:#c0cad7;
+    pointer-events:none;
+    z-index:10;
+}
+
+kbd{
+    background:#202938;
+    border:1px solid #39465a;
+    border-radius:4px;
+    padding:2px 5px;
+    color:white;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+#buttons{
+    position:absolute;
+    right:10px;
+    bottom:10px;
+    display:flex;
+    gap:6px;
+    z-index:20;
+}
+
+.gameBtn{
+    border:1px solid #26e878;
+    background:linear-gradient(#13bd61,#087d3e);
+    color:white;
+    padding:7px 11px;
+    border-radius:7px;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow:0 0 8px rgba(35,255,125,.5);
+}
+
+.gameBtn:hover{
+    filter:brightness(1.25);
+}
+
+/* =========================================================
+   SPELL BAR
+========================================================= */
+
+#spellBar{
+    position:absolute;
+    left:50%;
+    bottom:45px;
+    transform:translateX(-50%);
+    display:flex;
+    gap:8px;
+    z-index:15;
+}
+
+.spell{
+    width:70px;
+    height:55px;
+    border-radius:8px;
+    border:1px solid #59677c;
+    background:rgba(8,13,21,.95);
+    color:white;
+    cursor:pointer;
+    font-size:11px;
+    font-weight:bold;
+}
+
+.spell:hover{
+    background:#202c3e;
+}
+
+.spellIcon{
+    display:block;
+    font-size:23px;
+}
+
+.spellCost{
+    color:#66b8ff;
+    font-size:9px;
+}
+
+/* =========================================================
+   DIALOGUE / WINDOWS
+========================================================= */
+
+#dialogue{
+    display:none;
+    position:absolute;
+    left:50%;
+    bottom:120px;
+    transform:translateX(-50%);
+    width:min(650px,90%);
+    padding:18px;
+    background:rgba(7,10,17,.97);
+    border:1px solid #59677d;
+    border-radius:12px;
+    z-index:40;
+}
+
+#dialogueName{
+    color:#ffd86a;
+    font-size:17px;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+#dialogueText{
+    color:#dce6f1;
+    line-height:1.5;
+    font-size:14px;
+}
+
+.dialogueBtn{
+    margin-top:13px;
+    border:1px solid #56647a;
+    background:#202a39;
+    color:white;
+    border-radius:6px;
+    padding:7px 13px;
+    cursor:pointer;
+}
+
+#bagWindow,
+#exchangeWindow,
+#friendsWindow,
+#mailWindow{
+    display:none;
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:min(720px,90%);
+    max-height:75%;
+    overflow:auto;
+    padding:18px;
+    background:rgba(7,11,18,.98);
+    border:2px solid #53627a;
+    border-radius:14px;
+    z-index:60;
+    box-shadow:0 0 40px rgba(0,0,0,.8);
+}
+
+.windowTitle{
+    color:#ffd86a;
+    font-size:22px;
+    font-weight:bold;
+    margin-bottom:12px;
+}
+
+.closeWindow{
+    float:right;
+    border:0;
+    background:#2c3747;
+    color:white;
+    padding:5px 9px;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.itemGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(115px,1fr));
+    gap:10px;
+}
+
+.itemCard{
+    min-height:100px;
+    border:1px solid #3c4b60;
+    background:#121b28;
+    border-radius:8px;
+    padding:10px;
+    text-align:center;
+}
+
+.itemIcon{
+    font-size:34px;
+    height:42px;
+}
+
+.itemImage{
+    width:42px;
+    height:42px;
+    object-fit:contain;
+}
+
+.itemName{
+    font-size:12px;
+    margin-top:5px;
+}
+
+.itemCount{
+    color:#9fb0c5;
+    font-size:11px;
+}
+
+.exchangeListing{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px;
+    margin:6px 0;
+    background:#121b28;
+    border:1px solid #354358;
+    border-radius:7px;
+}
+
+.buyBtn{
+    background:#176fbe;
+    color:white;
+    border:1px solid #5eb8ff;
+    border-radius:5px;
+    padding:5px 10px;
+    cursor:pointer;
+}
+
+.listBox{
+    display:flex;
+    gap:6px;
+    margin-bottom:12px;
+}
+
+.listBox input,
+.mailBox input,
+.mailBox textarea{
+    background:#111925;
+    color:white;
+    border:1px solid #42536b;
+    padding:7px;
+    border-radius:5px;
+}
+
+.listBox input{
+    width:150px;
+}
+
+#friendsList div,
+#mailList div{
+    padding:9px;
+    margin:5px 0;
+    border:1px solid #344256;
+    border-radius:6px;
+    background:#111a27;
+}
+
+/* Gold Coin bag artwork — mirrors the sparkly ground-drop coin. */
+.goldBagIcon{
+    position:relative;
+    width:42px;
+    height:42px;
+    margin:0 auto;
+}
+.goldCoinCore{
+    position:absolute;
+    left:9px;
+    top:9px;
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    background:#ffd43b;
+    border:2px solid #fff2a8;
+    box-shadow:0 0 12px #ffd84d, inset 3px 3px 0 rgba(255,248,199,.65);
+}
+.goldSpark{
+    position:absolute;
+    width:8px;
+    height:2px;
+    background:#fff6a0;
+    border-radius:2px;
+    box-shadow:0 0 5px #fff6a0;
+}
+.goldSpark:after{
+    content:"";
+    position:absolute;
+    left:3px;
+    top:-3px;
+    width:2px;
+    height:8px;
+    background:#fff6a0;
+    border-radius:2px;
+}
+.goldSpark.s1{left:1px;top:7px}
+.goldSpark.s2{right:0;top:15px}
+.goldSpark.s3{left:3px;bottom:4px}
+.goldSpark.s4{right:4px;bottom:1px}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:700px){
+
+    #inventoryMini{
+        display:none;
+    }
+
+    #quest{
+        width:200px;
+    }
+
+    #controls{
+        display:none;
+    }
+
+    #spellBar{
+        bottom:70px;
+    }
+
+    .spell{
+        width:57px;
+    }
+
+    .startTitle{
+        font-size:29px;
+    }
+
+    .rusticBox{
+        padding:35px 20px 30px;
+    }
+
+    #playButton,
+    #connectWalletButton{
+        width:100%;
+    }
+
+    #zoneLabel{
+        top:65px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="gameWrap">
+
+<canvas id="game"></canvas>
+
+<!-- ======================================================
+     START SCREEN
+====================================================== -->
+
+<div id="startScreen">
+
+    <div class="rusticBox">
+
+        <div class="lantern left"></div>
+        <div class="lantern right"></div>
+
+        <div class="startPanda">🐼</div>
+
+        <div class="startTitle">
+            PANDANIA ADVENTURES
+        </div>
+
+        <div class="startDivider"></div>
+
+        <div class="startSub">
+            Beyond the old forest lies Pandania —
+            a rustic frontier filled with wandering pandas,
+            forgotten treasures and dangerous creatures.
+            <br><br>
+            Choose your path and begin your adventure.
+        </div>
+
+        <div class="startFeatures">
+            <div class="feature">⚔️ MONSTERS</div>
+            <div class="feature">🏠 NPCs</div>
+            <div class="feature">💰 LOOT</div>
+            <div class="feature">🔥 MAGIC</div>
+            <div class="feature">🐼 NFT PLAYER</div>
+            <div class="feature">🕯️ DUNGEON</div>
+        </div>
+
+        <div class="startButtons">
+
+            <button id="playButton">
+                ▶ PLAY AS GUEST
+            </button>
+
+            <button id="connectWalletButton">
+                🔐 CONNECT WEBAUTH
+            </button>
+
+        </div>
+
+        <div id="walletStatus">
+            WebAuth is optional. You can play without connecting a wallet.
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ======================================================
+     HUD
+====================================================== -->
+
+<div id="hud">
+
+    <div id="stats" class="panel">
+
+        <div class="name">
+            🐼 Pandee
+        </div>
+
+        <div style="font-size:10px">HP</div>
+
+        <div class="bar">
+            <div id="hpFill"></div>
+        </div>
+
+        <div style="font-size:10px">Mana</div>
+
+        <div class="bar">
+            <div id="manaFill"></div>
+        </div>
+
+        <div style="font-size:10px">XP</div>
+
+        <div class="bar">
+            <div id="xpFill"></div>
+        </div>
+
+        <div style="font-size:12px">
+
+            Level
+            <span id="level">1</span>
+
+            &nbsp; • &nbsp;
+
+            <span id="gold">25</span>
+            Gold
+
+            &nbsp; • &nbsp;
+
+            <span id="manaText">30</span>
+            Mana
+
+        </div>
+
+    </div>
+
+    <div id="quest" class="panel">
+
+        <div id="questTitle">
+            Explore Pandania
+        </div>
+
+        <div id="questText">
+            Speak with Captain Panda.
+        </div>
+
+    </div>
+
+    <div id="inventoryMini" class="panel">
+
+        <b>🎒 Inventory</b>
+
+        <div class="invRow">
+            <span>Gold</span>
+            <span id="invGold">25</span>
+        </div>
+
+        <div class="invRow">
+            <span>Fish</span>
+            <span id="invFish">0</span>
+        </div>
+
+        <div class="invRow">
+            <span>Loot</span>
+            <span id="invLoot">0</span>
+        </div>
+
+        <div class="invRow">
+            <span>Weapons</span>
+            <span id="invWeapons">1</span>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="zoneLabel"></div>
+
+<div id="message"></div>
+
+<!-- ======================================================
+     SPELL BAR
+====================================================== -->
+
+<div id="spellBar">
+
+    <button class="spell" onclick="castFire()">
+        <span class="spellIcon">🔥</span>
+        Fire
+        <span class="spellCost">5 mana</span>
+    </button>
+
+    <button class="spell" onclick="castLightning()">
+        <span class="spellIcon">⚡</span>
+        Lightning
+        <span class="spellCost">7 mana</span>
+    </button>
+
+    <button class="spell" onclick="castHeal()">
+        <span class="spellIcon">💚</span>
+        Heal
+        <span class="spellCost">3 mana</span>
+    </button>
+
+</div>
+
+<!-- ======================================================
+     CONTROLS
+====================================================== -->
+
+<div id="controls" class="panel">
+
+    <kbd>WASD</kbd> / <kbd>ARROWS</kbd> Move
+    &nbsp; • &nbsp;
+    <kbd>LEFT CLICK</kbd> Move / Attack
+    &nbsp; • &nbsp;
+    <kbd>SPACE</kbd> Sword
+    &nbsp; • &nbsp;
+    <kbd>1</kbd> Fire
+    &nbsp; • &nbsp;
+    <kbd>2</kbd> Lightning
+    &nbsp; • &nbsp;
+    <kbd>3</kbd> Heal
+    &nbsp; • &nbsp;
+    <kbd>B</kbd> Bag
+    &nbsp; • &nbsp;
+    <kbd>E</kbd> Interact
+
+</div>
+
+<!-- ======================================================
+     BUTTONS
+====================================================== -->
+
+<div id="buttons">
+
+    <button class="gameBtn" onclick="openBag()">
+        🎒 Bag
+    </button>
+
+    <button class="gameBtn" onclick="saveGame()">
+        💾 Save
+    </button>
+
+    <button class="gameBtn" onclick="loadGame()">
+        📂 Load
+    </button>
+
+</div>
+
+<!-- ======================================================
+     DIALOGUE
+====================================================== -->
+
+<div id="dialogue">
+
+    <div id="dialogueName"></div>
+
+    <div id="dialogueText"></div>
+
+    <button class="dialogueBtn" onclick="closeDialogue()">
+        Close
+    </button>
+
+</div>
+
+<!-- ======================================================
+     BAG
+====================================================== -->
+
+<div id="bagWindow">
+
+    <button class="closeWindow" onclick="closeWindows()">X</button>
+
+    <div class="windowTitle">
+        🎒 Pandee's Bag
+    </div>
+
+    <div id="bagItems" class="itemGrid"></div>
+
+</div>
+
+<!-- ======================================================
+     GRAND EXCHANGE
+====================================================== -->
+
+<div id="exchangeWindow">
+
+    <button class="closeWindow" onclick="closeWindows()">X</button>
+
+    <div class="windowTitle">
+        🏪 The Grand Exchange
+    </div>
+
+    <div style="color:#aebbd0;font-size:13px;margin-bottom:10px">
+        Buy and sell items with other adventurers.
+    </div>
+
+    <div class="listBox">
+
+        <input id="sellItem" placeholder="Item name">
+
+        <input
+            id="sellPrice"
+            type="number"
+            placeholder="Price"
+        >
+
+        <button class="buyBtn" onclick="createListing()">
+            List Item
+        </button>
+
+    </div>
+
+    <div id="exchangeListings"></div>
+
+</div>
+
+<!-- ======================================================
+     FRIENDS
+====================================================== -->
+
+<div id="friendsWindow">
+
+    <button class="closeWindow" onclick="closeWindows()">X</button>
+
+    <div class="windowTitle">
+        👥 Friends
+    </div>
+
+    <div id="friendsList">
+
+        <div>🟢 PandaKnight</div>
+        <div>🟢 PandaMiner</div>
+        <div>🟡 PandaFisher</div>
+        <div>🔴 PandaMage</div>
+
+    </div>
+
+</div>
+
+<!-- ======================================================
+     MAIL
+====================================================== -->
+
+<div id="mailWindow">
+
+    <button class="closeWindow" onclick="closeWindows()">X</button>
+
+    <div class="windowTitle">
+        ✉️ Messages
+    </div>
+
+    <div class="mailBox">
+
+        <input id="mailTo" placeholder="Player name">
+
+        <br><br>
+
+        <textarea
+            id="mailText"
+            rows="4"
+            style="width:100%"
+            placeholder="Write a message..."
+        ></textarea>
+
+        <br><br>
+
+        <button class="buyBtn" onclick="sendMail()">
+            Send Message
+        </button>
+
+    </div>
+
+    <div id="mailList">
+
+        <div>
+            <b>PandaKnight</b><br>
+            Welcome to Pandania!
+        </div>
+
+        <div>
+            <b>PandaFisher</b><br>
+            Meet me at the river.
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+
+<script>
+
+"use strict";
+
+/* =========================================================
+   CANVAS
+========================================================= */
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const W=1200;
+const H=760;
+
+canvas.width=W;
+canvas.height=H;
+
+const gameWrap=document.getElementById("gameWrap");
+
+/* =========================================================
+   IMAGE SYSTEM
+   All artwork is loaded from ./images/
+========================================================= */
+
+const IMAGE_FOLDER="./images/";
+
+const imageFiles={
+    player1:IMAGE_FOLDER+"player1.png",
+    player2:IMAGE_FOLDER+"player2.png",
+
+    npc1:IMAGE_FOLDER+"npc1.png",
+    npc2:IMAGE_FOLDER+"npc2.png",
+
+    monster1:IMAGE_FOLDER+"slime.png",
+    monster2:IMAGE_FOLDER+"goblin.png",
+    monster3:IMAGE_FOLDER+"skeleton.png",
+    monster4:IMAGE_FOLDER+"werewolf.png",
+    monster5:IMAGE_FOLDER+"orc.png",
+
+    boss1:IMAGE_FOLDER+"Flameozn.png",
+
+    weapon1:IMAGE_FOLDER+"bamboo sword.png",
+    weapon2:IMAGE_FOLDER+"iron sword.png",
+    weapon3:IMAGE_FOLDER+"goblin saber.png",
+    pda:IMAGE_FOLDER+"pda.png"
+};
+
+const images={};
+
+Object.entries(imageFiles).forEach(([key,src])=>{
+
+    const img=new Image();
+
+    img.onload=()=>{
+        images[key]=img;
+    };
+
+    img.onerror=()=>{
+        console.warn(
+            "Could not load image:",
+            src
+        );
+    };
+
+    img.src=src;
+});
+
+/* New asset names are preferred; legacy filenames remain a safe fallback
+   while the image files are being renamed in the repository. */
+const legacyImageFiles={
+    monster1:IMAGE_FOLDER+"monster1.png",
+    monster2:IMAGE_FOLDER+"monster2.png",
+    monster3:IMAGE_FOLDER+"monster3.png",
+    monster4:IMAGE_FOLDER+"monster4.png",
+    monster5:IMAGE_FOLDER+"monster5.png",
+    boss1:IMAGE_FOLDER+"Boss1.png",
+    weapon1:IMAGE_FOLDER+"weapon1.png",
+    weapon2:IMAGE_FOLDER+"weapon2.png",
+    weapon3:IMAGE_FOLDER+"weapon3.png"
+};
+Object.entries(legacyImageFiles).forEach(([key,src])=>{
+    const img=new Image();
+    img.onload=()=>{ if(!images[key]) images[key]=img; };
+    img.src=src;
+});
+
+/* =========================================================
+   WORLD
+========================================================= */
+
+const TILE=40;
+
+const world={
+    width:2600,
+    height:1700
+};
+
+const camera={
+    x:0,
+    y:0
+};
+
+/* =========================================================
+   DUNGEON
+========================================================= */
+
+const dungeon={
+    width:1500,
+    height:1000
+};
+
+let inDungeon=false;
+
+const dungeonEntrance={
+    x:2260,
+    y:1180
+};
+
+const dungeonExit={
+    x:750,
+    y:900
+};
+
+/* =========================================================
+   PLAYER
+========================================================= */
+
+const player={
+
+    x:800,
+    y:470,
+
+    r:18,
+
+    speed:3.2,
+
+    hp:100,
+    maxHp:100,
+
+    mana:30,
+    maxMana:30,
+
+    level:1,
+
+    xp:0,
+    xpNext:100,
+
+    gold:25,
+
+    fish:0,
+    loot:0,
+
+    facing:1,
+    facingX:1,
+    facingY:0,
+
+    moving:false,
+
+    walkTime:0,
+
+    attackCooldown:0,
+
+    invincible:0,
+
+    targetX:null,
+    targetY:null,
+
+    targetMonster:null,
+
+    swordSwing:0,
+
+    healEffect:0,
+
+    healText:0,
+
+    healAmount:0
+};
+
+/* =========================================================
+   INVENTORY
+========================================================= */
+
+const inventory={
+
+    "Wooden Sword":{
+        icon:"🗡️",
+        count:1
+    },
+
+    "Fish":{
+        icon:"🐟",
+        count:0
+    },
+
+    "PDA Coin":{
+        icon:"🪙",
+        image:"pda",
+        count:0
+    },
+
+    "Gold Coin":{
+        icon:"🪙",
+        count:0
+    },
+
+    "Woodcutting Axe":{
+        icon:"🪓",
+        count:0
+    },
+
+    "Fishing Rod":{
+        icon:"🎣",
+        count:0
+    },
+
+    "Iron Armor":{
+        icon:"🛡️",
+        count:0
+    },
+
+    "Bamboo Sword":{
+        icon:"⚔️",
+        image:"weapon1",
+        count:0
+    },
+
+    "Iron Sword":{
+        icon:"⚔️",
+        image:"weapon2",
+        count:0
+    },
+
+    "Goblin Saber":{
+        icon:"⚔️",
+        image:"weapon3",
+        count:0
+    }
+};
+
+/* =========================================================
+   WEAPON DROP DEFINITIONS
+========================================================= */
+
+const weaponDrops=[
+
+    {
+        name:"Bamboo Sword",
+        image:"weapon1",
+        damage:22
+    },
+
+    {
+        name:"Iron Sword",
+        image:"weapon2",
+        damage:30
+    },
+
+    {
+        name:"Goblin Saber",
+        image:"weapon3",
+        damage:42
+    }
+];
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+const keys={};
+
+window.addEventListener("keydown",e=>{
+
+    const key=e.key.toLowerCase();
+
+    keys[key]=true;
+
+    if([
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+        " ",
+        "w",
+        "a",
+        "s",
+        "d"
+    ].includes(key)){
+        e.preventDefault();
+    }
+
+    if(key===" "){
+        swordAttack();
+    }
+
+    if(key==="e"){
+        interact();
+    }
+
+    if(key==="b"){
+        openBag();
+    }
+
+    if(key==="1"){
+        castFire();
+    }
+
+    if(key==="2"){
+        castLightning();
+    }
+
+    if(key==="3"){
+        castHeal();
+    }
+
+});
+
+window.addEventListener("keyup",e=>{
+    keys[e.key.toLowerCase()]=false;
+});
+
+/* =========================================================
+   MOUSE
+========================================================= */
+
+function getWorldMousePosition(e){
+
+    const rect=canvas.getBoundingClientRect();
+
+    const sx=
+        (e.clientX-rect.left)*
+        (W/rect.width);
+
+    const sy=
+        (e.clientY-rect.top)*
+        (H/rect.height);
+
+    return {
+        x:sx+camera.x,
+        y:sy+camera.y
+    };
+}
+
+canvas.addEventListener("pointerdown",e=>{
+
+    if(!gameStarted)
+        return;
+
+    const p=getWorldMousePosition(e);
+
+    /* Dungeon exit */
+
+    if(inDungeon){
+
+        if(
+            Math.hypot(
+                p.x-dungeonExit.x,
+                p.y-dungeonExit.y
+            )<70
+        ){
+
+            leaveDungeon();
+
+            return;
+        }
+
+    }else{
+
+        /* Dungeon entrance */
+
+        if(
+            Math.hypot(
+                p.x-dungeonEntrance.x,
+                p.y-dungeonEntrance.y
+            )<85
+        ){
+
+            if(
+                Math.hypot(
+                    player.x-dungeonEntrance.x,
+                    player.y-dungeonEntrance.y
+                )<120
+            ){
+
+                enterDungeon();
+
+            }else{
+
+                player.targetX=dungeonEntrance.x;
+                player.targetY=dungeonEntrance.y;
+
+                showMessage(
+                    "🕯️ Walking toward the dungeon entrance..."
+                );
+            }
+
+            return;
+        }
+
+        /* Grand Exchange */
+
+        if(
+            Math.hypot(
+                p.x-550,
+                p.y-450
+            )<100
+        ){
+
+            openExchange();
+
+            return;
+        }
+
+        /* Houses */
+
+        for(const h of houses){
+
+            if(
+                Math.hypot(
+                    p.x-h.doorX,
+                    p.y-h.doorY
+                )<30
+            ){
+
+                if(
+                    Math.hypot(
+                        player.x-h.doorX,
+                        player.y-h.doorY
+                    )<90
+                ){
+
+                    enterHouse(h);
+
+                }else{
+
+                    player.targetX=h.doorX;
+                    player.targetY=h.doorY;
+
+                    showMessage(
+                        "🏠 Walking to "+h.name+"..."
+                    );
+                }
+
+                return;
+            }
+        }
+    }
+
+    /* Pickup */
+
+    for(let i=groundDrops.length-1;i>=0;i--){
+
+        const d=groundDrops[i];
+
+        if(
+            Math.hypot(
+                p.x-d.x,
+                p.y-d.y
+            )<45
+        ){
+
+            collectDrop(d);
+
+            groundDrops.splice(i,1);
+
+            return;
+        }
+    }
+
+    /* Monster click */
+
+    let clickedMonster=null;
+
+    for(const m of monsters){
+
+        if(
+            Math.hypot(
+                p.x-m.x,
+                p.y-m.y
+            )<55
+        ){
+
+            clickedMonster=m;
+
+            break;
+        }
+    }
+
+    if(clickedMonster){
+
+        player.targetMonster=clickedMonster;
+        player.targetX=null;
+        player.targetY=null;
+
+        if(
+            Math.hypot(
+                player.x-clickedMonster.x,
+                player.y-clickedMonster.y
+            )<82
+        ){
+
+            swordAttack(clickedMonster);
+
+        }else{
+
+            showMessage(
+                "⚔️ Moving toward "+
+                clickedMonster.name+"..."
+            );
+        }
+
+        return;
+    }
+
+    /* Ground movement */
+
+    player.targetMonster=null;
+    player.targetX=p.x;
+    player.targetY=p.y;
+});
+
+/* =========================================================
+   TERRAIN
+========================================================= */
+
+const waterZones=[
+
+    {x:0,y:0,w:650,h:140},
+    {x:1350,y:520,w:850,h:270},
+    {x:1950,y:0,w:500,h:390},
+    {x:450,y:1370,w:1000,h:200}
+];
+
+const fishingSpots=[
+
+    {x:580,y:75},
+    {x:1650,y:650},
+    {x:2160,y:280},
+    {x:800,y:1450}
+];
+
+const houses=[
+
+    {
+        x:720,
+        y:230,
+        w:190,
+        h:145,
+        doorX:815,
+        doorY:375,
+        name:"Panda Village Cottage"
+    },
+
+    {
+        x:1080,
+        y:760,
+        w:210,
+        h:150,
+        doorX:1185,
+        doorY:910,
+        name:"Old Fisherman's Home"
+    },
+
+    {
+        x:350,
+        y:800,
+        w:200,
+        h:145,
+        doorX:450,
+        doorY:945,
+        name:"Forest Cottage"
+    },
+
+    {
+        x:1770,
+        y:720,
+        w:220,
+        h:155,
+        doorX:1880,
+        doorY:875,
+        name:"Mountain Lodge"
+    },
+
+    {
+        x:1500,
+        y:250,
+        w:220,
+        h:145,
+        doorX:1610,
+        doorY:395,
+        name:"Hunter's Cabin"
+    }
+];
+
+/* =========================================================
+   TREES
+========================================================= */
+
+const trees=[];
+
+for(let x=70;x<2500;x+=95){
+
+    for(let y=170;y<1600;y+=95){
+
+        const noise=Math.sin(x*12.91+y*3.17);
+
+        if(noise>.45){
+
+            const nearHouse=houses.some(h=>
+                x>h.x-50 &&
+                x<h.x+h.w+50 &&
+                y>h.y-50 &&
+                y<h.y+h.h+50
+            );
+
+            const nearWater=waterZones.some(w=>
+                x>w.x-40 &&
+                x<w.x+w.w+40 &&
+                y>w.y-40 &&
+                y<w.y+w.h+40
+            );
+
+            if(!nearHouse&&!nearWater){
+                trees.push({x,y});
+            }
+        }
+    }
+}
+
+/* =========================================================
+   NPCS
+   Uses npc1/npc2 image assets.
+========================================================= */
+
+const npcs=[
+
+    {
+        x:760,
+        y:420,
+        name:"Captain Panda",
+        image:"npc1",
+        quest:true,
+        wander:false
+    },
+
+    {
+        x:1000,
+        y:350,
+        name:"Merchant Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:520,
+        y:690,
+        name:"Fisher Panda",
+        image:"npc1",
+        wander:true
+    },
+
+    {
+        x:1490,
+        y:840,
+        name:"Knight Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:1940,
+        y:560,
+        name:"Elder Panda",
+        image:"npc1",
+        wander:false
+    },
+
+    {
+        x:900,
+        y:620,
+        name:"Villager Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:1250,
+        y:480,
+        name:"Farmer Panda",
+        image:"npc1",
+        wander:true
+    }
+];
+
+npcs.forEach(n=>{
+
+    n.homeX=n.x;
+    n.homeY=n.y;
+    n.targetX=n.x;
+    n.targetY=n.y;
+    n.walkTimer=0;
+
+});
+
+/* =========================================================
+   MONSTER DATA
+========================================================= */
+
+const monsterTypes={
+
+    monster1:{
+        name:"Slime",
+        hp:45,
+        damage:8,
+        xp:30,
+        gold:8,
+        speed:.9,
+        r:18,
+        image:"monster1"
+    },
+
+    monster2:{
+        name:"Goblin",
+        hp:55,
+        damage:10,
+        xp:38,
+        gold:10,
+        speed:.85,
+        r:18,
+        image:"monster2"
+    },
+
+    monster3:{
+        name:"Skeleton",
+        hp:65,
+        damage:12,
+        xp:45,
+        gold:13,
+        speed:1,
+        r:19,
+        image:"monster3"
+    },
+
+    monster4:{
+        name:"Werewolf",
+        hp:80,
+        damage:14,
+        xp:55,
+        gold:18,
+        speed:.8,
+        r:21,
+        image:"monster4"
+    },
+
+    monster5:{
+        name:"Orc",
+        hp:100,
+        damage:18,
+        xp:70,
+        gold:25,
+        speed:.75,
+        r:23,
+        image:"monster5"
+    },
+
+    boss1:{
+        name:"Flameozn",
+        hp:500,
+        damage:25,
+        xp:300,
+        gold:250,
+        speed:.65,
+        r:40,
+        image:"boss1",
+        boss:true
+    }
+};
+
+let monsters=[];
+
+/* =========================================================
+   SPAWN MONSTER
+========================================================= */
+
+function spawnMonster(type,x,y){
+
+    const data=monsterTypes[type];
+
+    if(!data)
+        return;
+
+    monsters.push({
+
+        ...data,
+
+        type,
+
+        x,
+        y,
+
+        maxHp:data.hp,
+
+        attackCooldown:0,
+
+        hitFlash:0,
+
+        chaseDistance:data.boss
+            ?650
+            :330
+    });
+}
+
+/* Overworld monsters */
+
+spawnMonster("monster1",300,300);
+spawnMonster("monster2",470,410);
+spawnMonster("monster3",1120,440);
+spawnMonster("monster4",1530,390);
+spawnMonster("monster5",1260,350);
+spawnMonster("monster1",1600,900);
+spawnMonster("monster2",1980,900);
+spawnMonster("monster3",600,520);
+spawnMonster("monster4",880,600);
+spawnMonster("monster5",1430,620);
+spawnMonster("monster1",2050,440);
+
+/* =========================================================
+   DUNGEON MONSTERS
+========================================================= */
+
+function spawnDungeonEnemies(){
+
+    monsters=[];
+
+    spawnMonster("monster2",350,300);
+    spawnMonster("monster3",540,450);
+    spawnMonster("monster4",900,300);
+    spawnMonster("monster5",1100,550);
+
+    spawnMonster(
+        "boss1",
+        750,
+        350
+    );
+}
+
+/* =========================================================
+   DROPS
+========================================================= */
+
+let groundDrops=[];
+
+function createDrop(x,y,forcedType=null){
+
+    const types=[
+
+        {
+            name:"PDA Coin",
+            icon:"🪙",
+            image:"pda"
+        },
+
+        {
+            name:"Gold Coin",
+            icon:"🪙",
+            image:null
+        },
+
+        {
+            name:"Fish",
+            icon:"🐟",
+            image:null
+        },
+
+        {
+            name:"Bamboo Sword",
+            icon:"⚔️",
+            image:"weapon1"
+        },
+
+        {
+            name:"Iron Sword",
+            icon:"⚔️",
+            image:"weapon2"
+        },
+
+        {
+            name:"Goblin Saber",
+            icon:"⚔️",
+            image:"weapon3"
+        }
+    ];
+
+    let type;
+
+    if(forcedType){
+
+        type=
+            types.find(t=>
+                t.name===forcedType
+            )||types[0];
+
+    }else{
+
+        const roll=Math.random();
+
+        if(roll<.25){
+
+            type=types[0];
+
+        }else if(roll<.48){
+
+            type=types[1];
+
+        }else if(roll<.62){
+
+            type=types[2];
+
+        }else if(roll<.77){
+
+            type=types[3];
+
+        }else if(roll<.91){
+
+            type=types[4];
+
+        }else{
+
+            type=types[5];
+        }
+    }
+
+    groundDrops.push({
+
+        x,
+        y,
+
+        name:type.name,
+        icon:type.icon,
+        image:type.image,
+
+        bob:Math.random()*Math.PI*2
+    });
+}
+
+/* =========================================================
+   COLLISION
+========================================================= */
+
+function circleRectCollision(cx,cy,r,rect){
+
+    const closestX=Math.max(
+        rect.x,
+        Math.min(cx,rect.x+rect.w)
+    );
+
+    const closestY=Math.max(
+        rect.y,
+        Math.min(cy,rect.y+rect.h)
+    );
+
+    const dx=cx-closestX;
+    const dy=cy-closestY;
+
+    return dx*dx+dy*dy<r*r;
+}
+
+function blocked(x,y,r=player.r){
+
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
+
+    if(
+        x<20 ||
+        y<20 ||
+        x>currentWidth-20 ||
+        y>currentHeight-20
+    ){
+        return true;
+    }
+
+    if(inDungeon){
+
+        /*
+           Dungeon has mostly open floor.
+           The border and rock walls are enough
+           for the temporary version.
+        */
+
+        return false;
+    }
+
+    for(const w of waterZones){
+
+        if(circleRectCollision(x,y,r,w))
+            return true;
+    }
+
+    for(const h of houses){
+        /* Monsters use the full building footprint as solid terrain.
+           The player can still use the doorway interaction separately. */
+        if(circleRectCollision(x,y,r,h))
+            return true;
+    }
+
+    return false;
+}
+
+/* =========================================================
+   PLAYER UPDATE
+========================================================= */
+
+function setPlayerFacing(dx,dy){
+    if(!dx && !dy) return;
+    const len=Math.hypot(dx,dy)||1;
+    player.facingX=dx/len;
+    player.facingY=dy/len;
+    if(Math.abs(dx)>=Math.abs(dy)){
+        player.facing=dx<0?-1:1;
+    }
+}
+
+function updatePlayer(){
+
+    let dx=0;
+    let dy=0;
+
+    if(keys["w"]||keys["arrowup"])
+        dy--;
+
+    if(keys["s"]||keys["arrowdown"])
+        dy++;
+
+    if(keys["a"]||keys["arrowleft"])
+        dx--;
+
+    if(keys["d"]||keys["arrowright"])
+        dx++;
+
+    if(dx||dy){
+
+        player.targetX=null;
+        player.targetY=null;
+        player.targetMonster=null;
+
+    }else{
+
+        if(
+            player.targetX!==null &&
+            player.targetY!==null
+        ){
+
+            const tx=player.targetX-player.x;
+            const ty=player.targetY-player.y;
+
+            const distance=Math.hypot(tx,ty);
+
+            if(distance>6){
+
+                dx=tx/distance;
+                dy=ty/distance;
+
+            }else{
+
+                player.targetX=null;
+                player.targetY=null;
+            }
+        }
+
+        if(
+            player.targetMonster &&
+            monsters.includes(player.targetMonster)
+        ){
+
+            const m=player.targetMonster;
+
+            const tx=m.x-player.x;
+            const ty=m.y-player.y;
+
+            const distance=Math.hypot(tx,ty);
+
+            if(distance>68){
+
+                dx=tx/distance;
+                dy=ty/distance;
+
+            }else{
+
+                swordAttack(m);
+            }
+        }
+    }
+
+    player.moving=!!(dx||dy);
+
+    if(player.moving){
+
+        const len=Math.hypot(dx,dy);
+
+        if(len>0){
+
+            dx/=len;
+            dy/=len;
+        }
+
+        setPlayerFacing(dx,dy);
+
+        if(dx<0)
+            player.facing=-1;
+
+        if(dx>0)
+            player.facing=1;
+
+        player.walkTime+=.32;
+
+        const nx=player.x+dx*player.speed;
+        const ny=player.y+dy*player.speed;
+
+        if(!blocked(nx,player.y))
+            player.x=nx;
+
+        if(!blocked(player.x,ny))
+            player.y=ny;
+
+    }else{
+
+        player.walkTime*=.86;
+    }
+
+    if(player.attackCooldown>0)
+        player.attackCooldown--;
+
+    if(player.invincible>0)
+        player.invincible--;
+
+    if(player.swordSwing>0)
+        player.swordSwing--;
+
+    if(player.healEffect>0)
+        player.healEffect--;
+
+    if(player.healText>0)
+        player.healText--;
+
+    /* Auto dungeon entry when walking onto entrance */
+
+    if(
+        !inDungeon &&
+        Math.hypot(
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )<55
+    ){
+
+        enterDungeon();
+    }
+
+    /* Auto dungeon exit */
+
+    if(
+        inDungeon &&
+        Math.hypot(
+            player.x-dungeonExit.x,
+            player.y-dungeonExit.y
+        )<55
+    ){
+
+        leaveDungeon();
+    }
+}
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+function updateCamera(){
+
+    camera.x=player.x-W/2;
+    camera.y=player.y-H/2;
+
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
+
+    camera.x=Math.max(
+        0,
+        Math.min(
+            camera.x,
+            currentWidth-W
+        )
+    );
+
+    camera.y=Math.max(
+        0,
+        Math.min(
+            camera.y,
+            currentHeight-H
+        )
+    );
+}
+
+/* =========================================================
+   AUDIO
+========================================================= */
+
+let audioCtx=null;
+
+function ensureAudio(){
+
+    try{
+
+        if(!audioCtx){
+
+            audioCtx=new(
+                window.AudioContext||
+                window.webkitAudioContext
+            )();
+        }
+
+        if(
+            audioCtx &&
+            audioCtx.state==="suspended"
+        ){
+            audioCtx.resume().catch(()=>{});
+        }
+
+    }catch(e){}
+}
+
+function tone(type,frequency,duration,volume){
+
+    ensureAudio();
+
+    if(!audioCtx)
+        return;
+
+    try{
+
+        const osc=audioCtx.createOscillator();
+        const gain=audioCtx.createGain();
+
+        osc.type=type;
+        osc.frequency.value=frequency;
+
+        gain.gain.setValueAtTime(
+            volume,
+            audioCtx.currentTime
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            .001,
+            audioCtx.currentTime+duration
+        );
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(
+            audioCtx.currentTime+duration
+        );
+
+    }catch(e){}
+}
+
+function swordSound(){
+    tone("sawtooth",650,.14,.08);
+}
+
+function hitSound(){
+    tone("square",110,.13,.12);
+}
+
+function bossSound(){
+    tone("sawtooth",70,.4,.16);
+}
+
+/* =========================================================
+   SWORD
+========================================================= */
+
+function swordAttack(target=null){
+
+    if(player.attackCooldown>0)
+        return;
+
+    player.attackCooldown=22;
+    player.swordSwing=12;
+
+    swordSound();
+
+    if(!target){
+
+        let closest=null;
+        let distance=Infinity;
+
+        for(const m of monsters){
+
+            const vx=m.x-player.x;
+            const vy=m.y-player.y;
+            const d=Math.hypot(vx,vy);
+
+            if(d>95 || d<1) continue;
+
+            const dot=(vx*player.facingX+vy*player.facingY)/d;
+
+            /* Prefer the monster in the direction the player is facing.
+               This fixes attacks against enemies approaching from behind. */
+            if(dot>=0.15 && d<distance){
+                closest=m;
+                distance=d;
+            }
+        }
+
+        target=closest;
+
+        /* If there is no enemy in the facing direction, retain the old
+           convenient nearest-target behavior for close combat. */
+        if(!target){
+            for(const m of monsters){
+                const d=Math.hypot(m.x-player.x,m.y-player.y);
+                if(d<82 && d<distance){
+                    closest=m;
+                    distance=d;
+                }
+            }
+            target=closest;
+        }
+    }
+
+    if(!target){
+
+        showMessage("⚔️ Sword swing!");
+
+        return;
+    }
+
+    const d=Math.hypot(
+        target.x-player.x,
+        target.y-player.y
+    );
+
+    if(d>88)
+        return;
+
+    let damage=15+player.level*3;
+
+    /* Weapon bonuses */
+
+    if(inventory["Bamboo Sword"].count>0)
+        damage+=5;
+
+    if(inventory["Iron Sword"].count>0)
+        damage+=8;
+
+    if(inventory["Goblin Saber"].count>0)
+        damage+=12;
+
+    target.hp-=damage;
+
+    target.hitFlash=8;
+
+    hitSound();
+
+    showMessage(
+        "⚔️ Hit "+
+        target.name+
+        " for "+
+        damage+
+        " damage!"
+    );
+
+    if(target.hp<=0)
+        killMonster(target);
+}
+
+/* =========================================================
+   MONSTER DEATH
+========================================================= */
+
+function killMonster(monster){
+
+    const index=monsters.indexOf(monster);
+
+    if(index!==-1)
+        monsters.splice(index,1);
+
+    player.gold+=monster.gold;
+
+    gainXP(monster.xp);
+
+    player.loot++;
+
+    /* Always drop something */
+
+    createDrop(
+        monster.x,
+        monster.y
+    );
+
+    /* Additional weapon chance */
+
+    if(Math.random()<.30){
+
+        const weapon=
+            weaponDrops[
+                Math.floor(
+                    Math.random()*
+                    weaponDrops.length
+                )
+            ];
+
+        createDrop(
+            monster.x+20,
+            monster.y+8,
+            weapon.name
+        );
+    }
+
+    /* Boss gives guaranteed weapon */
+
+    if(monster.boss){
+
+        createDrop(
+            monster.x-25,
+            monster.y,
+            "Goblin Saber"
+        );
+
+        createDrop(
+            monster.x+25,
+            monster.y,
+            "PDA Coin"
+        );
+
+        showMessage(
+            "👑 FLAMEOZN DEFEATED! Rare loot dropped!"
+        );
+
+    }else{
+
+        showMessage(
+            "💀 "+
+            monster.name+
+            " defeated! Loot dropped!"
+        );
+    }
+
+    if(
+        questStarted &&
+        !questComplete &&
+        !monster.boss
+    ){
+
+        questKills++;
+    }
+
+    player.targetMonster=null;
+
+    /* Only respawn normal overworld enemies */
+
+    if(!inDungeon && !monster.boss){
+
+        setTimeout(()=>{
+
+            spawnMonster(
+                monster.type,
+                250+
+                Math.random()*
+                (world.width-500),
+
+                180+
+                Math.random()*
+                (world.height-350)
+            );
+
+        },4000);
+    }
+
+    /* Boss remains defeated during this dungeon visit */
+}
+
+/* =========================================================
+   XP
+========================================================= */
+
+function gainXP(amount){
+
+    player.xp+=amount;
+
+    while(player.xp>=player.xpNext){
+
+        player.xp-=player.xpNext;
+
+        player.level++;
+
+        player.xpNext=Math.floor(
+            player.xpNext*1.35
+        );
+
+        player.maxHp+=15;
+        player.hp=player.maxHp;
+
+        player.maxMana+=5;
+        player.mana=player.maxMana;
+
+        showMessage(
+            "✨ LEVEL UP! Level "+
+            player.level+"!"
+        );
+    }
+}
+
+/* =========================================================
+   MONSTER AI
+   Every monster chases player when within range.
+========================================================= */
+
+function updateMonsters(){
+
+    for(const m of monsters){
+
+        if(m.attackCooldown>0)
+            m.attackCooldown--;
+
+        if(m.hitFlash>0)
+            m.hitFlash--;
+
+        const d=Math.hypot(
+            player.x-m.x,
+            player.y-m.y
+        );
+
+        /*
+           Every monster has a chase radius.
+           Boss has a much larger radius.
+        */
+
+        if(d<m.chaseDistance){
+
+            if(d>52){
+
+                const dx=(player.x-m.x)/d;
+                const dy=(player.y-m.y)/d;
+
+                const nx=
+                    m.x+
+                    dx*m.speed;
+
+                const ny=
+                    m.y+
+                    dy*m.speed;
+
+                if(
+                    !blocked(
+                        nx,
+                        m.y,
+                        m.r
+                    )
+                ){
+                    m.x=nx;
+                }
+
+                if(
+                    !blocked(
+                        m.x,
+                        ny,
+                        m.r
+                    )
+                ){
+                    m.y=ny;
+                }
+
+            }else{
+
+                if(
+                    m.attackCooldown<=0 &&
+                    player.invincible<=0
+                ){
+
+                    player.hp-=m.damage;
+
+                    player.invincible=30;
+
+                    m.attackCooldown=
+                        m.boss
+                        ?80
+                        :70;
+
+                    hitSound();
+
+                    if(m.boss)
+                        bossSound();
+
+                    showMessage(
+                        "💥 "+
+                        m.name+
+                        " hit you for "+
+                        m.damage+
+                        " damage!"
+                    );
+
+                    if(player.hp<=0)
+                        respawnPlayer();
+                }
+            }
+        }
+    }
+}
+
+/* =========================================================
+   NPC UPDATE
+========================================================= */
+
+function updateNPCs(){
+
+    if(inDungeon)
+        return;
+
+    for(const n of npcs){
+
+        if(!n.wander)
+            continue;
+
+        n.walkTimer--;
+
+        if(n.walkTimer<=0){
+
+            n.targetX=
+                n.homeX+
+                (Math.random()-.5)*260;
+
+            n.targetY=
+                n.homeY+
+                (Math.random()-.5)*180;
+
+            n.walkTimer=
+                100+
+                Math.random()*250;
+        }
+
+        const dx=n.targetX-n.x;
+        const dy=n.targetY-n.y;
+
+        const d=Math.hypot(dx,dy);
+
+        if(d>8){
+
+            const speed=.45;
+
+            const nx=n.x+dx/d*speed;
+            const ny=n.y+dy/d*speed;
+
+            if(
+                nx>30&&
+                nx<world.width-30&&
+                ny>30&&
+                ny<world.height-30
+            ){
+
+                n.x=nx;
+                n.y=ny;
+            }
+        }
+    }
+}
+
+/* =========================================================
+   DUNGEON ENTRY
+========================================================= */
+
+function enterDungeon(){
+
+    if(inDungeon)
+        return;
+
+    if(
+        Math.hypot(
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )>130
+    ){
+
+        showMessage(
+            "🕯️ Get closer to the cave entrance."
+        );
+
+        return;
+    }
+
+    inDungeon=true;
+
+    player.x=750;
+    player.y=780;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    groundDrops=[];
+
+    spawnDungeonEnemies();
+
+    setZoneLabel(
+        "🕯️ THE LOST CAVE"
+    );
+
+    showMessage(
+        "🕯️ You entered the Lost Cave..."
+    );
+
+    updateCamera();
+}
+
+function leaveDungeon(){
+
+    if(!inDungeon)
+        return;
+
+    inDungeon=false;
+
+    player.x=dungeonEntrance.x;
+    player.y=dungeonEntrance.y+90;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    groundDrops=[];
+
+    /*
+       Restore overworld monsters.
+    */
+
+    monsters=[];
+
+    spawnMonster("monster1",300,300);
+    spawnMonster("monster2",470,410);
+    spawnMonster("monster3",1120,440);
+    spawnMonster("monster4",1530,390);
+    spawnMonster("monster5",1260,350);
+    spawnMonster("monster1",1600,900);
+    spawnMonster("monster2",1980,900);
+    spawnMonster("monster3",600,520);
+    spawnMonster("monster4",880,600);
+    spawnMonster("monster5",1430,620);
+    spawnMonster("monster1",2050,440);
+
+    setZoneLabel("");
+
+    showMessage(
+        "🌲 You returned to Pandania."
+    );
+
+    updateCamera();
+}
+
+/* =========================================================
+   ZONE LABEL
+========================================================= */
+
+let zoneLabelTimer=null;
+
+function setZoneLabel(text){
+
+    const el=
+        document.getElementById(
+            "zoneLabel"
+        );
+
+    if(!text){
+
+        el.classList.remove("show");
+
+        return;
+    }
+
+    el.textContent=text;
+
+    el.classList.add("show");
+
+    clearTimeout(zoneLabelTimer);
+
+    zoneLabelTimer=setTimeout(()=>{
+
+        el.classList.remove("show");
+
+    },3000);
+}
+
+/* =========================================================
+   SPELLS
+========================================================= */
+
+let spellEffects=[];
+
+function castFire(){
+
+    if(!gameStarted)
+        return;
+
+    if(player.mana<5){
+
+        showMessage(
+            "🔥 Not enough mana."
+        );
+
+        return;
+    }
+
+    const target=findSpellTarget();
+
+    if(!target){
+
+        showMessage(
+            "🔥 No monster in range."
+        );
+
+        return;
+    }
+
+    player.mana-=5;
+
+    spellEffects.push({
+
+        type:"fire",
+
+        x:player.x,
+        y:player.y,
+
+        tx:target.x,
+        ty:target.y,
+
+        life:25,
+        maxLife:25
+    });
+
+    setTimeout(()=>{
+
+        if(monsters.includes(target)){
+
+            target.hp-=28;
+
+            target.hitFlash=8;
+
+            hitSound();
+
+            showMessage(
+                "🔥 Fireball hit "+
+                target.name+
+                " for 28 damage!"
+            );
+
+            if(target.hp<=0)
+                killMonster(target);
+        }
+
+    },300);
+}
+
+function castLightning(){
+
+    if(!gameStarted)
+        return;
+
+    if(player.mana<7){
+
+        showMessage(
+            "⚡ Not enough mana."
+        );
+
+        return;
+    }
+
+    const target=findSpellTarget();
+
+    if(!target){
+
+        showMessage(
+            "⚡ No monster in range."
+        );
+
+        return;
+    }
+
+    player.mana-=7;
+
+    spellEffects.push({
+
+        type:"lightning",
+
+        x:target.x,
+        y:target.y,
+
+        life:20,
+        maxLife:20
+    });
+
+    setTimeout(()=>{
+
+        if(monsters.includes(target)){
+
+            target.hp-=40;
+
+            target.hitFlash=10;
+
+            hitSound();
+
+            showMessage(
+                "⚡ Lightning struck "+
+                target.name+
+                " for 40 damage!"
+            );
+
+            if(target.hp<=0)
+                killMonster(target);
+        }
+
+    },250);
+}
+
+function castHeal(){
+
+    if(!gameStarted)
+        return;
+
+    if(player.mana<3){
+
+        showMessage(
+            "💚 Not enough mana."
+        );
+
+        return;
+    }
+
+    if(player.hp>=player.maxHp){
+
+        showMessage(
+            "💚 Your health is already full."
+        );
+
+        return;
+    }
+
+    player.mana-=3;
+
+    player.healEffect=45;
+
+    let pulses=5;
+
+    const interval=setInterval(()=>{
+
+        if(pulses<=0){
+
+            clearInterval(interval);
+
+            updateUI();
+
+            return;
+        }
+
+        player.hp=Math.min(
+            player.maxHp,
+            player.hp+5
+        );
+
+        player.healText=25;
+        player.healAmount=5;
+
+        pulses--;
+
+    },180);
+}
+
+function findSpellTarget(){
+
+    if(
+        player.targetMonster &&
+        monsters.includes(
+            player.targetMonster
+        )
+    ){
+
+        return player.targetMonster;
+    }
+
+    let closest=null;
+    let distance=Infinity;
+
+    for(const m of monsters){
+
+        const d=Math.hypot(
+            player.x-m.x,
+            player.y-m.y
+        );
+
+        if(
+            d<500 &&
+            d<distance
+        ){
+
+            closest=m;
+            distance=d;
+        }
+    }
+
+    return closest;
+}
+
+/* =========================================================
+   DROPS
+========================================================= */
+
+function collectDrop(drop){
+
+    if(drop.name==="PDA Coin"){
+
+        player.gold++;
+
+        inventory["PDA Coin"].count++;
+
+    }else if(drop.name==="Gold Coin"){
+
+        player.gold+=5;
+
+        inventory["Gold Coin"].count++;
+
+    }else if(drop.name==="Fish"){
+
+        player.fish++;
+
+        inventory["Fish"].count++;
+
+    }else{
+
+        if(!inventory[drop.name]){
+
+            inventory[drop.name]={
+
+                icon:"⚔️",
+
+                image:drop.image,
+
+                count:0
+            };
+        }
+
+        inventory[drop.name].count++;
+    }
+
+    showMessage(
+        "🎁 Picked up "+
+        drop.name+
+        "!"
+    );
+
+    updateUI();
+}
+
+/* =========================================================
+   INTERACTION
+========================================================= */
+
+function interact(){
+
+    if(inDungeon){
+
+        if(
+            Math.hypot(
+                player.x-dungeonExit.x,
+                player.y-dungeonExit.y
+            )<100
+        ){
+
+            leaveDungeon();
+
+            return;
+        }
+
+        showMessage(
+            "🕯️ The cave is cold and dangerous..."
+        );
+
+        return;
+    }
+
+    for(const n of npcs){
+
+        if(
+            Math.hypot(
+                player.x-n.x,
+                player.y-n.y
+            )<75
+        ){
+
+            talkToNPC(n);
+
+            return;
+        }
+    }
+
+    for(const h of houses){
+
+        if(
+            Math.hypot(
+                player.x-h.doorX,
+                player.y-h.doorY
+            )<65
+        ){
+
+            enterHouse(h);
+
+            return;
+        }
+    }
+
+    if(
+        Math.hypot(
+            player.x-550,
+            player.y-450
+        )<100
+    ){
+
+        openExchange();
+
+        return;
+    }
+
+    if(
+        Math.hypot(
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )<120
+    ){
+
+        enterDungeon();
+
+        return;
+    }
+
+    showMessage(
+        "Nothing nearby to interact with."
+    );
+}
+
+function enterHouse(h){
+
+    openDialogue(
+        h.name,
+        "🏠 You enter the rustic home. The room is warm and peaceful."
+    );
+}
+
+/* =========================================================
+   QUEST
+========================================================= */
+
+let questStarted=false;
+let questKills=0;
+let questComplete=false;
+
+function talkToNPC(n){
+
+    if(n.quest){
+
+        if(!questStarted){
+
+            questStarted=true;
+
+            setQuest(
+                "The Monster Problem",
+                "Defeat 3 monsters and return to Captain Panda."
+            );
+
+            openDialogue(
+                n.name,
+                "Greetings, warrior! Monsters are appearing around Pandania. Defeat 3 of them and return to me."
+            );
+
+        }else if(
+            questKills>=3 &&
+            !questComplete
+        ){
+
+            questComplete=true;
+
+            player.gold+=100;
+
+            gainXP(100);
+
+            openDialogue(
+                n.name,
+                "Excellent work! Pandania is safer because of you. Here is 100 gold!"
+            );
+
+            setQuest(
+                "Quest Complete!",
+                "Captain Panda rewarded you."
+            );
+
+        }else{
+
+            openDialogue(
+                n.name,
+                "Keep fighting! We still need monsters defeated."
+            );
+        }
+
+        return;
+    }
+
+    const dialogue={
+
+        "Merchant Panda":
+            "Welcome to Pandania! The Grand Exchange is where adventurers trade their treasures.",
+
+        "Fisher Panda":
+            "The river is full of fish. Fishing equipment and treasure can sometimes be found as monster loot.",
+
+        "Knight Panda":
+            "Keep your weapon ready. The wilderness is dangerous.",
+
+        "Elder Panda":
+            "Pandania has many secrets. Explore every corner.",
+
+        "Villager Panda":
+            "It's nice to see more adventurers around town!",
+
+        "Farmer Panda":
+            "The monsters keep wandering into our fields."
+    };
+
+    openDialogue(
+        n.name,
+        dialogue[n.name]||
+        "Welcome to Pandania!"
+    );
+}
+
+function openDialogue(name,text){
+
+    document.getElementById(
+        "dialogueName"
+    ).textContent=name;
+
+    document.getElementById(
+        "dialogueText"
+    ).textContent=text;
+
+    document.getElementById(
+        "dialogue"
+    ).style.display="block";
+}
+
+function closeDialogue(){
+
+    document.getElementById(
+        "dialogue"
+    ).style.display="none";
+}
+
+function setQuest(title,text){
+
+    document.getElementById(
+        "questTitle"
+    ).textContent=title;
+
+    document.getElementById(
+        "questText"
+    ).textContent=text;
+}
+
+/* =========================================================
+   RESPAWN
+========================================================= */
+
+function respawnPlayer(){
+
+    player.hp=player.maxHp;
+    player.mana=player.maxMana;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    player.gold=Math.max(
+        0,
+        player.gold-10
+    );
+
+    if(inDungeon){
+
+        leaveDungeon();
+
+    }else{
+
+        player.x=760;
+        player.y=450;
+    }
+
+    showMessage(
+        "☠️ You were defeated! You lost 10 gold."
+    );
+}
+
+/* =========================================================
+   UI
+========================================================= */
+
+function updateUI(){
+
+    document.getElementById(
+        "level"
+    ).textContent=player.level;
+
+    document.getElementById(
+        "gold"
+    ).textContent=player.gold;
+
+    document.getElementById(
+        "manaText"
+    ).textContent=player.mana;
+
+    document.getElementById(
+        "invGold"
+    ).textContent=player.gold;
+
+    document.getElementById(
+        "invFish"
+    ).textContent=player.fish;
+
+    document.getElementById(
+        "invLoot"
+    ).textContent=player.loot;
+
+    const weapons=
+        inventory["Wooden Sword"].count+
+        inventory["Bamboo Sword"].count+
+        inventory["Iron Sword"].count+
+        inventory["Goblin Saber"].count;
+
+    document.getElementById(
+        "invWeapons"
+    ).textContent=weapons;
+
+    document.getElementById(
+        "hpFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.hp/player.maxHp*100
+        )+"%";
+
+    document.getElementById(
+        "manaFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.mana/player.maxMana*100
+        )+"%";
+
+    document.getElementById(
+        "xpFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.xp/player.xpNext*100
+        )+"%";
+}
+
+/* =========================================================
+   BAG
+========================================================= */
+
+function openBag(){
+
+    closeWindows();
+
+    renderBag();
+
+    document.getElementById(
+        "bagWindow"
+    ).style.display="block";
+}
+
+function renderBag(){
+
+    const container=
+        document.getElementById(
+            "bagItems"
+        );
+
+    container.innerHTML="";
+
+    Object.entries(inventory)
+    .forEach(([name,item])=>{
+
+        const card=
+            document.createElement("div");
+
+        card.className="itemCard";
+
+        let iconHTML;
+
+        if(
+            item.image &&
+            images[item.image]
+        ){
+
+            /* Use the image that actually loaded. This preserves the
+               renamed-asset/legacy fallback used by the game world. */
+            iconHTML=
+                `<img class="itemImage"
+                src="${images[item.image].src}"
+                alt="">`;
+
+        }else if(name==="Gold Coin"){
+
+            /* Match the same sparkly gold coin artwork used on the ground. */
+            iconHTML=`
+                <div class="goldBagIcon" aria-label="Gold Coin">
+                    <span class="goldCoinCore"></span>
+                    <span class="goldSpark s1"></span>
+                    <span class="goldSpark s2"></span>
+                    <span class="goldSpark s3"></span>
+                    <span class="goldSpark s4"></span>
+                </div>
+            `;
+
+        }else{
+
+            iconHTML=
+                `<div class="itemIcon">
+                    ${item.icon}
+                </div>`;
+        }
+
+        card.innerHTML=`
+
+            ${iconHTML}
+
+            <div class="itemName">
+                ${name}
+            </div>
+
+            <div class="itemCount">
+                Quantity: ${item.count}
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+/* =========================================================
+   EXCHANGE
+========================================================= */
+
+let listings=[
+
+    {
+        seller:"PandaKnight",
+        item:"Fishing Rod",
+        price:15
+    },
+
+    {
+        seller:"PandaMage",
+        item:"Iron Sword",
+        price:80
+    },
+
+    {
+        seller:"PandaFisher",
+        item:"Fish",
+        price:5
+    },
+
+    {
+        seller:"PandaMiner",
+        item:"Bamboo Sword",
+        price:25
+    }
+];
+
+function openExchange(){
+
+    closeWindows();
+
+    renderExchange();
+
+    document.getElementById(
+        "exchangeWindow"
+    ).style.display="block";
+}
+
+function renderExchange(){
+
+    const el=
+        document.getElementById(
+            "exchangeListings"
+        );
+
+    el.innerHTML="";
+
+    listings.forEach((l,index)=>{
+
+        const div=
+            document.createElement("div");
+
+        div.className="exchangeListing";
+
+        div.innerHTML=`
+
+            <div>
+                <b>${l.item}</b>
+                <br>
+                <span style="font-size:11px;color:#8fa2b8">
+                    Seller: ${l.seller}
+                </span>
+            </div>
+
+            <div>
+                <b style="color:#ffd75a">
+                    ${l.price} Gold
+                </b>
+
+                <button
+                    class="buyBtn"
+                    onclick="buyListing(${index})"
+                >
+                    Buy
+                </button>
+            </div>
+        `;
+
+        el.appendChild(div);
+    });
+}
+
+function createListing(){
+
+    const item=
+        document.getElementById(
+            "sellItem"
+        ).value.trim();
+
+    const price=Number(
+        document.getElementById(
+            "sellPrice"
+        ).value
+    );
+
+    if(!item||!price){
+
+        showMessage(
+            "Enter an item and price."
+        );
+
+        return;
+    }
+
+    listings.unshift({
+
+        seller:"Pandee",
+
+        item,
+
+        price
+    });
+
+    document.getElementById(
+        "sellItem"
+    ).value="";
+
+    document.getElementById(
+        "sellPrice"
+    ).value="";
+
+    renderExchange();
+
+    showMessage(
+        "🏪 Item listed on the Grand Exchange."
+    );
+}
+
+function buyListing(index){
+
+    const listing=listings[index];
+
+    if(player.gold<listing.price){
+
+        showMessage(
+            "Not enough gold."
+        );
+
+        return;
+    }
+
+    player.gold-=listing.price;
+
+    if(!inventory[listing.item]){
+
+        inventory[listing.item]={
+
+            icon:"📦",
+
+            count:0
+        };
+    }
+
+    inventory[listing.item].count++;
+
+    listings.splice(index,1);
+
+    renderExchange();
+
+    updateUI();
+
+    showMessage(
+        "🛒 Purchased "+
+        listing.item+"!"
+    );
+}
+
+/* =========================================================
+   FRIENDS / MAIL
+========================================================= */
+
+function openFriends(){
+
+    closeWindows();
+
+    document.getElementById(
+        "friendsWindow"
+    ).style.display="block";
+}
+
+function openMail(){
+
+    closeWindows();
+
+    document.getElementById(
+        "mailWindow"
+    ).style.display="block";
+}
+
+function sendMail(){
+
+    const to=
+        document.getElementById(
+            "mailTo"
+        ).value.trim();
+
+    const text=
+        document.getElementById(
+            "mailText"
+        ).value.trim();
+
+    if(!to||!text){
+
+        showMessage(
+            "Enter a player and message."
+        );
+
+        return;
+    }
+
+    const div=
+        document.createElement("div");
+
+    div.innerHTML=
+        "<b>To "+
+        escapeHTML(to)+
+        "</b><br>"+
+        escapeHTML(text);
+
+    document.getElementById(
+        "mailList"
+    ).prepend(div);
+
+    document.getElementById(
+        "mailTo"
+    ).value="";
+
+    document.getElementById(
+        "mailText"
+    ).value="";
+
+    showMessage(
+        "✉️ Message sent."
+    );
+}
+
+function escapeHTML(str){
+
+    return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+}
+
+function closeWindows(){
+
+    document.getElementById(
+        "bagWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "exchangeWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "friendsWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "mailWindow"
+    ).style.display="none";
+}
+
+/* =========================================================
+   SAVE / LOAD
+========================================================= */
+
+function saveGame(){
+
+    const save={
+
+        player:{
+            x:player.x,
+            y:player.y,
+            hp:player.hp,
+            maxHp:player.maxHp,
+            mana:player.mana,
+            maxMana:player.maxMana,
+            level:player.level,
+            xp:player.xp,
+            xpNext:player.xpNext,
+            gold:player.gold,
+            fish:player.fish,
+            loot:player.loot
+        },
+
+        inventory,
+
+        questStarted,
+        questKills,
+        questComplete
+    };
+
+    localStorage.setItem(
+        "pandaniaAdventuresSave",
+        JSON.stringify(save)
+    );
+
+    showMessage(
+        "💾 Game saved!"
+    );
+}
+
+function loadGame(){
+
+    const data=
+        localStorage.getItem(
+            "pandaniaAdventuresSave"
+        );
+
+    if(!data){
+
+        showMessage(
+            "No saved game found."
+        );
+
+        return;
+    }
+
+    try{
+
+        const save=JSON.parse(data);
+
+        Object.assign(
+            player,
+            save.player
+        );
+
+        if(save.inventory){
+
+            Object.keys(save.inventory)
+            .forEach(name=>{
+
+                inventory[name]=
+                    save.inventory[name];
+            });
+        }
+
+        questStarted=
+            save.questStarted||false;
+
+        questKills=
+            save.questKills||0;
+
+        questComplete=
+            save.questComplete||false;
+
+        updateUI();
+
+        showMessage(
+            "📂 Game loaded!"
+        );
+
+    }catch(e){
+
+        console.error(e);
+
+        showMessage(
+            "Could not load save."
+        );
+    }
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+let messageTimer=null;
+
+function showMessage(text){
+
+    const el=
+        document.getElementById(
+            "message"
+        );
+
+    el.textContent=text;
+
+    el.classList.add("show");
+
+    clearTimeout(messageTimer);
+
+    messageTimer=setTimeout(()=>{
+
+        el.classList.remove("show");
+
+    },2200);
+}
+
+/* =========================================================
+   DRAW
+========================================================= */
+
+function draw(){
+
+    ctx.clearRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+    ctx.save();
+
+    ctx.translate(
+        -camera.x,
+        -camera.y
+    );
+
+    if(inDungeon){
+
+        drawDungeon();
+
+    }else{
+
+        drawGround();
+        drawWater();
+        drawPaths();
+        drawTrees();
+        drawHouses();
+        drawGrandExchange();
+        drawFishingSpots();
+        drawDungeonEntrance();
+        drawDrops();
+        drawNPCs();
+        drawMonsters();
+    }
+
+    if(inDungeon){
+
+        drawDungeonExit();
+        drawDrops();
+        drawMonsters();
+    }
+
+    drawPlayer();
+
+    drawSpellEffects();
+
+    ctx.restore();
+
+    drawMiniMap();
+}
+
+/* =========================================================
+   GROUND
+========================================================= */
+
+function drawGround(){
+
+    ctx.fillStyle="#6f9b4c";
+
+    ctx.fillRect(
+        0,
+        0,
+        world.width,
+        world.height
+    );
+
+    for(let x=0;x<world.width;x+=24){
+
+        for(let y=0;y<world.height;y+=24){
+
+            const n=Math.sin(
+                x*4.2+y*7.1
+            );
+
+            if(n>.75){
+
+                ctx.fillStyle=
+                    "rgba(40,80,30,.25)";
+
+                ctx.fillRect(
+                    x,
+                    y,
+                    2,
+                    5
+                );
+            }
+        }
+    }
+
+    ctx.fillStyle="#a88958";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        800,
+        470,
+        350,
+        170,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        1280,
+        720,
+        250,
+        130,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+/* =========================================================
+   WATER
+========================================================= */
+
+function drawWater(){
+
+    for(const w of waterZones){
+
+        ctx.fillStyle="#287ca8";
+
+        ctx.fillRect(
+            w.x,
+            w.y,
+            w.w,
+            w.h
+        );
+
+        ctx.strokeStyle=
+            "rgba(150,225,255,.3)";
+
+        ctx.lineWidth=2;
+
+        for(
+            let y=w.y+15;
+            y<w.y+w.h;
+            y+=35
+        ){
+
+            for(
+                let x=w.x+10;
+                x<w.x+w.w;
+                x+=70
+            ){
+
+                ctx.beginPath();
+
+                ctx.moveTo(x,y);
+
+                ctx.quadraticCurveTo(
+                    x+15,
+                    y-5,
+                    x+30,
+                    y
+                );
+
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+/* =========================================================
+   PATHS
+========================================================= */
+
+function drawPaths(){
+
+    ctx.strokeStyle="#b99a66";
+
+    ctx.lineWidth=50;
+
+    ctx.lineCap="round";
+
+    ctx.beginPath();
+
+    ctx.moveTo(120,470);
+    ctx.lineTo(700,470);
+    ctx.lineTo(850,350);
+    ctx.lineTo(1200,350);
+    ctx.lineTo(1550,650);
+    ctx.lineTo(1900,650);
+
+    ctx.stroke();
+
+    ctx.lineWidth=35;
+
+    ctx.beginPath();
+
+    ctx.moveTo(850,350);
+    ctx.lineTo(850,100);
+
+    ctx.stroke();
+}
+
+/* =========================================================
+   TREES
+========================================================= */
+
+function drawTrees(){
+
+    for(const t of trees){
+
+        ctx.fillStyle="#553a24";
+
+        ctx.fillRect(
+            t.x-7,
+            t.y+5,
+            14,
+            32
+        );
+
+        ctx.fillStyle="#285c2f";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x,
+            t.y,
+            30,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle="#34763b";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x-15,
+            t.y-8,
+            21,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x+14,
+            t.y-7,
+            20,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle="#4e9148";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x,
+            t.y-20,
+            16,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+}
+
+/* =========================================================
+   HOUSES
+========================================================= */
+
+function drawHouses(){
+
+    for(const h of houses){
+
+        ctx.fillStyle="rgba(0,0,0,.28)";
+
+        ctx.fillRect(
+            h.x+10,
+            h.y+12,
+            h.w,
+            h.h
+        );
+
+        ctx.fillStyle="#756b5b";
+
+        ctx.fillRect(
+            h.x,
+            h.y+h.h-22,
+            h.w,
+            22
+        );
+
+        ctx.fillStyle="#a87848";
+
+        ctx.fillRect(
+            h.x,
+            h.y,
+            h.w,
+            h.h-18
+        );
+
+        ctx.strokeStyle="rgba(77,45,27,.6)";
+        ctx.lineWidth=3;
+
+        for(
+            let yy=h.y+18;
+            yy<h.y+h.h-22;
+            yy+=22
+        ){
+
+            ctx.beginPath();
+
+            ctx.moveTo(h.x,yy);
+            ctx.lineTo(h.x+h.w,yy);
+
+            ctx.stroke();
+        }
+
+        ctx.fillStyle="#633b32";
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            h.x-25,
+            h.y+5
+        );
+
+        ctx.lineTo(
+            h.x+h.w/2,
+            h.y-78
+        );
+
+        ctx.lineTo(
+            h.x+h.w+25,
+            h.y+5
+        );
+
+        ctx.closePath();
+
+        ctx.fill();
+
+        drawRusticWindow(
+            h.x+30,
+            h.y+43
+        );
+
+        drawRusticWindow(
+            h.x+h.w-68,
+            h.y+43
+        );
+
+        ctx.fillStyle="#563522";
+
+        ctx.fillRect(
+            h.doorX-20,
+            h.doorY-60,
+            40,
+            60
+        );
+
+        ctx.strokeStyle="#332116";
+        ctx.lineWidth=4;
+
+        ctx.strokeRect(
+            h.doorX-20,
+            h.doorY-60,
+            40,
+            60
+        );
+
+        ctx.fillStyle="#e6c16b";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            h.doorX+9,
+            h.doorY-30,
+            3,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle="#704438";
+
+        ctx.fillRect(
+            h.x+h.w-45,
+            h.y-75,
+            22,
+            48
+        );
+
+        ctx.fillStyle="#5c3a24";
+
+        ctx.fillRect(
+            h.x+h.w/2-38,
+            h.y-18,
+            76,
+            18
+        );
+
+        ctx.fillStyle="#f2dca3";
+
+        ctx.font="8px Arial";
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "HOME",
+            h.x+h.w/2,
+            h.y-6
+        );
+    }
+}
+
+function drawRusticWindow(x,y){
+
+    ctx.fillStyle="#69b8c9";
+
+    ctx.fillRect(
+        x,
+        y,
+        38,
+        35
+    );
+
+    ctx.strokeStyle="#4a3022";
+    ctx.lineWidth=4;
+
+    ctx.strokeRect(
+        x,
+        y,
+        38,
+        35
+    );
+
+    ctx.beginPath();
+
+    ctx.moveTo(x+19,y);
+    ctx.lineTo(x+19,y+35);
+
+    ctx.moveTo(x,y+17);
+    ctx.lineTo(x+38,y+17);
+
+    ctx.stroke();
+}
+
+/* =========================================================
+   GRAND EXCHANGE
+========================================================= */
+
+function drawGrandExchange(){
+
+    const x=550;
+    const y=450;
+
+    ctx.fillStyle="rgba(0,0,0,.3)";
+
+    ctx.fillRect(
+        x-85,
+        y+25,
+        170,
+        20
+    );
+
+    ctx.fillStyle="#75452c";
+
+    ctx.fillRect(
+        x-80,
+        y-35,
+        160,
+        70
+    );
+
+    ctx.fillStyle="#c08b52";
+
+    ctx.fillRect(
+        x-95,
+        y-40,
+        190,
+        14
+    );
+
+    ctx.fillStyle="#49302b";
+
+    ctx.beginPath();
+
+    ctx.moveTo(x-105,y-40);
+    ctx.lineTo(x,y-100);
+    ctx.lineTo(x+105,y-40);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    ctx.fillStyle="#ffd86a";
+
+    ctx.font="bold 15px Arial";
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "GRAND EXCHANGE",
+        x,
+        y-60
+    );
+
+    ctx.font="11px Arial";
+    ctx.fillStyle="#fff";
+
+    ctx.fillText(
+        "CLICK TO TRADE",
+        x,
+        y+55
+    );
+}
+
+/* =========================================================
+   FISHING
+========================================================= */
+
+function drawFishingSpots(){
+
+    for(const s of fishingSpots){
+
+        ctx.save();
+
+        ctx.translate(
+            s.x,
+            s.y
+        );
+
+        ctx.fillStyle=
+            "rgba(255,221,90,.18)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            28,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.strokeStyle="#ffd85b";
+        ctx.lineWidth=3;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            18,
+            0,
+            Math.PI*2
+        );
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   DUNGEON ENTRANCE
+========================================================= */
+
+function drawDungeonEntrance(){
+
+    const x=dungeonEntrance.x;
+    const y=dungeonEntrance.y;
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(0,0,0,.4)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+25,
+        90,
+        45,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    /* Rock mound */
+
+    ctx.fillStyle="#4a4037";
+
+    ctx.beginPath();
+
+    ctx.moveTo(x-85,y+25);
+
+    ctx.quadraticCurveTo(
+        x-75,
+        y-65,
+        x,
+        y-85
+    );
+
+    ctx.quadraticCurveTo(
+        x+75,
+        y-65,
+        x+85,
+        y+25
+    );
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    /* Cave opening */
+
+    ctx.fillStyle="#090807";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+5,
+        50,
+        65,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    /* Fire lamps */
+
+    drawCaveLamp(
+        x-70,
+        y-15
+    );
+
+    drawCaveLamp(
+        x+70,
+        y-15
+    );
+
+    ctx.fillStyle="#ffd46b";
+
+    ctx.font="bold 14px Georgia";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "THE LOST CAVE",
+        x,
+        y-105
+    );
+
+    ctx.font="11px Arial";
+
+    ctx.fillStyle="#fff";
+
+    ctx.fillText(
+        "ENTER DUNGEON",
+        x,
+        y+100
+    );
+
+    ctx.restore();
+}
+
+/* =========================================================
+   CAVE LAMP
+========================================================= */
+
+function drawCaveLamp(x,y){
+
+    ctx.save();
+
+    const glow=
+        30+
+        Math.sin(
+            Date.now()/180+x
+        )*5;
+
+    const gradient=
+        ctx.createRadialGradient(
+            x,
+            y,
+            2,
+            x,
+            y,
+            glow
+        );
+
+    gradient.addColorStop(
+        0,
+        "rgba(255,210,70,.55)"
+    );
+
+    gradient.addColorStop(
+        1,
+        "rgba(255,110,20,0)"
+    );
+
+    ctx.fillStyle=gradient;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y,
+        glow,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#5a3820";
+
+    ctx.fillRect(
+        x-5,
+        y,
+        10,
+        30
+    );
+
+    ctx.fillStyle="#ffad24";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-5,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#fff1a0";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-7,
+        4,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   DUNGEON
+========================================================= */
+
+function drawDungeon(){
+
+    /*
+       Brown gravel cave floor.
+    */
+
+    ctx.fillStyle="#5b4635";
+
+    ctx.fillRect(
+        0,
+        0,
+        dungeon.width,
+        dungeon.height
+    );
+
+    /* Gravel */
+
+    for(
+        let x=0;
+        x<dungeon.width;
+        x+=26
+    ){
+
+        for(
+            let y=0;
+            y<dungeon.height;
+            y+=26
+        ){
+
+            const n=
+                Math.sin(
+                    x*3.7+
+                    y*8.1
+                );
+
+            if(n>.15){
+
+                ctx.fillStyle=
+                    n>.65
+                    ?"rgba(165,130,88,.28)"
+                    :"rgba(30,20,15,.25)";
+
+                const size=
+                    2+
+                    Math.abs(n)*3;
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    x+(n*9),
+                    y+(n*7),
+                    size,
+                    0,
+                    Math.PI*2
+                );
+
+                ctx.fill();
+            }
+        }
+    }
+
+    /* Cave walls */
+
+    ctx.fillStyle="#33271f";
+
+    ctx.fillRect(
+        0,
+        0,
+        dungeon.width,
+        85
+    );
+
+    ctx.fillRect(
+        0,
+        dungeon.height-85,
+        dungeon.width,
+        85
+    );
+
+    ctx.fillRect(
+        0,
+        0,
+        80,
+        dungeon.height
+    );
+
+    ctx.fillRect(
+        dungeon.width-80,
+        0,
+        80,
+        dungeon.height
+    );
+
+    /* Jagged rock edges */
+
+    ctx.fillStyle="#4a382b";
+
+    for(
+        let x=0;
+        x<dungeon.width;
+        x+=70
+    ){
+
+        ctx.beginPath();
+
+        ctx.moveTo(x,85);
+
+        ctx.lineTo(x+30,55);
+        ctx.lineTo(x+55,85);
+
+        ctx.closePath();
+
+        ctx.fill();
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            dungeon.height-85
+        );
+
+        ctx.lineTo(
+            x+30,
+            dungeon.height-55
+        );
+
+        ctx.lineTo(
+            x+55,
+            dungeon.height-85
+        );
+
+        ctx.closePath();
+
+        ctx.fill();
+    }
+
+    /*
+       Fire lamps along walls.
+    */
+
+    for(
+        let x=160;
+        x<dungeon.width-120;
+        x+=180
+    ){
+
+        drawCaveLamp(
+            x,
+            105
+        );
+
+        drawCaveLamp(
+            x+90,
+            dungeon.height-110
+        );
+    }
+
+    for(
+        let y=190;
+        y<dungeon.height-180;
+        y+=190
+    ){
+
+        drawCaveLamp(
+            105,
+            y
+        );
+
+        drawCaveLamp(
+            dungeon.width-105,
+            y+70
+        );
+    }
+
+    /* Dungeon title */
+
+    ctx.fillStyle=
+        "rgba(20,10,5,.75)";
+
+    ctx.fillRect(
+        475,
+        105,
+        550,
+        70
+    );
+
+    ctx.fillStyle="#ffd27b";
+
+    ctx.font="bold 28px Georgia";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "THE LOST CAVE",
+        750,
+        138
+    );
+
+    ctx.font="12px Arial";
+
+    ctx.fillStyle="#d7c1a4";
+
+    ctx.fillText(
+        "A temporary dungeon — defeat the Cave Guardian",
+        750,
+        158
+    );
+}
+
+/* =========================================================
+   DUNGEON EXIT
+========================================================= */
+
+function drawDungeonExit(){
+
+    const x=dungeonExit.x;
+    const y=dungeonExit.y;
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(0,0,0,.5)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+20,
+        75,
+        38,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#2d241e";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y,
+        48,
+        62,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#090807";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+5,
+        33,
+        47,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#ffd36b";
+
+    ctx.font="bold 13px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "EXIT",
+        x,
+        y+85
+    );
+
+    ctx.restore();
+}
+
+/* =========================================================
+   DROPS
+========================================================= */
+
+function drawDrops(){
+
+    for(const d of groundDrops){
+
+        d.bob+=.035;
+
+        const bob=
+            Math.sin(d.bob)*3;
+
+        ctx.save();
+
+        ctx.translate(
+            d.x,
+            d.y+bob
+        );
+
+        ctx.fillStyle=
+            "rgba(255,220,80,.14)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            26,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        if(
+            d.image &&
+            images[d.image]
+        ){
+
+            const img=images[d.image];
+
+            ctx.imageSmoothingEnabled=false;
+
+            ctx.drawImage(
+                img,
+                -22,
+                -22,
+                44,
+                44
+            );
+
+        }else if(d.name==="Gold Coin"){
+
+            /* Sparkly gold coin fallback art — no external asset required. */
+            ctx.shadowColor="#ffd84d";
+            ctx.shadowBlur=14;
+            ctx.fillStyle="#ffd43b";
+            ctx.beginPath();
+            ctx.arc(0,0,11,0,Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur=0;
+            ctx.strokeStyle="#fff2a8";
+            ctx.lineWidth=2;
+            ctx.stroke();
+            ctx.fillStyle="#fff8c7";
+            ctx.beginPath();
+            ctx.arc(-3,-4,3,0,Math.PI*2);
+            ctx.fill();
+            for(let s=0;s<4;s++){
+                const a=Date.now()/350+s*Math.PI/2;
+                const sx=Math.cos(a)*17, sy=Math.sin(a)*17;
+                ctx.fillStyle="rgba(255,246,150,.9)";
+                ctx.fillRect(sx-1,sy-3,2,6);
+                ctx.fillRect(sx-3,sy-1,6,2);
+            }
+        }else{
+
+            ctx.font="26px Arial";
+
+            ctx.textAlign="center";
+
+            ctx.fillText(
+                d.icon,
+                0,
+                8
+            );
+        }
+
+        ctx.fillStyle="#fff";
+
+        ctx.font="bold 11px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            d.name,
+            0,
+            -30
+        );
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   IMAGE SPRITE HELPER
+========================================================= */
+
+function drawSprite(
+    imageKey,
+    x,
+    y,
+    width,
+    height,
+    flip=false,
+    alpha=1
+){
+
+    const img=images[imageKey];
+
+    if(!img){
+
+        return false;
+    }
+
+    ctx.save();
+
+    ctx.globalAlpha=alpha;
+
+    ctx.translate(x,y);
+
+    if(flip)
+        ctx.scale(-1,1);
+
+    ctx.imageSmoothingEnabled=false;
+
+    ctx.drawImage(
+        img,
+        -width/2,
+        -height,
+        width,
+        height
+    );
+
+    ctx.restore();
+
+    return true;
+}
+
+/* =========================================================
+   NPC DRAW
+========================================================= */
+
+function drawNPCs(){
+
+    for(const n of npcs){
+
+        const drawn=
+            drawSprite(
+                n.image,
+                n.x,
+                n.y,
+                58,
+                76,
+                false,
+                1
+            );
+
+        if(!drawn){
+
+            drawFallbackNPC(
+                n.x,
+                n.y
+            );
+        }
+
+        ctx.fillStyle="#fff";
+
+        ctx.font="11px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            n.name,
+            n.x,
+            n.y-82
+        );
+
+        if(
+            n.quest &&
+            !questComplete
+        ){
+
+            ctx.fillStyle="#ffd54d";
+
+            ctx.font="bold 18px Arial";
+
+            ctx.fillText(
+                "!",
+                n.x,
+                n.y-92
+            );
+        }
+    }
+}
+
+/* =========================================================
+   NPC FALLBACK
+========================================================= */
+
+function drawFallbackNPC(x,y){
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-28,
+        17,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#111";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x-10,
+        y-44,
+        7,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        x+10,
+        y-44,
+        7,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+3,
+        18,
+        25,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+/* =========================================================
+   MONSTER DRAW
+========================================================= */
+
+function drawMonster(m){
+
+    ctx.save();
+
+    /*
+       Shadow
+    */
+
+    ctx.fillStyle="rgba(0,0,0,.35)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        m.x,
+        m.y+5,
+        m.r+5,
+        8,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    const size=
+        m.boss
+        ?120
+        :65;
+
+    const drawn=
+        drawSprite(
+            m.image,
+            m.x,
+            m.y,
+            size,
+            size,
+            false,
+            1
+        );
+
+    if(!drawn){
+
+        ctx.fillStyle=
+            m.boss
+            ?"#5b1d32"
+            :"#75a83f";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            m.x,
+            m.y-25,
+            m.boss?40:22,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+
+    ctx.restore();
+
+    /* Health bar */
+
+    const width=
+        m.boss
+        ?120
+        :50;
+
+    ctx.fillStyle="#191919";
+
+    ctx.fillRect(
+        m.x-width/2,
+        m.y-size-8,
+        width,
+        7
+    );
+
+    ctx.fillStyle=
+        m.boss
+        ?"#d7263d"
+        :"#e74c3c";
+
+    ctx.fillRect(
+        m.x-width/2,
+        m.y-size-8,
+        width*
+        Math.max(
+            0,
+            m.hp/m.maxHp
+        ),
+        7
+    );
+
+    ctx.fillStyle="#fff";
+
+    ctx.font=
+        m.boss
+        ?"bold 13px Arial"
+        :"9px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        m.name,
+        m.x,
+        m.y-size-12
+    );
+
+    if(m.boss){
+
+        ctx.fillStyle="#ffd36b";
+
+        ctx.font="bold 11px Arial";
+
+        ctx.fillText(
+            "BOSS",
+            m.x,
+            m.y-size-27
+        );
+    }
+
+    if(m.hitFlash){
+
+        ctx.fillStyle=
+            "rgba(255,70,70,.35)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            m.x,
+            m.y-30,
+            size*.45,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+}
+
+function drawMonsters(){
+
+    for(const m of monsters)
+        drawMonster(m);
+}
+
+/* =========================================================
+   PLAYER
+========================================================= */
+
+function drawPlayer(){
+
+    const bob=
+        player.moving
+        ?Math.abs(
+            Math.sin(
+                player.walkTime
+            )
+        )*3
+        :Math.sin(
+            Date.now()/700
+        )*.35;
+
+    const alpha=
+        player.invincible>0 &&
+        Math.floor(
+            player.invincible/4
+        )%2===0
+        ?0.25
+        :1;
+
+    const drawn=
+        drawSprite(
+            "player1",
+            player.x,
+            player.y+bob,
+            76,
+            100,
+            player.facing<0,
+            alpha
+        );
+
+    if(!drawn){
+
+        drawFallbackPlayer();
+    }
+
+    /*
+       Player name.
+    */
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(255,255,255,.95)";
+
+    ctx.font="bold 10px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "Pandee",
+        player.x,
+        player.y-108
+    );
+
+    ctx.restore();
+
+    drawPlayerEffects();
+}
+
+/* =========================================================
+   PLAYER FALLBACK
+========================================================= */
+
+function drawFallbackPlayer(){
+
+    ctx.save();
+
+    ctx.translate(
+        player.x,
+        player.y
+    );
+
+    const walk=
+        player.moving
+        ?Math.sin(
+            player.walkTime
+        )*4
+        :0;
+
+    ctx.fillStyle="rgba(0,0,0,.3)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        20,
+        25,
+        8,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#151820";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        -9+walk,
+        19,
+        8,
+        5,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        9-walk,
+        19,
+        8,
+        5,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        -2,
+        22,
+        28,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#151820";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        -15,
+        -30,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        15,
+        -30,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   PLAYER EFFECTS
+========================================================= */
+
+function drawPlayerEffects(){
+
+    const x=player.x;
+    const y=player.y;
+
+    if(player.swordSwing>0){
+
+        ctx.save();
+
+        ctx.translate(
+            x,
+            y
+        );
+
+        const angle=Math.atan2(
+            player.facingY,
+            player.facingX
+        );
+
+        ctx.rotate(angle);
+
+        const progress=
+            1-player.swordSwing/12;
+
+        ctx.rotate(
+            -1.5+
+            progress*3
+        );
+
+        ctx.strokeStyle="#dedede";
+        ctx.lineWidth=4;
+        ctx.lineCap="round";
+
+        ctx.beginPath();
+
+        ctx.moveTo(19,2);
+        ctx.lineTo(45,-28);
+
+        ctx.stroke();
+
+        ctx.strokeStyle="#79542d";
+        ctx.lineWidth=3;
+
+        ctx.beginPath();
+
+        ctx.moveTo(15,6);
+        ctx.lineTo(23,13);
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    if(player.healEffect>0){
+
+        ctx.save();
+
+        ctx.fillStyle=
+            "rgba(50,255,110,.18)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            x,
+            y-30,
+            55+
+            Math.sin(
+                Date.now()/70
+            )*4,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.strokeStyle=
+            "rgba(80,255,130,.6)";
+
+        ctx.lineWidth=3;
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    if(player.healText>0){
+
+        ctx.save();
+
+        ctx.fillStyle="#67ff91";
+
+        ctx.font="bold 17px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "+"+
+            player.healAmount,
+            x,
+            y-90-
+            (25-player.healText)*.6
+        );
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   SPELL EFFECTS
+========================================================= */
+
+function drawSpellEffects(){
+
+    for(
+        let i=spellEffects.length-1;
+        i>=0;
+        i--
+    ){
+
+        const e=spellEffects[i];
+
+        e.life--;
+
+        if(e.life<=0){
+
+            spellEffects.splice(i,1);
+
+            continue;
+        }
+
+        if(e.type==="fire"){
+
+            const progress=
+                1-
+                e.life/e.maxLife;
+
+            const x=
+                e.x+
+                (e.tx-e.x)*
+                progress;
+
+            const y=
+                e.y+
+                (e.ty-e.y)*
+                progress;
+
+            ctx.fillStyle=
+                "rgba(255,80,20,.20)";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                25,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+
+            ctx.fillStyle="#ff4a16";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                12,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+
+            ctx.fillStyle="#ffd84d";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                7,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+
+        if(e.type==="lightning"){
+
+            const alpha=
+                e.life/e.maxLife;
+
+            ctx.save();
+
+            ctx.strokeStyle=
+                "rgba(110,210,255,"+
+                alpha+
+                ")";
+
+            ctx.shadowColor="#67cfff";
+            ctx.shadowBlur=15;
+
+            ctx.lineWidth=5;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                e.x,
+                e.y-90
+            );
+
+            ctx.lineTo(
+                e.x-12,
+                e.y-55
+            );
+
+            ctx.lineTo(
+                e.x+8,
+                e.y-35
+            );
+
+            ctx.lineTo(
+                e.x-10,
+                e.y
+            );
+
+            ctx.lineTo(
+                e.x+5,
+                e.y+15
+            );
+
+            ctx.stroke();
+
+            ctx.restore();
+
+            ctx.fillStyle=
+                "rgba(220,250,255,"+
+                alpha+
+                ")";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                e.x,
+                e.y,
+                25,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+    }
+}
+
+/* =========================================================
+   MINIMAP
+========================================================= */
+
+function drawMiniMap(){
+
+    const size=130;
+
+    const x=W-size-15;
+    const y=H-size-15;
+
+    ctx.save();
+
+    ctx.globalAlpha=.9;
+
+    ctx.fillStyle=
+        inDungeon
+        ?"rgba(55,35,25,.98)"
+        :"#0a1118";
+
+    ctx.fillRect(
+        x,
+        y,
+        size,
+        size
+    );
+
+    ctx.strokeStyle="#637287";
+
+    ctx.strokeRect(
+        x,
+        y,
+        size,
+        size
+    );
+
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
+
+    const sx=size/currentWidth;
+    const sy=size/currentHeight;
+
+    if(inDungeon){
+
+        ctx.fillStyle="#75563f";
+
+        ctx.fillRect(
+            x+5,
+            y+5,
+            size-10,
+            size-10
+        );
+
+        ctx.fillStyle="#ffb52e";
+
+        for(
+            let lx=15;
+            lx<size-10;
+            lx+=25
+        ){
+
+            ctx.fillRect(
+                x+lx,
+                y+7,
+                3,
+                3
+            );
+        }
+
+    }else{
+
+        ctx.fillStyle="#287ca8";
+
+        for(const w of waterZones){
+
+            ctx.fillRect(
+                x+w.x*sx,
+                y+w.y*sy,
+                w.w*sx,
+                w.h*sy
+            );
+        }
+
+        ctx.fillStyle="#d6a65c";
+
+        for(const h of houses){
+
+            ctx.fillRect(
+                x+h.x*sx,
+                y+h.y*sy,
+                h.w*sx,
+                h.h*sy
+            );
+        }
+
+        ctx.fillStyle="#a05c32";
+
+        ctx.fillRect(
+            x+dungeonEntrance.x*sx-3,
+            y+dungeonEntrance.y*sy-3,
+            6,
+            6
+        );
+    }
+
+    ctx.fillStyle="#ff4f5f";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x+player.x*sx,
+        y+player.y*sy,
+        3,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   MUSIC
+========================================================= */
+
+let musicStarted=false;
+let musicTimer=null;
+
+function startMusic(){
+
+    if(musicStarted)
+        return;
+
+    ensureAudio();
+
+    if(!audioCtx)
+        return;
+
+    musicStarted=true;
+
+    const notes=[
+
+        261.63,
+        293.66,
+        329.63,
+        392,
+        329.63,
+        293.66,
+        261.63,
+        220,
+
+        246.94,
+        293.66,
+        329.63,
+        440,
+        392,
+        329.63,
+        293.66,
+        246.94
+    ];
+
+    let index=0;
+
+    musicTimer=setInterval(()=>{
+
+        if(!audioCtx)
+            return;
+
+        try{
+
+            const osc=
+                audioCtx.createOscillator();
+
+            const gain=
+                audioCtx.createGain();
+
+            osc.type="triangle";
+
+            osc.frequency.value=
+                notes[
+                    index%notes.length
+                ];
+
+            gain.gain.setValueAtTime(
+                .0001,
+                audioCtx.currentTime
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+                .025,
+                audioCtx.currentTime+.05
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+                .0001,
+                audioCtx.currentTime+.7
+            );
+
+            osc.connect(gain);
+            gain.connect(
+                audioCtx.destination
+            );
+
+            osc.start();
+
+            osc.stop(
+                audioCtx.currentTime+.75
+            );
+
+            index++;
+
+        }catch(e){}
+
+    },700);
+}
+
+/* =========================================================
+   GAME STATE
+========================================================= */
+
+let gameStarted=false;
+
+/* =========================================================
+   START GAME
+========================================================= */
+
+document.getElementById(
+    "playButton"
+).addEventListener(
+    "click",
+    ()=>{
+
+        ensureAudio();
+
+        startMusic();
+
+        gameStarted=true;
+
+        document.getElementById(
+            "startScreen"
+        ).style.display="none";
+
+        showMessage(
+            "🐼 Welcome to Pandania!"
+        );
+    }
+);
+
+/* =========================================================
+   WEBAUTH
+========================================================= */
+
+let walletSession=null;
+let walletLink=null;
+
+const PANDA_ASSET=
+"https://ipfs-gateway.soon.market/ipfs/QmakHQRpk7rXdqMkrg1nYhvLmWahnRpSBbWYNqAd8JtGfD";
+
+async function connectWebAuth(){
+
+    const status=
+        document.getElementById(
+            "walletStatus"
+        );
+
+    const button=
+        document.getElementById(
+            "connectWalletButton"
+        );
+
+    status.textContent=
+        "Connecting to XPR Network...";
+
+    button.disabled=true;
+
+    try{
+
+        const sdk=await import(
+            "https://esm.sh/@proton/web-sdk"
+        );
+
+        const ConnectWallet=
+            sdk.ConnectWallet||
+            sdk.default||
+            sdk;
+
+        if(
+            typeof ConnectWallet!=="function"
+        ){
+
+            throw new Error(
+                "XPR Web SDK could not be loaded."
+            );
+        }
+
+        const result=
+            await ConnectWallet({
+
+            linkOptions:{
+
+                chainId:
+                "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0",
+
+                endpoints:[
+
+                    "https://api.protonnz.com",
+
+                    "https://proton.eosusa.io",
+
+                    "https://proton.protonuk.io"
+                ],
+
+                restoreSession:false
+            },
+
+            selectorOptions:{
+
+                appName:
+                    "Pandania Adventures",
+
+                appLogo:
+                    PANDA_ASSET,
+
+                enabledWalletTypes:[
+                    "webauth"
+                ],
+
+                customStyleOptions:{
+
+                    modalBackgroundColor:
+                        "#1b1510",
+
+                    logoBackgroundColor:
+                        "#3d2919",
+
+                    isLogoRound:true,
+
+                    optionBackgroundColor:
+                        "#302218",
+
+                    optionFontColor:"#fff",
+
+                    primaryFontColor:
+                        "#f1d19a",
+
+                    secondaryFontColor:
+                        "#b9a488",
+
+                    linkColor:"#48d7ff"
+                }
+            },
+
+            transportOptions:{
+
+                requestAccount:
+                    "pandaniaadventure",
+
+                backButton:true
+            }
+        });
+
+        if(
+            !result||
+            !result.session
+        ){
+
+            throw new Error(
+                "Wallet connection was cancelled."
+            );
+        }
+
+        walletSession=
+            result.session;
+
+        walletLink=
+            result.link;
+
+        const actor=
+            result.session.auth &&
+            result.session.auth.actor
+            ?result.session.auth.actor
+            :"Connected";
+
+        status.textContent=
+            "✓ Connected: @"+
+            actor;
+
+        status.classList.add(
+            "connected"
+        );
+
+        button.textContent=
+            "✓ WEBAUTH CONNECTED";
+
+        showMessage(
+            "🔐 WebAuth connected: @"+
+            actor
+        );
+
+    }catch(error){
+
+        console.error(
+            "WebAuth connection error:",
+            error
+        );
+
+        status.textContent=
+            "WebAuth cancelled or unavailable. You can still play normally.";
+
+        button.disabled=false;
+
+        button.textContent=
+            "🔐 CONNECT WEBAUTH";
+    }
+}
+
+document.getElementById(
+    "connectWalletButton"
+).addEventListener(
+    "click",
+    connectWebAuth
+);
+
+/* =========================================================
+   GAME LOOP
+========================================================= */
+
+function safeUpdate(){
+
+    try{
+        updatePlayer();
+    }catch(e){
+        console.error(
+            "Player update error:",
+            e
+        );
+    }
+
+    try{
+        updateMonsters();
+    }catch(e){
+        console.error(
+            "Monster update error:",
+            e
+        );
+    }
+
+    try{
+        updateNPCs();
+    }catch(e){
+        console.error(
+            "NPC update error:",
+            e
+        );
+    }
+
+    try{
+        updateCamera();
+    }catch(e){
+        console.error(
+            "Camera update error:",
+            e
+        );
+    }
+
+    try{
+        updateUI();
+    }catch(e){
+        console.error(
+            "UI update error:",
+            e
+        );
+    }
+}
+
+function safeDraw(){
+
+    try{
+
+        draw();
+
+    }catch(error){
+
+        console.error(
+            "Renderer recovered:",
+            error
+        );
+
+        try{
+
+            ctx.setTransform(
+                1,
+                0,
+                0,
+                1,
+                0,
+                0
+            );
+
+            ctx.clearRect(
+                0,
+                0,
+                W,
+                H
+            );
+
+            ctx.fillStyle=
+                inDungeon
+                ?" #5b4635".trim()
+                :"#6f9b4c";
+
+            ctx.fillRect(
+                0,
+                0,
+                W,
+                H
+            );
+
+        }catch(e){}
+    }
+}
+
+function gameLoop(){
+
+    safeUpdate();
+
+    safeDraw();
+
+    requestAnimationFrame(
+        gameLoop
+    );
+}
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+updateUI();
+
+setQuest(
+    "Explore Pandania",
+    "Speak with Captain Panda to begin your first quest."
+);
+
+/* Initial drops */
+
+createDrop(
+    900,
+    560,
+    "PDA Coin"
+);
+
+createDrop(
+    960,
+    590,
+    "Fish"
+);
+
+createDrop(
+    1030,
+    610,
+    "Bamboo Sword"
+);
+
+createDrop(
+    1110,
+    580,
+    "Iron Sword"
+);
+
+createDrop(
+    1160,
+    600,
+    "Goblin Saber"
+);
+
+requestAnimationFrame(
+    gameLoop
+);
+
+
+
+
+
+
+
+
+
+
+/* ===== PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+(function(){
+  const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null});
+
+  /* Keep keyboard/mobile direction state synchronized with the real player. */
+  function faceKey(k){
+    const map={a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0],w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1]};
+    const v=map[k];
+    if(v) setPlayerFacing(v[0],v[1]);
+  }
+  window.addEventListener('keydown',e=>faceKey(e.key.toLowerCase()),true);
+
+  /* Mobile controls: D-pad, sword, interact, and bag. */
+  function mobileUI(){
+    if(document.getElementById('pandaniaMobileControls')) return;
+    const box=document.createElement('div');
+    box.id='pandaniaMobileControls';
+    box.innerHTML=`
+      <div id="pmDpad">
+        <button data-k="w" aria-label="Move up">▲</button>
+        <div><button data-k="a" aria-label="Move left">◀</button><button data-k="s" aria-label="Move down">▼</button><button data-k="d" aria-label="Move right">▶</button></div>
+      </div>
+      <div id="pmActions">
+        <button id="pmAttack" aria-label="Sword attack">⚔️</button>
+        <button id="pmInteract" aria-label="Interact">💬</button>
+        <button id="pmBag" aria-label="Open bag">🎒</button>
+      </div>`;
+    document.getElementById('gameWrap').appendChild(box);
+
+    const style=document.createElement('style');
+    style.textContent=`
+      #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 10px;justify-content:space-between;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif}
+      #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+      #pmDpad,#pmActions{pointer-events:auto} #pmDpad{text-align:center} #pmDpad>div{display:flex;justify-content:center} #pmActions{display:flex;gap:2px} #pmActions button{width:52px;height:52px;border-radius:16px}
+      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
+      @media(max-width:430px){#stats{width:165px}.name{margin-bottom:4px}#quest{width:165px}.questTitle{font-size:10px}#buttons .gameBtn{font-size:0;width:34px;height:34px;padding:0}.spell{width:52px;height:47px}.spellIcon{font-size:17px}#pmDpad button{width:43px;height:43px;font-size:18px}#pmActions button{width:47px;height:47px;font-size:18px}}
+    `;
+    document.head.appendChild(style);
+
+    function hold(btn,key){
+      const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;faceKey(key);};
+      const stop=e=>{e.preventDefault();keys[key]=false;};
+      btn.addEventListener('pointerdown',start);
+      btn.addEventListener('pointerup',stop);
+      btn.addEventListener('pointercancel',stop);
+      btn.addEventListener('lostpointercapture',stop);
+    }
+    box.querySelectorAll('[data-k]').forEach(b=>hold(b,b.dataset.k));
+    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();swordAttack();});
+    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();openBag();});
+  }
+  mobileUI();
+
+  /* Equipment panel retained from the previous gameplay patch. */
+  function ensureDoll(){
+    const items=document.getElementById('bagItems'); if(!items)return;
+    let p=document.getElementById('pandaniaEquipment'); if(p)return p;
+    p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;border:2px solid #8b683e;border-radius:12px;background:#15100c;color:#fff';
+    p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
+    items.parentNode.insertBefore(p,items);return p;
+  }
+  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
+  function refreshDoll(){
+    const p=ensureDoll();if(!p)return;
+    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
+    vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber)$/.test(n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
+  }
+  const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
+  setTimeout(()=>{ensureDoll();refreshDoll();},200);
+  window.__pandaniaGameplayV7=true;
+})();
+/* ===== END PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+
+
+</script>
+
+</body>
+</html>

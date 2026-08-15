@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/pandania-game-fixes.yml'
+      - '.github/pandania_patch.py'
 permissions:
   contents: write
 jobs:
@@ -12,10 +13,23 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply patch
         run: python3 .github/pandania_patch.py
+      - name: Validate patched HTML
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('Adventures Of Pandania The Lost Realms/index.html')
+          s=p.read_text(encoding='utf-8')
+          assert 'PANDANIA GAMEPLAY PATCH v2' in s
+          assert 'King Pandee' in s
+          assert "image:'npc2'" in s
+          assert 'player.attackDX' in s
+          assert 'ondragstart' in s
+          print('Pandania v2 validation passed')
+          PY
       - name: Commit patched game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git commit -m "Add facing combat and equipment system [skip ci]" || exit 0
+          git diff --cached --quiet || git commit -m "Fix directional combat equipment and King Pandee [skip ci]"
           git push

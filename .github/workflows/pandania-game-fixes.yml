@@ -2,6 +2,7 @@ name: Apply Pandania gameplay fixes
 on:
   push:
     paths:
+      - 'Adventures Of Pandania The Lost Realms/index.html'
       - '.github/workflows/pandania-game-fixes.yml'
       - '.github/pandania_patch.py'
 permissions:
@@ -11,26 +12,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply patch
+      - name: Apply corrected gameplay layer
         run: python3 .github/pandania_patch.py
-      - name: Validate patched HTML
+      - name: Validate corrected HTML
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('Adventures Of Pandania The Lost Realms/index.html')
           s=p.read_text(encoding='utf-8')
-          assert 'PANDANIA GAMEPLAY PATCH v3' in s
-          assert 'King Pandee' in s
-          assert "image:'npc2'" in s
-          assert 'player.attackDX' in s
+          assert 'PANDANIA GAMEPLAY PATCH v4' in s
+          assert 'state.dirX' in s
+          assert 'state.facing' in s
+          assert 'state.weapon' in s
+          assert 'pandaniaEquipment' in s
+          assert 'unequipButton' in s
           assert 'ondblclick' in s
-          assert 'Pandee\'s Equipment' in s
-          print('Pandania v3 validation passed')
+          print('Pandania v4 validation passed')
           PY
-      - name: Commit patched game
+      - name: Commit corrected game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Rebuild directional combat and equipment [skip ci]"
+          git diff --cached --quiet || git commit -m "Fix four-direction combat and paper doll [skip ci]"
           git push

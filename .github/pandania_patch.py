@@ -1,27 +1,176 @@
 from pathlib import Path
-path=Path('Adventures Of Pandania The Lost Realms/index.html')
-text=path.read_text(encoding='utf-8')
-marker='/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */'
-if marker in text: raise SystemExit('Patch already present')
-patch=r'''/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */
-let equippedWeapon="Wooden Sword",equippedArmor=null,equippedTool=null;
-player.attackDX=1;player.attackDY=0;
-window.addEventListener("keydown",function(e){const k=e.key.toLowerCase(),m={w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1],a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0]};if(m[k]){player.attackDX=m[k][0];player.attackDY=m[k][1];}});
-const _oldUpdatePlayer=updatePlayer;
-updatePlayer=function(){if(player.targetMonster&&monsters.includes(player.targetMonster)){const m=player.targetMonster,dx=m.x-player.x,dy=m.y-player.y,d=Math.hypot(dx,dy);if(d){player.attackDX=dx/d;player.attackDY=dy/d;}}_oldUpdatePlayer();};
-swordAttack=function(target=null){if(player.attackCooldown>0)return;player.attackCooldown=22;player.swordSwing=12;swordSound();if(target&&monsters.includes(target)){const dx=target.x-player.x,dy=target.y-player.y,d=Math.hypot(dx,dy);if(d){player.attackDX=dx/d;player.attackDY=dy/d;if(Math.abs(dx)>Math.abs(dy))player.facing=dx<0?-1:1;}}else{let best=null,scoreBest=-Infinity;const ax=player.attackDX||player.facing||1,ay=player.attackDY||0;for(const m of monsters){const dx=m.x-player.x,dy=m.y-player.y,d=Math.hypot(dx,dy);if(d>95||!d)continue;const dot=(dx/d)*ax+(dy/d)*ay;if(dot<.2)continue;const score=dot*2-d/100;if(score>scoreBest){scoreBest=score;best=m;}}target=best;}if(!target){showMessage("⚔️ Sword swing!");return;}const d=Math.hypot(target.x-player.x,target.y-player.y);if(d>92){showMessage("⚔️ Too far away!");return;}const wd={"Wooden Sword":8,"Weapon 1":22,"Weapon 2":30,"Weapon 3":42}[equippedWeapon]||8,damage=15+player.level*3+wd;target.hp-=damage;target.hitFlash=8;hitSound();showMessage("⚔️ "+equippedWeapon+" hit "+target.name+" for "+damage+" damage!");if(target.hp<=0)killMonster(target);};
 
-drawMonster=function(m){ctx.save();ctx.fillStyle="rgba(0,0,0,.35)";ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();const img=images[m.image],h=m.boss?120:78;let w=h;if(img&&img.naturalWidth&&img.naturalHeight)w=h*(img.naturalWidth/img.naturalHeight);if(img){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,m.x-w/2,m.y-h,w,h);}else{ctx.fillStyle=m.boss?"#5b1d32":"#75a83f";ctx.beginPath();ctx.arc(m.x,m.y-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}ctx.restore();const bw=m.boss?Math.min(150,w):Math.min(90,Math.max(50,w)),by=m.y-h-8;ctx.fillStyle="#191919";ctx.fillRect(m.x-bw/2,by,bw,7);ctx.fillStyle=m.boss?"#d7263d":"#e74c3c";ctx.fillRect(m.x-bw/2,by,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle="#fff";ctx.font=m.boss?"bold 13px Arial":"9px Arial";ctx.textAlign="center";ctx.fillText(m.name,m.x,by-4);if(m.boss){ctx.fillStyle="#ffd36b";ctx.font="bold 11px Arial";ctx.fillText("BOSS",m.x,by-19);}if(m.hitFlash){ctx.fillStyle="rgba(255,70,70,.35)";ctx.beginPath();ctx.arc(m.x,m.y-h*.45,Math.max(22,w*.35),0,Math.PI*2);ctx.fill();}};
+path = Path('Adventures Of Pandania The Lost Realms/index.html')
+text = path.read_text(encoding='utf-8')
 
-(function(){const s=document.createElement('style');s.textContent=`#pandaniaEquipment{position:absolute;z-index:60;top:50%;left:calc(50% + 375px);transform:translateY(-50%);width:270px;max-height:620px;overflow:auto;padding:14px;border:2px solid #6f4b2b;border-radius:12px;background:rgba(20,15,11,.98);box-shadow:0 12px 40px rgba(0,0,0,.75);color:#fff}#pandaniaEquipment h3{margin:0 0 10px;color:#e7bd73;text-align:center;font-family:Georgia,serif}.paperDoll{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.equipSlot{min-height:62px;padding:7px;border:1px solid #765333;border-radius:7px;background:#151b24;text-align:center;font-size:11px}.equipSlot .slotName{color:#9eabbc;font-size:10px}.equipSlot .slotItem{font-weight:bold;color:#f3d38c}.equipItem{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px}.equipBtn{border:1px solid #d0a45e;background:#563b22;color:#fff;border-radius:5px;padding:4px 7px;cursor:pointer;font-size:10px;font-weight:bold}@media(max-width:1050px){#pandaniaEquipment{left:50%;top:auto;bottom:12px;transform:translateX(-50%);width:min(92%,520px);max-height:260px}}`;
-document.head.appendChild(s);const p=document.createElement('div');p.id='pandaniaEquipment';p.style.display='none';p.innerHTML='<h3>🛡️ Equipment</h3><div class="paperDoll" id="pandaniaSlots"></div><div id="pandaniaEquipList"></div>';document.getElementById('gameWrap').appendChild(p);})();
-function equipmentSlotHTML(a,b){return '<div class="equipSlot"><div class="slotName">'+a+'</div><div class="slotItem">'+(b||'Empty')+'</div></div>';}
-function renderEquipment(){const slots=document.getElementById('pandaniaSlots'),list=document.getElementById('pandaniaEquipList');if(!slots||!list)return;slots.innerHTML=equipmentSlotHTML('⚔️ Weapon',equippedWeapon)+equipmentSlotHTML('🛡️ Armor',equippedArmor)+equipmentSlotHTML('🔧 Tool',equippedTool)+equipmentSlotHTML('🐼 Adventurer','Pandee');list.innerHTML='<div style="color:#d0c0a5;font-size:11px;margin-bottom:5px">Bag equipment</div>';for(const name of ['Wooden Sword','Weapon 1','Weapon 2','Weapon 3','Iron Armor','Woodcutting Axe','Fishing Rod']){const item=inventory[name];if(!item||!item.count)continue;const iw=name==='Wooden Sword'||name.startsWith('Weapon '),ia=name==='Iron Armor',it=name==='Woodcutting Axe'||name==='Fishing Rod',eq=iw&&equippedWeapon===name||ia&&equippedArmor===name||it&&equippedTool===name,row=document.createElement('div');row.className='equipItem';const label=document.createElement('span');label.textContent=(item.icon||'📦')+' '+name+' ×'+item.count;const b=document.createElement('button');b.className='equipBtn';b.textContent=eq?'Unequip':'Equip';b.onclick=function(){if(iw){if(eq)equippedWeapon='';else{equippedWeapon=name;equippedArmor=null;}}else if(ia)equippedArmor=eq?null:name;else if(it)equippedTool=eq?null:name;renderEquipment();updateUI();showMessage((eq?'↩️ ':'⚔️ ')+name+(eq?' unequipped.':' equipped.'));};row.appendChild(label);row.appendChild(b);list.appendChild(row);}}
-const _oldOpenBag=openBag,_oldCloseWindows=closeWindows;openBag=function(){_oldOpenBag();const p=document.getElementById('pandaniaEquipment');if(p){p.style.display='block';renderEquipment();}};closeWindows=function(){_oldCloseWindows();const p=document.getElementById('pandaniaEquipment');if(p)p.style.display='none';};
-saveGame=function(){const save={player:{x:player.x,y:player.y,hp:player.hp,maxHp:player.maxHp,mana:player.mana,maxMana:player.maxMana,level:player.level,xp:player.xp,xpNext:player.xpNext,gold:player.gold,fish:player.fish,loot:player.loot},inventory,equippedWeapon,equippedArmor,equippedTool,questStarted,questKills,questComplete};localStorage.setItem('pandaniaAdventuresSave',JSON.stringify(save));showMessage('💾 Game saved with equipment!');};
-loadGame=function(){const data=localStorage.getItem('pandaniaAdventuresSave');if(!data){showMessage('No saved game found.');return;}try{const save=JSON.parse(data);if(save.player)Object.assign(player,save.player);if(save.inventory)Object.keys(save.inventory).forEach(n=>inventory[n]=save.inventory[n]);equippedWeapon=save.equippedWeapon||'Wooden Sword';equippedArmor=save.equippedArmor||null;equippedTool=save.equippedTool||null;questStarted=save.questStarted||false;questKills=save.questKills||0;questComplete=save.questComplete||false;updateUI();renderEquipment();showMessage('📂 Game loaded with equipment!');}catch(e){console.error(e);showMessage('Could not load save.');}}
-/* ===== END PANDANIA EQUIPMENT PATCH v1 ===== */'''
-pos=text.rfind('</script>')
-if pos<0: raise RuntimeError('No closing script tag')
-path.write_text(text[:pos]+'\n'+patch+'\n'+text[pos:],encoding='utf-8')
-print('Gameplay patch inserted')
+start_marker = '/* ===== PANDANIA EQUIPMENT PATCH v1 ===== */'
+end_marker = '/* ===== END PANDANIA EQUIPMENT PATCH v1 ===== */'
+new_patch = '''/* ===== PANDANIA GAMEPLAY PATCH v2 ===== */
+(function(){
+  'use strict';
+
+  player.attackDX = 0;
+  player.attackDY = 1;
+  player.facingX = 0;
+  player.facingY = 1;
+
+  function setPlayerDirection(dx,dy){
+    if(!dx && !dy) return;
+    const len=Math.hypot(dx,dy)||1;
+    player.attackDX=dx/len;
+    player.attackDY=dy/len;
+    player.facingX=player.attackDX;
+    player.facingY=player.attackDY;
+    if(dx<0) player.facing=-1;
+    if(dx>0) player.facing=1;
+  }
+
+  window.addEventListener('keydown',function(e){
+    const k=e.key.toLowerCase();
+    const d={w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1],a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0]}[k];
+    if(d) setPlayerDirection(d[0],d[1]);
+  },true);
+
+  const oldUpdatePlayerV2=updatePlayer;
+  updatePlayer=function(){
+    oldUpdatePlayerV2();
+    let dx=0,dy=0;
+    if(keys['a']||keys['arrowleft']) dx--;
+    if(keys['d']||keys['arrowright']) dx++;
+    if(keys['w']||keys['arrowup']) dy--;
+    if(keys['s']||keys['arrowdown']) dy++;
+    if(dx||dy) setPlayerDirection(dx,dy);
+  };
+
+  swordAttack=function(target=null){
+    if(player.attackCooldown>0) return;
+    player.attackCooldown=22;
+    player.swordSwing=12;
+    swordSound();
+
+    if(target && monsters.includes(target)){
+      const dx=target.x-player.x,dy=target.y-player.y,d=Math.hypot(dx,dy)||1;
+      setPlayerDirection(dx,dy);
+    } else {
+      const ax=player.attackDX||0,ay=player.attackDY||1;
+      let best=null,bestScore=-Infinity;
+      for(const m of monsters){
+        const dx=m.x-player.x,dy=m.y-player.y,d=Math.hypot(dx,dy);
+        if(!d || d>105) continue;
+        const dot=(dx/d)*ax+(dy/d)*ay;
+        if(dot<0.15) continue;
+        const score=dot*3-(d/105);
+        if(score>bestScore){bestScore=score;best=m;}
+      }
+      target=best;
+    }
+
+    if(!target){showMessage('⚔️ Swinging '+(equippedWeapon||'Wooden Sword')+' toward your facing!');return;}
+    const d=Math.hypot(target.x-player.x,target.y-player.y);
+    if(d>105){showMessage('⚔️ Too far away!');return;}
+
+    const weaponDamage={'Wooden Sword':8,'Weapon 1':22,'Weapon 2':30,'Weapon 3':42}[equippedWeapon||'Wooden Sword']||8;
+    const damage=15+player.level*3+weaponDamage;
+    target.hp-=damage;
+    target.hitFlash=8;
+    hitSound();
+    showMessage('⚔️ '+(equippedWeapon||'Wooden Sword')+' hit '+target.name+' for '+damage+' damage!');
+    if(target.hp<=0) killMonster(target);
+  };
+
+  drawMonster=function(m){
+    ctx.save();
+    const img=images[m.image];
+    const baseH=m.boss?126:96;
+    let w=baseH;
+    if(img && img.naturalWidth && img.naturalHeight) w=Math.max(1,Math.round(baseH*(img.naturalWidth/img.naturalHeight)));
+    ctx.fillStyle='rgba(0,0,0,.32)';
+    ctx.beginPath();ctx.ellipse(m.x,m.y+5,Math.max(18,w*.34),8,0,0,Math.PI*2);ctx.fill();
+    if(img){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,Math.round(m.x-w/2),Math.round(m.y-baseH),w,baseH);}
+    else{ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y-baseH*.45,m.boss?42:30,0,Math.PI*2);ctx.fill();}
+    const bw=m.boss?Math.min(170,Math.max(100,w+25)):Math.min(105,Math.max(62,w+10));
+    const by=m.y-baseH-10;
+    ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,by,bw,8);
+    ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,by,bw*Math.max(0,m.hp/m.maxHp),8);
+    ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'bold 10px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,by-5);
+    if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,by-20);}
+    if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.32)';ctx.beginPath();ctx.arc(m.x,m.y-baseH*.48,Math.max(25,w*.38),0,Math.PI*2);ctx.fill();}
+    ctx.restore();
+  };
+
+  /* npc1 is the Panda Guard; npc2 is King Pandee. There is only one King. */
+  npcs.splice(0,npcs.length,
+    {x:760,y:420,name:'Panda Guard',image:'npc1',wander:false,quest:false},
+    {x:1000,y:350,name:'King Pandee',image:'npc2',wander:false,quest:true},
+    {x:520,y:690,name:'Panda Guard',image:'npc1',wander:true,quest:false},
+    {x:1490,y:840,name:'Panda Guard',image:'npc1',wander:true,quest:false},
+    {x:1940,y:560,name:'Panda Guard',image:'npc1',wander:false,quest:false},
+    {x:900,y:620,name:'Panda Guard',image:'npc1',wander:true,quest:false},
+    {x:1250,y:480,name:'Panda Guard',image:'npc1',wander:true,quest:false}
+  );
+  npcs.forEach(n=>{n.homeX=n.x;n.homeY=n.y;n.targetX=n.x;n.targetY=n.y;n.walkTimer=0;});
+
+  equippedWeapon=equippedWeapon||'Wooden Sword';
+  equippedArmor=equippedArmor||null;
+  equippedTool=equippedTool||null;
+
+  function equipFromBag(name){
+    const item=inventory[name];
+    if(!item || !item.count) return;
+    if(name==='Wooden Sword'||name==='Weapon 1'||name==='Weapon 2'||name==='Weapon 3') equippedWeapon=name;
+    else if(name==='Iron Armor') equippedArmor=name;
+    else if(name==='Woodcutting Axe'||name==='Fishing Rod') equippedTool=name;
+    renderEquipment();updateUI();showMessage('⚔️ '+name+' equipped!');
+  }
+  function unequipItem(name){
+    if(equippedWeapon===name) equippedWeapon='';
+    if(equippedArmor===name) equippedArmor=null;
+    if(equippedTool===name) equippedTool=null;
+    renderEquipment();updateUI();showMessage('↩️ '+name+' unequipped.');
+  }
+
+  function bindEquipmentInteractions(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const name=card.querySelector('.itemName')?.textContent?.trim();
+      if(!name || !/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)) return;
+      card.setAttribute('draggable','true');
+      card.ondblclick=e=>{e.preventDefault();equipFromBag(name);};
+      card.ondragstart=e=>{e.dataTransfer.setData('text/pandania-item',name);e.dataTransfer.effectAllowed='move';};
+    });
+    document.querySelectorAll('#pandaniaSlots .equipSlot').forEach(slot=>{
+      slot.ondragover=e=>{e.preventDefault();slot.style.outline='2px solid #d7a55a';};
+      slot.ondragleave=()=>slot.style.outline='';
+      slot.ondrop=e=>{
+        e.preventDefault();slot.style.outline='';
+        const name=e.dataTransfer.getData('text/pandania-item');if(!name)return;
+        const weapon=/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3)$/.test(name),armor=name==='Iron Armor',tool=/^(Woodcutting Axe|Fishing Rod)$/.test(name);
+        const label=(slot.textContent||'').toLowerCase();
+        if((weapon&&label.includes('weapon'))||(armor&&label.includes('armor'))||(tool&&label.includes('tool'))) equipFromBag(name);
+        else showMessage('That item does not fit this equipment slot.');
+      };
+      slot.ondblclick=()=>{const text=slot.querySelector('.slotItem')?.textContent||'';if(text&&text!=='Empty')unequipItem(text);};
+    });
+  }
+  const oldRenderEquipment=renderEquipment;
+  renderEquipment=function(){oldRenderEquipment();bindEquipmentInteractions();};
+  document.addEventListener('dblclick',e=>{const card=e.target.closest('#bagWindow .itemCard');if(!card)return;const name=card.querySelector('.itemName')?.textContent?.trim();if(name) equipFromBag(name);});
+
+  const oldInteract=interact;
+  interact=function(){
+    const king=npcs.find(n=>n.quest&&n.name==='King Pandee');
+    if(king && Math.hypot(player.x-king.x,player.y-king.y)<100){player.targetX=null;player.targetY=null;player.targetMonster=null;}
+    return oldInteract();
+  };
+
+  window.PandaniaGameplayV2=true;
+})();
+/* ===== END PANDANIA GAMEPLAY PATCH v2 ===== */'''
+
+if start_marker not in text or end_marker not in text:
+    raise SystemExit('Existing v1 patch markers not found')
+
+start=text.index(start_marker)
+end=text.index(end_marker,start)+len(end_marker)
+text=text[:start]+new_patch.strip()+text[end:]
+path.write_text(text,encoding='utf-8')
+print('Pandania gameplay patch upgraded to v2')

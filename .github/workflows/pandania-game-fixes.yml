@@ -1,0 +1,21 @@
+name: Apply Pandania gameplay fixes
+on:
+  push:
+    paths:
+      - '.github/workflows/pandania-game-fixes.yml'
+permissions:
+  contents: write
+jobs:
+  patch-game:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: python3 .github/pandania_patch.py
+      - name: Commit patched game
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "Adventures Of Pandania The Lost Realms/index.html"
+          git commit -m "Add facing combat and equipment system [skip ci]" || exit 0
+          git push

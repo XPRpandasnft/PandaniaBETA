@@ -19,17 +19,18 @@ jobs:
           from pathlib import Path
           p=Path('Adventures Of Pandania The Lost Realms/index.html')
           s=p.read_text(encoding='utf-8')
-          assert 'PANDANIA GAMEPLAY PATCH v2' in s
+          assert 'PANDANIA GAMEPLAY PATCH v3' in s
           assert 'King Pandee' in s
           assert "image:'npc2'" in s
           assert 'player.attackDX' in s
-          assert 'ondragstart' in s
-          print('Pandania v2 validation passed')
+          assert 'ondblclick' in s
+          assert 'Pandee\'s Equipment' in s
+          print('Pandania v3 validation passed')
           PY
       - name: Commit patched game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Fix directional combat equipment and King Pandee [skip ci]"
+          git diff --cached --quiet || git commit -m "Rebuild directional combat and equipment [skip ci]"
           git push

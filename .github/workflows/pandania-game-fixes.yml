@@ -14,27 +14,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
-      - name: Validate final HTML
+      - name: Validate v6 HTML
         run: |
           python3 - <<'PY'
           from pathlib import Path
           s=Path('Adventures Of Pandania The Lost Realms/index.html').read_text(encoding='utf-8')
-          assert 'PANDANIA GAMEPLAY PATCH v5' in s
-          assert "k==='a'||k==='arrowleft'" in s
-          assert "k==='d'||k==='arrowright'" in s
-          assert "k==='w'||k==='arrowup'" in s
-          assert "k==='s'||k==='arrowdown'" in s
-          assert 'Math.hypot(player.x-m.x,player.y-m.y)' in s
-          assert 'pandaniaEquipment' in s
-          assert 'card.ondblclick' in s
-          assert 'images/pda.png' in s
-          assert 'AudioContext' in s
-          print('Pandania v5 validation passed')
+          checks = [
+            'PANDANIA GAMEPLAY PATCH v6',
+            "a:'left'", "arrowleft:'left'", "d:'right'", "arrowright:'right'",
+            "w:'up'", "arrowup:'up'", "s:'down'", "arrowdown:'down'",
+            'pandaniaMobileControls', 'pandaniaEquipment', 'card.ondblclick',
+            'images/pda.png', 'AudioContext'
+          ]
+          for check in checks:
+              assert check in s, f'Missing validation target: {check}'
+          print('Pandania v6 validation passed')
           PY
       - name: Commit final game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Final night gameplay upgrade [skip ci]"
+          git diff --cached --quiet || git commit -m "Deploy Pandania v6 mobile equipment update [skip ci]"
           git push

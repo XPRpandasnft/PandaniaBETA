@@ -606,6 +606,10 @@ kbd{
     color:#9fb0c5;
     font-size:11px;
 }
+.bagSectionTitle{margin:18px 0 5px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);color:#b98cff;font-size:16px;font-weight:bold}
+.bagSectionNote{color:#7f8ea2;font-size:11px;margin-bottom:8px}
+.bagEmptySlot{min-height:100px;border:1px dashed #3c4b60;background:rgba(18,27,40,.45);border-radius:8px}
+.blockchainGrid .bagEmptySlot{border-color:#55477a;background:rgba(28,20,45,.35)}
 
 .exchangeListing{
     display:flex;
@@ -851,6 +855,11 @@ kbd{
             <span id="manaText">30</span>
             Mana
 
+            &nbsp; • &nbsp;
+
+            <span id="xpText">0 / 100</span>
+            XP
+
         </div>
 
     </div>
@@ -882,8 +891,13 @@ kbd{
         </div>
 
         <div class="invRow">
-            <span>Loot</span>
-            <span id="invLoot">0</span>
+            <span>PDA</span>
+            <span id="invPDA">0</span>
+        </div>
+
+        <div class="invRow">
+            <span>Blockchain Items</span>
+            <span id="invBlockchain">0</span>
         </div>
 
         <div class="invRow">
@@ -997,7 +1011,12 @@ kbd{
         🎒 Pandee's Bag
     </div>
 
+    <div style="color:#d9e2ec;font-size:12px;margin-bottom:7px">Hand Inventory</div>
     <div id="bagItems" class="itemGrid"></div>
+
+    <div class="bagSectionTitle">⛓️ Blockchain Items</div>
+    <div class="bagSectionNote">NFT items will appear here when blockchain items are added.</div>
+    <div id="blockchainItems" class="itemGrid blockchainGrid"></div>
 
 </div>
 
@@ -1323,6 +1342,16 @@ const player={
     healAmount:0
 };
 
+const BAG_SLOTS=24;
+const VAULT_BAG_SLOTS=36;
+let vaultUnlocked=false;
+const blockchainItems=[];
+let inHouse=false;
+let activeHouse=null;
+let houseReturnX=0;
+let houseReturnY=0;
+const houseInterior={width:900,height:600,exitX:450,exitY:535};
+
 /* =========================================================
    INVENTORY
 ========================================================= */
@@ -1496,7 +1525,10 @@ canvas.addEventListener("pointerdown",e=>{
 
     /* Dungeon exit */
 
-    if(inDungeon){
+    if(inHouse){
+        if(Math.hypot(p.x-houseInterior.exitX,p.y-houseInterior.exitY)<85){leaveHouse();return;}
+        player.targetMonster=null; player.targetX=p.x; player.targetY=p.y; return;
+    }else if(inDungeon){
 
         if(
             Math.hypot(
@@ -1608,9 +1640,7 @@ canvas.addEventListener("pointerdown",e=>{
             )<45
         ){
 
-            collectDrop(d);
-
-            groundDrops.splice(i,1);
+            if(collectDrop(d)){groundDrops.splice(i,1);}
 
             return;
         }
@@ -1738,6 +1768,14 @@ function placeBuildingsRandomly(){
     const specs=[
         {type:"house1",w:185,h:150,name:"Panden Town Grand Exchange",grandExchange:true},
         {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house1",w:185,h:150,name:"The Vault",vault:true},
+        {type:"house1",w:185,h:150,name:"Your House",playerHouse:true},
+        {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"},
         {type:"house2",w:140,h:120,name:"Panden Town Home"},
         {type:"house2",w:140,h:120,name:"Panden Town Home"},
         {type:"house2",w:140,h:120,name:"Panden Town Home"},
@@ -1749,12 +1787,12 @@ function placeBuildingsRandomly(){
         for(let attempt=0;attempt<500 && !placed;attempt++){
             const candidate={
                 x:townBounds.x+35+Math.random()*(townBounds.w-spec.w-70),
-                y:townBounds.y+55+Math.random()*(townBounds.h-spec.h-100),
+                y:townBounds.y+40+Math.random()*(townBounds.h-spec.h-65),
                 w:spec.w,
                 h:spec.h
             };
 
-            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,70));
+            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,20));
             const nearPond=environment.ponds.some(w=>overlapsRect(candidate,w,60));
             if(!tooClose && !nearPond){
                 placed=addBuilding(
@@ -1764,7 +1802,7 @@ function placeBuildingsRandomly(){
                     candidate.w,
                     candidate.h,
                     spec.name,
-                    {grandExchange:!!spec.grandExchange}
+                    {grandExchange:!!spec.grandExchange,vault:!!spec.vault,playerHouse:!!spec.playerHouse}
                 );
                 townPlaced.push(placed);
             }
@@ -2325,15 +2363,8 @@ function circleRectCollision(cx,cy,r,rect){
 
 function blocked(x,y,r=player.r){
 
-    const currentWidth=
-        inDungeon
-        ?dungeon.width
-        :world.width;
-
-    const currentHeight=
-        inDungeon
-        ?dungeon.height
-        :world.height;
+    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
+    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
 
     if(
         x<20 ||
@@ -2352,6 +2383,10 @@ function blocked(x,y,r=player.r){
            for the temporary version.
         */
 
+        return false;
+    }
+
+    if(inHouse){
         return false;
     }
 
@@ -2509,7 +2544,7 @@ function updatePlayer(){
 
     /* Auto dungeon entry when walking onto either entrance */
 
-    if(!inDungeon){
+    if(!inDungeon && !inHouse){
         const nearbyEntrance=dungeonEntrances.find(e=>
             Math.hypot(player.x-e.x,player.y-e.y)<65
         );
@@ -2542,15 +2577,8 @@ function updateCamera(){
     camera.x=player.x-W/2;
     camera.y=player.y-H/2;
 
-    const currentWidth=
-        inDungeon
-        ?dungeon.width
-        :world.width;
-
-    const currentHeight=
-        inDungeon
-        ?dungeon.height
-        :world.height;
+    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
+    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
 
     camera.x=Math.max(
         0,
@@ -3375,7 +3403,12 @@ function findSpellTarget(){
    DROPS
 ========================================================= */
 
+function inventoryUsedSlots(){return Object.values(inventory).filter(item=>item&&item.count>0).length;}
+function inventoryMaxSlots(){return vaultUnlocked?VAULT_BAG_SLOTS:BAG_SLOTS;}
+function canAddNewInventoryItem(name){return !!inventory[name]||inventoryUsedSlots()<inventoryMaxSlots();}
+
 function collectDrop(drop){
+    if(!canAddNewInventoryItem(drop.name)){showMessage("🎒 Your bag is full. Visit The Vault for extra bag space!");return false;}
 
     if(drop.name==="PDA Coin"){
 
@@ -3419,6 +3452,7 @@ function collectDrop(drop){
     );
 
     updateUI();
+    return true;
 }
 
 /* =========================================================
@@ -3426,6 +3460,8 @@ function collectDrop(drop){
 ========================================================= */
 
 function interact(){
+
+    if(inHouse){leaveHouse();return;}
 
     if(inDungeon){
 
@@ -3507,11 +3543,17 @@ function interact(){
 }
 
 function enterHouse(h){
+    if(!h)return;
+    houseReturnX=player.x; houseReturnY=player.y; activeHouse=h; inHouse=true;
+    player.x=houseInterior.exitX; player.y=430; player.targetX=null; player.targetY=null; player.targetMonster=null;
+    if(h.vault){vaultUnlocked=true;showMessage("🏦 The Vault is open! Your bag now has 36 hand-inventory slots.");}
+    else if(h.playerHouse){showMessage("🏠 Welcome to Your House. This empty room is ready for future furnishings.");}
+    else showMessage("🏠 You entered "+h.name+".");
+}
 
-    openDialogue(
-        h.name,
-        "🏠 You enter the rustic home. The room is warm and peaceful."
-    );
+function leaveHouse(){
+    inHouse=false; activeHouse=null; player.x=houseReturnX; player.y=houseReturnY+55; player.targetX=null; player.targetY=null; player.targetMonster=null;
+    showMessage("🚪 You left the house.");
 }
 
 /* =========================================================
@@ -3680,9 +3722,8 @@ function updateUI(){
         "gold"
     ).textContent=player.gold;
 
-    document.getElementById(
-        "manaText"
-    ).textContent=player.mana;
+    document.getElementById("manaText").textContent=player.mana;
+    document.getElementById("xpText").textContent=player.xp+" / "+player.xpNext;
 
     document.getElementById(
         "invGold"
@@ -3692,9 +3733,8 @@ function updateUI(){
         "invFish"
     ).textContent=player.fish;
 
-    document.getElementById(
-        "invLoot"
-    ).textContent=player.loot;
+    document.getElementById("invPDA").textContent=inventory["PDA Coin"]?.count||0;
+    document.getElementById("invBlockchain").textContent=blockchainItems.length;
 
     const weapons=
         inventory["Wooden Sword"].count+
@@ -3747,72 +3787,19 @@ function openBag(){
 }
 
 function renderBag(){
-
-    const container=
-        document.getElementById(
-            "bagItems"
-        );
-
+    const container=document.getElementById("bagItems");
+    const blockchain=document.getElementById("blockchainItems");
+    if(!container||!blockchain)return;
     container.innerHTML="";
-
-    Object.entries(inventory)
-    .forEach(([name,item])=>{
-
-        const card=
-            document.createElement("div");
-
-        card.className="itemCard";
-
-        let iconHTML;
-
-        if(
-            item.image &&
-            images[item.image]
-        ){
-
-            /* Use the image that actually loaded. This preserves the
-               renamed-asset/legacy fallback used by the game world. */
-            iconHTML=
-                `<img class="itemImage"
-                src="${images[item.image].src}"
-                alt="">`;
-
-        }else if(name==="Gold Coin"){
-
-            /* Match the same sparkly gold coin artwork used on the ground. */
-            iconHTML=`
-                <div class="goldBagIcon" aria-label="Gold Coin">
-                    <span class="goldCoinCore"></span>
-                    <span class="goldSpark s1"></span>
-                    <span class="goldSpark s2"></span>
-                    <span class="goldSpark s3"></span>
-                    <span class="goldSpark s4"></span>
-                </div>
-            `;
-
-        }else{
-
-            iconHTML=
-                `<div class="itemIcon">
-                    ${item.icon}
-                </div>`;
-        }
-
-        card.innerHTML=`
-
-            ${iconHTML}
-
-            <div class="itemName">
-                ${name}
-            </div>
-
-            <div class="itemCount">
-                Quantity: ${item.count}
-            </div>
-        `;
-
-        container.appendChild(card);
+    Object.entries(inventory).forEach(([name,item])=>{
+        if(!item || item.count<=0)return;
+        const card=document.createElement("div");card.className="itemCard";
+        let iconHTML=item.image&&images[item.image]?`<img class="itemImage" src="${images[item.image].src}" alt="">`:name==="Gold Coin"?`<div class="goldBagIcon"><span class="goldCoinCore"></span><span class="goldSpark s1"></span><span class="goldSpark s2"></span><span class="goldSpark s3"></span><span class="goldSpark s4"></span></div>`:`<div class="itemIcon">${item.icon||"📦"}</div>`;
+        card.innerHTML=`${iconHTML}<div class="itemName">${name}</div><div class="itemCount">Quantity: ${item.count}</div>`;container.appendChild(card);
     });
+    for(let i=inventoryUsedSlots();i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";container.appendChild(slot);}
+    for(const item of blockchainItems){const card=document.createElement("div");card.className="itemCard";card.innerHTML=`<div class="itemIcon">${item.icon||"⛓️"}</div><div class="itemName">${item.name||"Blockchain Item"}</div><div class="itemCount">Quantity: ${item.count||1}</div>`;blockchain.appendChild(card);}
+    for(let i=blockchainItems.length;i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";blockchain.appendChild(slot);}
 }
 
 /* =========================================================
@@ -4111,7 +4098,8 @@ function saveGame(){
 
         questStarted,
         questKills,
-        questComplete
+        questComplete,
+        vaultUnlocked
     };
 
     localStorage.setItem(
@@ -4165,8 +4153,8 @@ function loadGame(){
         questKills=
             save.questKills||0;
 
-        questComplete=
-            save.questComplete||false;
+        questComplete=save.questComplete||false;
+        vaultUnlocked=!!save.vaultUnlocked;
 
         updateUI();
 
@@ -4230,7 +4218,8 @@ function draw(){
         -camera.y
     );
 
-    if(inDungeon){
+    if(inHouse){drawHouseInterior();}
+    else if(inDungeon){
 
         drawDungeon();
 
@@ -4264,6 +4253,17 @@ function draw(){
     ctx.restore();
 
     drawMiniMap();
+}
+
+function drawHouseInterior(){
+    const w=houseInterior.width,h=houseInterior.height;
+    ctx.fillStyle="#7b5538";ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#caa16d";ctx.fillRect(55,55,w-110,h-110);
+    ctx.fillStyle="#ead5ad";ctx.fillRect(80,80,w-160,h-160);
+    ctx.fillStyle="#8a5b37";ctx.fillRect(0,0,w,35);ctx.fillRect(0,h-35,w,35);ctx.fillRect(0,0,35,h);ctx.fillRect(w-35,0,35,h);
+    ctx.fillStyle="#3d281c";ctx.fillRect(houseInterior.exitX-42,h-70,84,70);
+    ctx.fillStyle="#ffd86a";ctx.font="bold 15px Arial";ctx.textAlign="center";ctx.fillText("EXIT",houseInterior.exitX,h-82);
+    ctx.fillStyle="rgba(40,25,15,.65)";ctx.font="bold 26px Georgia";ctx.fillText(activeHouse?.name||"House",w/2,115);
 }
 
 /* =========================================================
@@ -6499,7 +6499,7 @@ requestAnimationFrame(
       #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 10px;justify-content:space-between;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif}
       #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(0,0,0,.35)}
       #pmDpad,#pmActions{pointer-events:auto} #pmDpad{text-align:center} #pmDpad>div{display:flex;justify-content:center} #pmActions{display:flex;gap:2px} #pmActions button{width:52px;height:52px;border-radius:16px}
-      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
+      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.bagEmptySlot{min-height:82px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
       @media(max-width:430px){#stats{width:165px}.name{margin-bottom:4px}#quest{width:165px}.questTitle{font-size:10px}#buttons .gameBtn{font-size:0;width:34px;height:34px;padding:0}.spell{width:52px;height:47px}.spellIcon{font-size:17px}#pmDpad button{width:43px;height:43px;font-size:18px}#pmActions button{width:47px;height:47px;font-size:18px}}
     `;
     document.head.appendChild(style);

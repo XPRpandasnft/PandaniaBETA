@@ -2241,6 +2241,11 @@ function spawnDungeonEnemies(){
         750,
         350
     );
+
+    /* Flameozn's four-way Fire Burst starts its 10-second cooldown
+       when the boss enters the dungeon. */
+    const boss=monsters.find(m=>m.boss);
+    if(boss) boss.bossFireCooldown=600;
 }
 
 /* =========================================================
@@ -2933,6 +2938,11 @@ function gainXP(amount){
 
 function updateMonsters(){
 
+    /* Monsters are paused while the player is inside a house.
+       They must not attack, chase, or interact with the house interior. */
+    if(inHouse)
+        return;
+
     for(const m of monsters){
 
         if(m.attackCooldown>0)
@@ -2940,6 +2950,9 @@ function updateMonsters(){
 
         if(m.hitFlash>0)
             m.hitFlash--;
+
+        if(m.boss && m.bossFireCooldown>0)
+            m.bossFireCooldown--;
 
         if(m.boss && m.bossFireCooldown<=0){
             for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
@@ -3107,8 +3120,64 @@ function updateNPCs(){
 ========================================================= */
 
 let dungeonAudioCtx=null,dungeonMusicTimer=null,dungeonMusicStep=0;
-function startDungeonMusic(){try{if(dungeonAudioCtx&&dungeonAudioCtx.state==='suspended')dungeonAudioCtx.resume();if(dungeonMusicTimer)return;dungeonAudioCtx=dungeonAudioCtx||new(window.AudioContext||window.webkitAudioContext)();const notes=[55,65.41,73.42,65.41,49,58.27,65.41,58.27];const tick=()=>{if(!inDungeon){stopDungeonMusic();return;}const n=notes[dungeonMusicStep++%notes.length],o=dungeonAudioCtx.createOscillator(),g=dungeonAudioCtx.createGain(),t=dungeonAudioCtx.currentTime;o.type='sine';o.frequency.value=n;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.04,t+.04);g.gain.exponentialRampToValueAtTime(.0001,t+.42);o.connect(g);g.connect(dungeonAudioCtx.destination);o.start(t);o.stop(t+.45);};tick();dungeonMusicTimer=setInterval(tick,520);}catch(e){console.warn('Dungeon music unavailable',e);}}
-function stopDungeonMusic(){if(dungeonMusicTimer){clearInterval(dungeonMusicTimer);dungeonMusicTimer=null;}}
+
+function startDungeonMusic(){
+    try{
+        ensureAudio();
+        dungeonAudioCtx=audioCtx;
+        if(!dungeonAudioCtx) return;
+
+        if(dungeonAudioCtx.state==='suspended'){
+            dungeonAudioCtx.resume().catch(()=>{});
+        }
+
+        if(dungeonMusicTimer) return;
+
+        /* Keep the normal Pandania music out of the dungeon. */
+        if(musicTimer){
+            clearInterval(musicTimer);
+            musicTimer=null;
+        }
+
+        const notes=[55,61.74,73.42,65.41,49,58.27,69.3,51.91];
+        const tick=()=>{
+            if(!inDungeon){
+                stopDungeonMusic();
+                return;
+            }
+
+            try{
+                const n=notes[dungeonMusicStep++%notes.length];
+                const o=dungeonAudioCtx.createOscillator();
+                const g=dungeonAudioCtx.createGain();
+                const t=dungeonAudioCtx.currentTime;
+
+                o.type='sine';
+                o.frequency.setValueAtTime(n,t);
+                g.gain.setValueAtTime(.0001,t);
+                g.gain.exponentialRampToValueAtTime(.055,t+.08);
+                g.gain.exponentialRampToValueAtTime(.0001,t+.62);
+
+                o.connect(g);
+                g.connect(dungeonAudioCtx.destination);
+                o.start(t);
+                o.stop(t+.65);
+            }catch(e){}
+        };
+
+        tick();
+        dungeonMusicTimer=setInterval(tick,760);
+    }catch(e){
+        console.warn('Dungeon music unavailable',e);
+    }
+}
+
+function stopDungeonMusic(){
+    if(dungeonMusicTimer){
+        clearInterval(dungeonMusicTimer);
+        dungeonMusicTimer=null;
+    }
+}
 
 function enterDungeon(entrance=dungeonEntrance){
 
@@ -3155,7 +3224,12 @@ function leaveDungeon(){
     if(!inDungeon)
         return;
 
-    inDungeon=false;stopDungeonMusic();bossFireShots=[];
+    inDungeon=false;
+    stopDungeonMusic();
+    bossFireShots=[];
+
+    /* Resume the normal overworld music after leaving the dungeon. */
+    if(gameStarted) resumeOverworldMusic();
 
     player.x=activeDungeonEntrance.x;
     player.y=activeDungeonEntrance.y+105;
@@ -6176,6 +6250,31 @@ function startMusic(){
 
         }catch(e){}
 
+    },700);
+}
+
+function resumeOverworldMusic(){
+    if(!audioCtx || musicTimer || inDungeon) return;
+
+    const notes=[261.63,293.66,329.63,392,329.63,293.66,261.63,220,246.94,293.66,329.63,440,392,329.63,293.66,246.94];
+    let index=0;
+
+    musicTimer=setInterval(()=>{
+        if(!audioCtx || inDungeon) return;
+        try{
+            const osc=audioCtx.createOscillator();
+            const gain=audioCtx.createGain();
+            osc.type='triangle';
+            osc.frequency.value=notes[index%notes.length];
+            gain.gain.setValueAtTime(.0001,audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(.025,audioCtx.currentTime+.05);
+            gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime+.75);
+            index++;
+        }catch(e){}
     },700);
 }
 

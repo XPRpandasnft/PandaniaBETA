@@ -1792,7 +1792,7 @@ function placeBuildingsRandomly(){
                 h:spec.h
             };
 
-            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,20));
+            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,28));
             const nearPond=environment.ponds.some(w=>overlapsRect(candidate,w,60));
             if(!tooClose && !nearPond){
                 placed=addBuilding(
@@ -2397,9 +2397,18 @@ function blocked(x,y,r=player.r){
             return true;
     }
 
-    /* All environment buildings are solid to both player and monsters. */
+    /* Buildings stay completely solid, but their collision footprint is
+       slightly inset from the artwork so the player can walk close to walls
+       without needing to keep an unnecessarily wide gap. */
     for(const building of environment.buildings){
-        if(circleRectCollision(x,y,r,building))
+        const inset=building.type==="bando" ? 12 : 16;
+        const footprint={
+            x:building.x+inset,
+            y:building.y+inset,
+            w:Math.max(1,building.w-inset*2),
+            h:Math.max(1,building.h-inset*2)
+        };
+        if(circleRectCollision(x,y,r,footprint))
             return true;
     }
 
@@ -3679,6 +3688,35 @@ function setQuest(title,text){
    RESPAWN
 ========================================================= */
 
+function chooseSafeRespawn(){
+    const base=chooseSafePlayerSpawn();
+    const candidates=[base];
+
+    for(let radius=70;radius<=420;radius+=70){
+        for(let a=0;a<Math.PI*2;a+=Math.PI/8){
+            candidates.push({
+                x:base.x+Math.cos(a)*radius,
+                y:base.y+Math.sin(a)*radius
+            });
+        }
+    }
+
+    for(const c of candidates){
+        if(c.x<40||c.y<40||c.x>world.width-40||c.y>world.height-40)
+            continue;
+
+        if(monsters.some(m=>Math.hypot(c.x-m.x,c.y-m.y)<180))
+            continue;
+
+        if(blocked(c.x,c.y,player.r))
+            continue;
+
+        return c;
+    }
+
+    return base;
+}
+
 function respawnPlayer(){
 
     player.hp=player.maxHp;
@@ -3699,9 +3737,15 @@ function respawnPlayer(){
 
     }else{
 
-        player.x=760;
-        player.y=450;
+        const safe=chooseSafeRespawn();
+        player.x=safe.x;
+        player.y=safe.y;
     }
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+    player.invincible=Math.max(player.invincible||0,120);
 
     showMessage(
         "☠️ You were defeated! You lost 10 gold."

@@ -6693,6 +6693,178 @@ requestAnimationFrame(
     `;
     document.head.appendChild(style);
 
+    const mobileRefinement=document.createElement('style');
+    mobileRefinement.textContent=`
+/* ===== MOBILE DISPLAY REFINEMENT =====
+   Preserve the game's 1200:760 aspect ratio instead of stretching it
+   into a phone's tall portrait screen. The camera remains centered and
+   the sides are cropped, so characters/world objects keep their shape.
+*/
+@media (max-width:700px), (pointer:coarse){
+  html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+  }
+
+  #gameWrap{
+    position:relative;
+    width:100vw;
+    height:100dvh;
+    max-width:none;
+    max-height:none;
+    overflow:hidden;
+    border:0;
+  }
+
+  #game{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:auto !important;
+    height:100% !important;
+    min-width:0 !important;
+    max-width:none !important;
+    max-height:none !important;
+    aspect-ratio:1200 / 760;
+    transform:translate(-50%,-50%);
+    object-fit:contain;
+    touch-action:none;
+  }
+
+  /* Keep the HUD readable without taking over the screen. */
+  #hud{
+    top:max(6px,env(safe-area-inset-top));
+    left:6px;
+    right:6px;
+    align-items:flex-start;
+    gap:6px;
+  }
+
+  #stats{
+    width:clamp(145px,39vw,185px);
+    padding:7px;
+    font-size:10px;
+  }
+
+  #inventoryMini{
+    width:clamp(135px,36vw,175px);
+    padding:7px;
+    font-size:10px;
+  }
+
+  #quest{
+    top:calc(max(6px,env(safe-area-inset-top)) + 78px);
+    width:min(205px,52vw);
+    padding:6px;
+    font-size:10px;
+  }
+
+  #questText{
+    font-size:9px;
+  }
+
+  #buttons{
+    top:auto;
+    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 2px);
+    right:6px;
+    gap:3px;
+  }
+
+  #controls{
+    display:none;
+  }
+
+  #spellBar{
+    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 66px);
+    gap:4px;
+    max-width:90vw;
+    flex-wrap:nowrap;
+  }
+
+  .spell{
+    width:clamp(50px,15vw,62px);
+    height:48px;
+    padding:3px;
+    font-size:9px;
+  }
+
+  .spellIcon{
+    font-size:18px;
+  }
+
+  .spellCost{
+    font-size:8px;
+  }
+
+  #message{
+    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 128px);
+    width:min(86vw,390px);
+    min-width:0;
+    font-size:11px;
+    padding:7px 9px;
+  }
+
+  #zoneLabel{
+    top:calc(max(6px,env(safe-area-inset-top)) + 82px);
+    font-size:10px;
+    padding:5px 10px;
+  }
+
+  #dialogue,
+  #bagWindow,
+  #exchangeWindow,
+  #friendsWindow,
+  #mailWindow{
+    width:min(94vw,720px);
+    max-height:72dvh;
+    padding:12px;
+  }
+
+  .itemGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;
+  }
+
+  .itemCard,
+  .bagEmptySlot{
+    min-height:74px;
+    padding:5px;
+  }
+
+  .itemIcon{
+    font-size:24px;
+    height:29px;
+  }
+
+  .itemImage{
+    width:30px;
+    height:30px;
+  }
+
+  .itemName{
+    font-size:10px;
+  }
+
+  .itemCount{
+    font-size:9px;
+  }
+}
+
+/* Extra-small phones: reduce only UI, never the game world's aspect ratio. */
+@media (max-width:430px){
+  #stats{width:148px;font-size:9px}
+  #inventoryMini{width:142px;font-size:9px}
+  #quest{width:150px;top:calc(max(6px,env(safe-area-inset-top)) + 70px)}
+  #questText{font-size:8px}
+  #spellBar{gap:2px}
+  .spell{width:48px;height:45px}
+  .spellIcon{font-size:16px}
+  #pandaniaMobileControls button{min-width:43px;min-height:43px}
+}
+`;
+    document.head.appendChild(mobileRefinement);
+
     function hold(btn,key){
       const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;faceKey(key);};
       const stop=e=>{e.preventDefault();keys[key]=false;};

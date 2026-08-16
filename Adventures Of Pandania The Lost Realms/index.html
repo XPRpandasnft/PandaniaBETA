@@ -1903,6 +1903,84 @@ scatterDecoration("orangeflowers",45,28,22);
 scatterDecoration("pebbles",85,30,22);
 scatterDecoration("rock",28,38,30);
 
+/* Safe starting position: never spawn inside a house, pond, tree, or dungeon entrance.
+   Prefer an open spot near the center of Panden Town so the player can immediately move. */
+function chooseSafePlayerSpawn(){
+    const candidates=[];
+
+    /* Try the center of town first, then scan a grid outward for a clear spot. */
+    const cx=townBounds.x+townBounds.w/2;
+    const cy=townBounds.y+townBounds.h/2;
+
+    for(let radius=0;radius<=500;radius+=50){
+        if(radius===0){
+            candidates.push({x:cx,y:cy});
+            continue;
+        }
+
+        for(let a=0;a<Math.PI*2;a+=Math.PI/8){
+            candidates.push({
+                x:cx+Math.cos(a)*radius,
+                y:cy+Math.sin(a)*radius
+            });
+        }
+    }
+
+    for(const c of candidates){
+        if(c.x<40||c.y<40||c.x>world.width-40||c.y>world.height-40) continue;
+
+        const hitBuilding=environment.buildings.some(b=>
+            circleRectCollisionForSpawn(c.x,c.y,player.r,b,8)
+        );
+        if(hitBuilding) continue;
+
+        const hitPond=environment.ponds.some(p=>
+            circleRectCollisionForSpawn(c.x,c.y,player.r,p,4)
+        );
+        if(hitPond) continue;
+
+        const hitTree=environment.trees.some(t=>{
+            const footprint={
+                x:t.x-t.w/2,
+                y:t.y-t.h+18,
+                w:t.w,
+                h:t.h*.62
+            };
+            return circleRectCollisionForSpawn(c.x,c.y,player.r,footprint,4);
+        });
+        if(hitTree) continue;
+
+        const hitDungeon=dungeonEntrances.some(e=>
+            Math.hypot(c.x-e.x,c.y-e.y)<90
+        );
+        if(hitDungeon) continue;
+
+        return c;
+    }
+
+    /* Guaranteed open fallback in the wilderness. */
+    return {x:400,y:800};
+}
+
+function circleRectCollisionForSpawn(cx,cy,r,rect,pad=0){
+    const x=rect.x-pad;
+    const y=rect.y-pad;
+    const w=rect.w+pad*2;
+    const h=rect.h+pad*2;
+    const closestX=Math.max(x,Math.min(cx,x+w));
+    const closestY=Math.max(y,Math.min(cy,y+h));
+    const dx=cx-closestX;
+    const dy=cy-closestY;
+    return dx*dx+dy*dy<r*r;
+}
+
+const safePlayerSpawn=chooseSafePlayerSpawn();
+player.x=safePlayerSpawn.x;
+player.y=safePlayerSpawn.y;
+player.targetX=null;
+player.targetY=null;
+player.targetMonster=null;
+
 /* Compatibility aliases used by the existing renderer/gameplay code. */
 const houses=environment.buildings;
 const trees=environment.trees;

@@ -1155,7 +1155,24 @@ const imageFiles={
     weapon1:IMAGE_FOLDER+"bamboo sword.png",
     weapon2:IMAGE_FOLDER+"iron sword.png",
     weapon3:IMAGE_FOLDER+"goblin saber.png",
-    pda:IMAGE_FOLDER+"pda.png"
+    pda:IMAGE_FOLDER+"pda.png",
+
+    /* Environment artwork */
+    bando:IMAGE_FOLDER+"environments/bando.png",
+    house1:IMAGE_FOLDER+"environments/house1.png",
+    house2:IMAGE_FOLDER+"environments/house2.png",
+    bigtree:IMAGE_FOLDER+"environments/bigtree.png",
+    mediumtree:IMAGE_FOLDER+"environments/mediumtree.png",
+    liltree:IMAGE_FOLDER+"environments/liltree.png",
+    dungeonentrance1:IMAGE_FOLDER+"environments/dungeonentrance1.png",
+    dungeonentrance2:IMAGE_FOLDER+"environments/dungeonentrance2.png",
+    pond1:IMAGE_FOLDER+"environments/pond1.png",
+    pond2:IMAGE_FOLDER+"environments/pond2.png",
+    pond3:IMAGE_FOLDER+"environments/pond3.png",
+    purpleflowers:IMAGE_FOLDER+"environments/purpleflowers.png",
+    orangeflowers:IMAGE_FOLDER+"environments/orangeflowers.png",
+    pebbles:IMAGE_FOLDER+"environments/pebbles.png",
+    rock:IMAGE_FOLDER+"environments/rock.png"
 };
 
 const images={};
@@ -1224,10 +1241,27 @@ const dungeon={
 
 let inDungeon=false;
 
-const dungeonEntrance={
-    x:2260,
-    y:1180
-};
+/* Two overworld dungeon entrances.  The first stays in the bottom-right
+   area where the old entrance was; the second is placed at the top-left. */
+const dungeonEntrances=[
+    {
+        id:"lostCave",
+        x:2260,
+        y:1180,
+        image:"dungeonentrance1",
+        name:"The Lost Cave"
+    },
+    {
+        id:"northDungeon",
+        x:260,
+        y:260,
+        image:"dungeonentrance2",
+        name:"The Forgotten Dungeon"
+    }
+];
+
+const dungeonEntrance=dungeonEntrances[0];
+let activeDungeonEntrance=dungeonEntrance;
 
 const dungeonExit={
     x:750,
@@ -1478,44 +1512,47 @@ canvas.addEventListener("pointerdown",e=>{
 
     }else{
 
-        /* Dungeon entrance */
+        /* Dungeon entrances */
 
-        if(
-            Math.hypot(
-                p.x-dungeonEntrance.x,
-                p.y-dungeonEntrance.y
-            )<85
-        ){
+        for(const entrance of dungeonEntrances){
 
             if(
                 Math.hypot(
-                    player.x-dungeonEntrance.x,
-                    player.y-dungeonEntrance.y
-                )<120
+                    p.x-entrance.x,
+                    p.y-entrance.y
+                )<100
             ){
 
-                enterDungeon();
+                if(
+                    Math.hypot(
+                        player.x-entrance.x,
+                        player.y-entrance.y
+                    )<130
+                ){
 
-            }else{
+                    enterDungeon(entrance);
 
-                player.targetX=dungeonEntrance.x;
-                player.targetY=dungeonEntrance.y;
+                }else{
 
-                showMessage(
-                    "🕯️ Walking toward the dungeon entrance..."
-                );
+                    player.targetX=entrance.x;
+                    player.targetY=entrance.y;
+
+                    showMessage(
+                        "🕯️ Walking toward the dungeon entrance..."
+                    );
+                }
+
+                return;
             }
-
-            return;
         }
 
-        /* Grand Exchange */
+        /* Grand Exchange is attached to one house1 building. */
 
         if(
             Math.hypot(
-                p.x-550,
-                p.y-450
-            )<100
+                p.x-grandExchangeLocation.x,
+                p.y-grandExchangeLocation.y
+            )<110
         ){
 
             openExchange();
@@ -1635,109 +1672,240 @@ canvas.addEventListener("pointerdown",e=>{
    TERRAIN
 ========================================================= */
 
-const waterZones=[
-
-    {x:0,y:0,w:650,h:140},
-    {x:1350,y:520,w:850,h:270},
-    {x:1950,y:0,w:500,h:390},
-    {x:450,y:1370,w:1000,h:200}
-];
-
-const fishingSpots=[
-
-    {x:580,y:75},
-    {x:1650,y:650},
-    {x:2160,y:280},
-    {x:800,y:1450}
-];
-
-const houses=[
-
-    {
-        x:720,
-        y:230,
-        w:190,
-        h:145,
-        doorX:815,
-        doorY:375,
-        name:"Panda Village Cottage"
-    },
-
-    {
-        x:1080,
-        y:760,
-        w:210,
-        h:150,
-        doorX:1185,
-        doorY:910,
-        name:"Old Fisherman's Home"
-    },
-
-    {
-        x:350,
-        y:800,
-        w:200,
-        h:145,
-        doorX:450,
-        doorY:945,
-        name:"Forest Cottage"
-    },
-
-    {
-        x:1770,
-        y:720,
-        w:220,
-        h:155,
-        doorX:1880,
-        doorY:875,
-        name:"Mountain Lodge"
-    },
-
-    {
-        x:1500,
-        y:250,
-        w:220,
-        h:145,
-        doorX:1610,
-        doorY:395,
-        name:"Hunter's Cabin"
-    }
-];
-
 /* =========================================================
-   TREES
+   ENVIRONMENT / WORLD LAYOUT
+   All overworld scenery now comes from ./images/environments/.
 ========================================================= */
 
-const trees=[];
+const townBounds={
+    x:500,
+    y:300,
+    w:800,
+    h:620
+};
 
-for(let x=70;x<2500;x+=95){
+const environment={
+    buildings:[],
+    decorations:[],
+    trees:[],
+    ponds:[]
+};
 
-    for(let y=170;y<1600;y+=95){
+function overlapsRect(a,b,pad=0){
+    return !(
+        a.x+a.w+pad<=b.x ||
+        b.x+b.w+pad<=a.x ||
+        a.y+a.h+pad<=b.y ||
+        b.y+b.h+pad<=a.y
+    );
+}
 
-        const noise=Math.sin(x*12.91+y*3.17);
+function pointInRect(x,y,r,pad=0){
+    return (
+        x>=r.x-pad &&
+        x<=r.x+r.w+pad &&
+        y>=r.y-pad &&
+        y<=r.y+r.h+pad
+    );
+}
 
-        if(noise>.45){
+function shuffled(array){
+    const a=array.slice();
+    for(let i=a.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+}
 
-            const nearHouse=houses.some(h=>
-                x>h.x-50 &&
-                x<h.x+h.w+50 &&
-                y>h.y-50 &&
-                y<h.y+h.h+50
-            );
+function addBuilding(type,x,y,w,h,name,extra={}){
+    const building={
+        type,
+        image:type,
+        x,y,w,h,
+        doorX:x+w/2,
+        doorY:y+h+8,
+        name:name||type,
+        ...extra
+    };
+    environment.buildings.push(building);
+    return building;
+}
 
-            const nearWater=waterZones.some(w=>
-                x>w.x-40 &&
-                x<w.x+w.w+40 &&
-                y>w.y-40 &&
-                y<w.y+w.h+40
-            );
+function placeBuildingsRandomly(){
+    const townPlaced=[];
 
-            if(!nearHouse&&!nearWater){
-                trees.push({x,y});
+    const specs=[
+        {type:"house1",w:185,h:150,name:"Panden Town Grand Exchange",grandExchange:true},
+        {type:"house1",w:185,h:150,name:"Panden Town House"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"},
+        {type:"house2",w:140,h:120,name:"Panden Town Home"}
+    ];
+
+    for(const spec of specs){
+        let placed=null;
+        for(let attempt=0;attempt<500 && !placed;attempt++){
+            const candidate={
+                x:townBounds.x+35+Math.random()*(townBounds.w-spec.w-70),
+                y:townBounds.y+55+Math.random()*(townBounds.h-spec.h-100),
+                w:spec.w,
+                h:spec.h
+            };
+
+            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,70));
+            const nearPond=environment.ponds.some(w=>overlapsRect(candidate,w,60));
+            if(!tooClose && !nearPond){
+                placed=addBuilding(
+                    spec.type,
+                    candidate.x,
+                    candidate.y,
+                    candidate.w,
+                    candidate.h,
+                    spec.name,
+                    {grandExchange:!!spec.grandExchange}
+                );
+                townPlaced.push(placed);
+            }
+        }
+    }
+
+    /* Three abandoned houses on the outskirts of Panden Town. */
+    /* Three abandoned houses are randomly distributed outside the town. */
+    const placedOutskirts=[];
+    for(let i=0;i<3;i++){
+        let placed=null;
+        for(let attempt=0;attempt<400 && !placed;attempt++){
+            const candidate={
+                x:80+Math.random()*(world.width-245),
+                y:220+Math.random()*(world.height-400),
+                w:165,
+                h:135
+            };
+
+            const farEnoughFromTown=
+                !overlapsRect(candidate,townBounds,100);
+            const farEnoughFromOther=
+                placedOutskirts.every(b=>!overlapsRect(candidate,b,90));
+            const farEnoughFromPonds=
+                environment.ponds.every(w=>!overlapsRect(candidate,w,60));
+            const farEnoughFromDungeons=
+                dungeonEntrances.every(e=>
+                    Math.hypot(
+                        candidate.x+candidate.w/2-e.x,
+                        candidate.y+candidate.h/2-e.y
+                    )>120
+                );
+
+            if(
+                farEnoughFromTown &&
+                farEnoughFromOther &&
+                farEnoughFromPonds &&
+                farEnoughFromDungeons
+            ){
+                placed=addBuilding(
+                    "bando",
+                    candidate.x,
+                    candidate.y,
+                    candidate.w,
+                    candidate.h,
+                    "Abandoned House"
+                );
+                placedOutskirts.push(placed);
             }
         }
     }
 }
+
+/* Exactly one of each pond image.  Their rectangles are also the collision
+   zones, so monsters and the player cannot walk through the water artwork. */
+environment.ponds.push(
+    {x:160,y:1040,w:300,h:205,image:"pond1"},
+    {x:1530,y:760,w:255,h:175,image:"pond2"},
+    {x:1960,y:220,w:220,h:155,image:"pond3"}
+);
+
+const waterZones=environment.ponds;
+
+placeBuildingsRandomly();
+
+/* The Grand Exchange belongs to one of the house1 buildings. */
+const grandExchangeBuilding=
+    environment.buildings.find(b=>b.grandExchange);
+
+const grandExchangeLocation={
+    x:grandExchangeBuilding
+        ?grandExchangeBuilding.doorX
+        :590,
+    y:grandExchangeBuilding
+        ?grandExchangeBuilding.doorY
+        :450
+};
+
+/* Fishing spots now live around the three pond images. */
+const fishingSpots=environment.ponds.map((pond,i)=>({
+    x:pond.x+pond.w*.5,
+    y:pond.y+pond.h*.82,
+    pond:i+1
+}));
+
+/* Trees are image-based and randomly distributed around the world, with a
+   clear exclusion zone around town, buildings, ponds and dungeon entrances. */
+const treeTypes=[
+    {image:"bigtree",w:105,h:125},
+    {image:"mediumtree",w:82,h:100},
+    {image:"liltree",w:58,h:72}
+];
+
+for(let i=0;i<125;i++){
+    for(let attempt=0;attempt<250;attempt++){
+        const type=treeTypes[Math.floor(Math.random()*treeTypes.length)];
+        const x=45+Math.random()*(world.width-90);
+        const y=150+Math.random()*(world.height-190);
+        const footprint={x:x-type.w/2,y:y-type.h+18,w:type.w,h:type.h*.62};
+
+        const nearTown=overlapsRect(footprint,townBounds,75);
+        const nearBuilding=environment.buildings.some(b=>overlapsRect(footprint,b,45));
+        const nearPond=environment.ponds.some(w=>overlapsRect(footprint,w,35));
+        const nearDungeon=dungeonEntrances.some(d=>Math.hypot(x-d.x,y-d.y)<130);
+
+        if(!nearTown&&!nearBuilding&&!nearPond&&!nearDungeon){
+            environment.trees.push({x,y,...type});
+            break;
+        }
+    }
+}
+
+/* Decorative flowers, pebbles and rocks.  They do not block movement. */
+function scatterDecoration(image,count,w,h){
+    for(let i=0;i<count;i++){
+        for(let attempt=0;attempt<150;attempt++){
+            const x=25+Math.random()*(world.width-50);
+            const y=120+Math.random()*(world.height-155);
+            const d={x:x-w/2,y:y-h/2,w,h};
+
+            if(
+                overlapsRect(d,townBounds,20) ||
+                environment.buildings.some(b=>overlapsRect(d,b,15)) ||
+                environment.ponds.some(p=>overlapsRect(d,p,12)) ||
+                dungeonEntrances.some(e=>Math.hypot(x-e.x,y-e.y)<80)
+            ) continue;
+
+            environment.decorations.push({x,y,w,h,image});
+            break;
+        }
+    }
+}
+
+scatterDecoration("purpleflowers",45,28,22);
+scatterDecoration("orangeflowers",45,28,22);
+scatterDecoration("pebbles",85,30,22);
+scatterDecoration("rock",28,38,30);
+
+/* Compatibility aliases used by the existing renderer/gameplay code. */
+const houses=environment.buildings;
+const trees=environment.trees;
 
 /* =========================================================
    NPCS
@@ -2109,16 +2277,16 @@ function blocked(x,y,r=player.r){
         return false;
     }
 
-    for(const w of waterZones){
+    /* Pond artwork is the water: no old hard-coded blue water rectangles remain. */
+    for(const pond of environment.ponds){
 
-        if(circleRectCollision(x,y,r,w))
+        if(circleRectCollision(x,y,r,pond))
             return true;
     }
 
-    for(const h of houses){
-        /* Monsters use the full building footprint as solid terrain.
-           The player can still use the doorway interaction separately. */
-        if(circleRectCollision(x,y,r,h))
+    /* All environment buildings are solid to both player and monsters. */
+    for(const building of environment.buildings){
+        if(circleRectCollision(x,y,r,building))
             return true;
     }
 
@@ -2261,17 +2429,16 @@ function updatePlayer(){
     if(player.healText>0)
         player.healText--;
 
-    /* Auto dungeon entry when walking onto entrance */
+    /* Auto dungeon entry when walking onto either entrance */
 
-    if(
-        !inDungeon &&
-        Math.hypot(
-            player.x-dungeonEntrance.x,
-            player.y-dungeonEntrance.y
-        )<55
-    ){
+    if(!inDungeon){
+        const nearbyEntrance=dungeonEntrances.find(e=>
+            Math.hypot(player.x-e.x,player.y-e.y)<65
+        );
 
-        enterDungeon();
+        if(nearbyEntrance){
+            enterDungeon(nearbyEntrance);
+        }
     }
 
     /* Auto dungeon exit */
@@ -2794,25 +2961,22 @@ function updateNPCs(){
    DUNGEON ENTRY
 ========================================================= */
 
-function enterDungeon(){
+function enterDungeon(entrance=dungeonEntrance){
 
     if(inDungeon)
         return;
 
     if(
         Math.hypot(
-            player.x-dungeonEntrance.x,
-            player.y-dungeonEntrance.y
-        )>130
+            player.x-entrance.x,
+            player.y-entrance.y
+        )>140
     ){
-
-        showMessage(
-            "🕯️ Get closer to the cave entrance."
-        );
-
+        showMessage("🕯️ Get closer to the dungeon entrance.");
         return;
     }
 
+    activeDungeonEntrance=entrance;
     inDungeon=true;
 
     player.x=750;
@@ -2827,11 +2991,11 @@ function enterDungeon(){
     spawnDungeonEnemies();
 
     setZoneLabel(
-        "🕯️ THE LOST CAVE"
+        entrance.name.toUpperCase()
     );
 
     showMessage(
-        "🕯️ You entered the Lost Cave..."
+        "🕯️ You entered "+entrance.name+"..."
     );
 
     updateCamera();
@@ -2844,8 +3008,8 @@ function leaveDungeon(){
 
     inDungeon=false;
 
-    player.x=dungeonEntrance.x;
-    player.y=dungeonEntrance.y+90;
+    player.x=activeDungeonEntrance.x;
+    player.y=activeDungeonEntrance.y+105;
 
     player.targetX=null;
     player.targetY=null;
@@ -2853,10 +3017,7 @@ function leaveDungeon(){
 
     groundDrops=[];
 
-    /*
-       Restore overworld monsters.
-    */
-
+    /* Restore overworld monsters. */
     monsters=[];
 
     spawnMonster("monster1",300,300);
@@ -3241,9 +3402,9 @@ function interact(){
 
     if(
         Math.hypot(
-            player.x-550,
-            player.y-450
-        )<100
+            player.x-grandExchangeLocation.x,
+            player.y-grandExchangeLocation.y
+        )<110
     ){
 
         openExchange();
@@ -3251,14 +3412,13 @@ function interact(){
         return;
     }
 
-    if(
-        Math.hypot(
-            player.x-dungeonEntrance.x,
-            player.y-dungeonEntrance.y
-        )<120
-    ){
+    const nearbyEntrance=dungeonEntrances.find(e=>
+        Math.hypot(player.x-e.x,player.y-e.y)<130
+    );
 
-        enterDungeon();
+    if(nearbyEntrance){
+
+        enterDungeon(nearbyEntrance);
 
         return;
     }
@@ -3999,13 +4159,14 @@ function draw(){
     }else{
 
         drawGround();
-        drawWater();
+        drawPonds();
         drawPaths();
-        drawTrees();
-        drawHouses();
+        drawEnvironmentTrees();
+        drawEnvironmentDecorations();
+        drawEnvironmentBuildings();
         drawGrandExchange();
         drawFishingSpots();
-        drawDungeonEntrance();
+        drawDungeonEntrances();
         drawDrops();
         drawNPCs();
         drawMonsters();
@@ -4100,50 +4261,16 @@ function drawGround(){
    WATER
 ========================================================= */
 
-function drawWater(){
+function drawPonds(){
 
-    for(const w of waterZones){
-
-        ctx.fillStyle="#287ca8";
-
-        ctx.fillRect(
-            w.x,
-            w.y,
-            w.w,
-            w.h
+    for(const pond of environment.ponds){
+        drawEnvironmentImage(
+            pond.image,
+            pond.x+pond.w/2,
+            pond.y+pond.h,
+            pond.w,
+            pond.h
         );
-
-        ctx.strokeStyle=
-            "rgba(150,225,255,.3)";
-
-        ctx.lineWidth=2;
-
-        for(
-            let y=w.y+15;
-            y<w.y+w.h;
-            y+=35
-        ){
-
-            for(
-                let x=w.x+10;
-                x<w.x+w.w;
-                x+=70
-            ){
-
-                ctx.beginPath();
-
-                ctx.moveTo(x,y);
-
-                ctx.quadraticCurveTo(
-                    x+15,
-                    y-5,
-                    x+30,
-                    y
-                );
-
-                ctx.stroke();
-            }
-        }
     }
 }
 
@@ -4184,72 +4311,19 @@ function drawPaths(){
    TREES
 ========================================================= */
 
-function drawTrees(){
+function drawEnvironmentTrees(){
 
-    for(const t of trees){
+    /* Draw smaller trees first so larger trees naturally sit in front. */
+    const ordered=environment.trees.slice().sort((a,b)=>a.y-b.y);
 
-        ctx.fillStyle="#553a24";
-
-        ctx.fillRect(
-            t.x-7,
-            t.y+5,
-            14,
-            32
-        );
-
-        ctx.fillStyle="#285c2f";
-
-        ctx.beginPath();
-
-        ctx.arc(
+    for(const t of ordered){
+        drawEnvironmentImage(
+            t.image,
             t.x,
             t.y,
-            30,
-            0,
-            Math.PI*2
+            t.w,
+            t.h
         );
-
-        ctx.fill();
-
-        ctx.fillStyle="#34763b";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            t.x-15,
-            t.y-8,
-            21,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-        ctx.beginPath();
-
-        ctx.arc(
-            t.x+14,
-            t.y-7,
-            20,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-        ctx.fillStyle="#4e9148";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            t.x,
-            t.y-20,
-            16,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
     }
 }
 
@@ -4257,147 +4331,49 @@ function drawTrees(){
    HOUSES
 ========================================================= */
 
-function drawHouses(){
+function drawEnvironmentBuildings(){
 
-    for(const h of houses){
+    const ordered=environment.buildings.slice().sort((a,b)=>a.y-b.y);
 
-        ctx.fillStyle="rgba(0,0,0,.28)";
-
-        ctx.fillRect(
-            h.x+10,
-            h.y+12,
+    for(const h of ordered){
+        drawEnvironmentImage(
+            h.image,
+            h.x+h.w/2,
+            h.y+h.h,
             h.w,
             h.h
         );
 
-        ctx.fillStyle="#756b5b";
-
-        ctx.fillRect(
-            h.x,
-            h.y+h.h-22,
-            h.w,
-            22
-        );
-
-        ctx.fillStyle="#a87848";
-
-        ctx.fillRect(
-            h.x,
-            h.y,
-            h.w,
-            h.h-18
-        );
-
-        ctx.strokeStyle="rgba(77,45,27,.6)";
-        ctx.lineWidth=3;
-
-        for(
-            let yy=h.y+18;
-            yy<h.y+h.h-22;
-            yy+=22
-        ){
-
-            ctx.beginPath();
-
-            ctx.moveTo(h.x,yy);
-            ctx.lineTo(h.x+h.w,yy);
-
-            ctx.stroke();
-        }
-
-        ctx.fillStyle="#633b32";
-
+        /* A subtle doorway marker keeps the interaction point easy to find. */
+        ctx.save();
+        ctx.fillStyle="rgba(255,220,120,.75)";
         ctx.beginPath();
-
-        ctx.moveTo(
-            h.x-25,
-            h.y+5
-        );
-
-        ctx.lineTo(
-            h.x+h.w/2,
-            h.y-78
-        );
-
-        ctx.lineTo(
-            h.x+h.w+25,
-            h.y+5
-        );
-
-        ctx.closePath();
-
+        ctx.arc(h.doorX,h.doorY,3,0,Math.PI*2);
         ctx.fill();
+        ctx.restore();
+    }
 
-        drawRusticWindow(
-            h.x+30,
-            h.y+43
-        );
+    ctx.save();
+    ctx.fillStyle="rgba(255,236,170,.9)";
+    ctx.font="bold 22px Georgia";
+    ctx.textAlign="center";
+    ctx.shadowColor="rgba(0,0,0,.75)";
+    ctx.shadowBlur=8;
+    ctx.fillText("PANDEN TOWN",townBounds.x+townBounds.w/2,townBounds.y-25);
+    ctx.restore();
+}
 
-        drawRusticWindow(
-            h.x+h.w-68,
-            h.y+43
-        );
+function drawEnvironmentDecorations(){
 
-        ctx.fillStyle="#563522";
+    const ordered=environment.decorations.slice().sort((a,b)=>a.y-b.y);
 
-        ctx.fillRect(
-            h.doorX-20,
-            h.doorY-60,
-            40,
-            60
-        );
-
-        ctx.strokeStyle="#332116";
-        ctx.lineWidth=4;
-
-        ctx.strokeRect(
-            h.doorX-20,
-            h.doorY-60,
-            40,
-            60
-        );
-
-        ctx.fillStyle="#e6c16b";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            h.doorX+9,
-            h.doorY-30,
-            3,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-        ctx.fillStyle="#704438";
-
-        ctx.fillRect(
-            h.x+h.w-45,
-            h.y-75,
-            22,
-            48
-        );
-
-        ctx.fillStyle="#5c3a24";
-
-        ctx.fillRect(
-            h.x+h.w/2-38,
-            h.y-18,
-            76,
-            18
-        );
-
-        ctx.fillStyle="#f2dca3";
-
-        ctx.font="8px Arial";
-        ctx.textAlign="center";
-
-        ctx.fillText(
-            "HOME",
-            h.x+h.w/2,
-            h.y-6
+    for(const d of ordered){
+        drawEnvironmentImage(
+            d.image,
+            d.x,
+            d.y,
+            d.w,
+            d.h
         );
     }
 }
@@ -4435,72 +4411,63 @@ function drawRusticWindow(x,y){
 }
 
 /* =========================================================
+   ENVIRONMENT IMAGE HELPER
+========================================================= */
+
+function drawEnvironmentImage(key,x,y,width,height){
+
+    const img=images[key];
+    if(!img) return false;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(
+        img,
+        x-width/2,
+        y-height,
+        width,
+        height
+    );
+    ctx.restore();
+
+    return true;
+}
+
+/* =========================================================
    GRAND EXCHANGE
 ========================================================= */
 
 function drawGrandExchange(){
 
-    const x=550;
-    const y=450;
+    const x=grandExchangeLocation.x;
+    const y=grandExchangeLocation.y;
 
-    ctx.fillStyle="rgba(0,0,0,.3)";
+    ctx.save();
 
-    ctx.fillRect(
-        x-85,
-        y+25,
-        170,
-        20
-    );
+    /* The exchange sign is physically attached to the selected house1. */
+    const house=grandExchangeBuilding;
+    const signX=house?house.x+house.w/2:x;
+    const signY=house?house.y+house.h*.56:y-22;
 
-    ctx.fillStyle="#75452c";
+    ctx.fillStyle="rgba(0,0,0,.45)";
+    ctx.fillRect(signX-70,signY-18,140,38);
 
-    ctx.fillRect(
-        x-80,
-        y-35,
-        160,
-        70
-    );
-
-    ctx.fillStyle="#c08b52";
-
-    ctx.fillRect(
-        x-95,
-        y-40,
-        190,
-        14
-    );
-
-    ctx.fillStyle="#49302b";
-
-    ctx.beginPath();
-
-    ctx.moveTo(x-105,y-40);
-    ctx.lineTo(x,y-100);
-    ctx.lineTo(x+105,y-40);
-
-    ctx.closePath();
-
-    ctx.fill();
+    ctx.strokeStyle="#e7b85b";
+    ctx.lineWidth=2;
+    ctx.strokeRect(signX-70,signY-18,140,38);
 
     ctx.fillStyle="#ffd86a";
-
-    ctx.font="bold 15px Arial";
+    ctx.font="bold 13px Arial";
     ctx.textAlign="center";
+    ctx.shadowColor="rgba(0,0,0,.85)";
+    ctx.shadowBlur=6;
+    ctx.fillText("GRAND EXCHANGE",signX,signY-2);
 
-    ctx.fillText(
-        "GRAND EXCHANGE",
-        x,
-        y-60
-    );
-
-    ctx.font="11px Arial";
+    ctx.font="9px Arial";
     ctx.fillStyle="#fff";
+    ctx.fillText("TRADE",signX,signY+12);
 
-    ctx.fillText(
-        "CLICK TO TRADE",
-        x,
-        y+55
-    );
+    ctx.restore();
 }
 
 /* =========================================================
@@ -4556,108 +4523,44 @@ function drawFishingSpots(){
    DUNGEON ENTRANCE
 ========================================================= */
 
+function drawDungeonEntrances(){
+
+    for(const entrance of dungeonEntrances){
+        const img=images[entrance.image];
+        const w=120;
+        const h=120;
+
+        if(img){
+            drawEnvironmentImage(
+                entrance.image,
+                entrance.x,
+                entrance.y+h/2-8,
+                w,
+                h
+            );
+        }else{
+            ctx.save();
+            ctx.fillStyle="#16110e";
+            ctx.beginPath();
+            ctx.ellipse(entrance.x,entrance.y,48,58,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        ctx.save();
+        ctx.fillStyle="#ffd46b";
+        ctx.font="bold 12px Georgia";
+        ctx.textAlign="center";
+        ctx.shadowColor="rgba(0,0,0,.85)";
+        ctx.shadowBlur=6;
+        ctx.fillText(entrance.name,entrance.x,entrance.y+78);
+        ctx.restore();
+    }
+}
+
+/* Backwards-compatible wrapper for any older call sites. */
 function drawDungeonEntrance(){
-
-    const x=dungeonEntrance.x;
-    const y=dungeonEntrance.y;
-
-    ctx.save();
-
-    ctx.fillStyle="rgba(0,0,0,.4)";
-
-    ctx.beginPath();
-
-    ctx.ellipse(
-        x,
-        y+25,
-        90,
-        45,
-        0,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
-
-    /* Rock mound */
-
-    ctx.fillStyle="#4a4037";
-
-    ctx.beginPath();
-
-    ctx.moveTo(x-85,y+25);
-
-    ctx.quadraticCurveTo(
-        x-75,
-        y-65,
-        x,
-        y-85
-    );
-
-    ctx.quadraticCurveTo(
-        x+75,
-        y-65,
-        x+85,
-        y+25
-    );
-
-    ctx.closePath();
-
-    ctx.fill();
-
-    /* Cave opening */
-
-    ctx.fillStyle="#090807";
-
-    ctx.beginPath();
-
-    ctx.ellipse(
-        x,
-        y+5,
-        50,
-        65,
-        0,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
-
-    /* Fire lamps */
-
-    drawCaveLamp(
-        x-70,
-        y-15
-    );
-
-    drawCaveLamp(
-        x+70,
-        y-15
-    );
-
-    ctx.fillStyle="#ffd46b";
-
-    ctx.font="bold 14px Georgia";
-
-    ctx.textAlign="center";
-
-    ctx.fillText(
-        "THE LOST CAVE",
-        x,
-        y-105
-    );
-
-    ctx.font="11px Arial";
-
-    ctx.fillStyle="#fff";
-
-    ctx.fillText(
-        "ENTER DUNGEON",
-        x,
-        y+100
-    );
-
-    ctx.restore();
+    drawDungeonEntrances();
 }
 
 /* =========================================================
@@ -5965,19 +5868,19 @@ function drawMiniMap(){
 
         ctx.fillStyle="#287ca8";
 
-        for(const w of waterZones){
+        for(const pond of environment.ponds){
 
             ctx.fillRect(
-                x+w.x*sx,
-                y+w.y*sy,
-                w.w*sx,
-                w.h*sy
+                x+pond.x*sx,
+                y+pond.y*sy,
+                pond.w*sx,
+                pond.h*sy
             );
         }
 
         ctx.fillStyle="#d6a65c";
 
-        for(const h of houses){
+        for(const h of environment.buildings){
 
             ctx.fillRect(
                 x+h.x*sx,
@@ -5989,12 +5892,14 @@ function drawMiniMap(){
 
         ctx.fillStyle="#a05c32";
 
-        ctx.fillRect(
-            x+dungeonEntrance.x*sx-3,
-            y+dungeonEntrance.y*sy-3,
-            6,
-            6
-        );
+        for(const entrance of dungeonEntrances){
+            ctx.fillRect(
+                x+entrance.x*sx-3,
+                y+entrance.y*sy-3,
+                6,
+                6
+            );
+        }
     }
 
     ctx.fillStyle="#ff4f5f";

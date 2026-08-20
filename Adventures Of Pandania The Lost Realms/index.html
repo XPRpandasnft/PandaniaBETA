@@ -751,27 +751,6 @@ kbd{
     }
 }
 </style>
-
-<style id="pandaniaStartScreenMobileGate">
-  #pandaniaMobileControls{display:none!important}
-  #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
-</style>
-<script>
-(function(){
-  const gw=document.getElementById("gameWrap");
-  const pb=document.getElementById("playButton");
-  if(pb && gw){
-    pb.addEventListener("click",function(){
-      gw.classList.add("pandaniaStarted");
-    },true);
-  }
-  if(gw && typeof gameStarted!=="undefined" && gameStarted){
-    gw.classList.add("pandaniaStarted");
-  }
-})();
-</script>
-
-<style id="pandaniaStartScreenMobileGateFinal">#pandaniaMobileControls{display:none!important}#gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}</style>
 </head>
 
 <body>
@@ -6977,7 +6956,9 @@ requestAnimationFrame(
   const mobileFixStyle=document.createElement("style");
   mobileFixStyle.textContent=`
     #pandaniaMobileControls{display:none!important}
-    #gameWrap.pandaniaStarted #pandaniaMobileControls{display:none!important;}
+    #gameWrap.pandaniaStarted #pandaniaMobileControls{
+      display:flex!important;
+    }
   `;
   document.head.appendChild(mobileFixStyle);
 
@@ -8394,6 +8375,189 @@ const css=document.createElement('style'); css.textContent=`@media (max-width:70
     }
   `;
   document.head.appendChild(style);
+})();
+</script>
+
+
+<script>
+/* ============================================================
+   TARGETED FIX:
+   1) Restore equipped weapon artwork.
+   2) Restore double-tap weapon equipping.
+   3) Keep joystick off the Play/start screen.
+   No other game systems are modified.
+   ============================================================ */
+(function(){
+  "use strict";
+
+  /* ----- Equipped weapon artwork (working reference approach) ----- */
+  function weaponDefinition(name){
+    if(!name) return null;
+    let d = Array.isArray(weaponDrops) ? weaponDrops.find(w=>w && w.name===name) : null;
+    if(d) return d;
+
+    const inv = inventory && inventory[name];
+    if(inv && inv.image) return {name:name,image:inv.image};
+
+    const aliases={"Proton Lens":"XPR Lens","XPR Lens":"Proton Lens"};
+    const alias=aliases[name];
+    if(alias){
+      d=Array.isArray(weaponDrops) ? weaponDrops.find(w=>w && w.name===alias) : null;
+      if(d) return d;
+      if(inventory && inventory[alias] && inventory[alias].image)
+        return {name:alias,image:inventory[alias].image};
+    }
+    return null;
+  }
+
+  function weaponImageSource(name){
+    const d=weaponDefinition(name);
+    if(!d || !d.image) return "";
+    if(typeof d.image==="string" && d.image.indexOf("data:")===0) return d.image;
+    if(typeof imageFiles==="object" && imageFiles[d.image]) return imageFiles[d.image];
+    if(typeof images==="object" && images[d.image] && images[d.image].src) return images[d.image].src;
+    return "";
+  }
+
+  function drawEquippedWeapon(){
+    const el=document.getElementById("equipWeapon");
+    if(!el) return;
+
+    const name=state.weapon || "";
+    const src=weaponImageSource(name);
+
+    el.innerHTML =
+      (src ? '<div class="pdWeaponArtFinal"><img src="'+src.replace(/"/g,'&quot;')+
+        '" alt="'+name.replace(/"/g,'&quot;')+'"></div>' : '') +
+      '<div class="paperDollEquipLabel">⚔️ Weapon</div>' +
+      '<strong>'+ (name || "Empty") +'</strong>' +
+      (name ? '<br><button class="pdUnequip" type="button">Unequip</button>' : '');
+
+    const b=el.querySelector(".pdUnequip");
+    if(b){
+      b.onclick=function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        setInv(name,(inventory[name]?.count||0)+1);
+        state.weapon="";
+        drawEquippedWeapon();
+        renderBag();
+      };
+    }
+  }
+
+  /* Make every existing call to refreshDoll use the corrected weapon renderer
+     while preserving the existing armor/tool rendering through the original
+     function first. */
+  const originalRefreshDoll = refreshDoll;
+  window.refreshDoll = function(){
+    try{ originalRefreshDoll(); }catch(_){}
+    drawEquippedWeapon();
+  };
+  refreshDoll=window.refreshDoll;
+
+  /* ----- Reliable double-tap weapon equipping ----- */
+  function bindWeaponDoubleTap(){
+    document.querySelectorAll("#bagWindow .itemCard").forEach(card=>{
+      if(card.__weaponDoubleTapFixed) return;
+
+      const nameEl=card.querySelector(".itemName");
+      if(!nameEl) return;
+      const name=nameEl.textContent.trim();
+
+      const isEquip =
+        (Array.isArray(weaponDrops) && weaponDrops.some(w=>w && w.name===name)) ||
+        /^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name);
+
+      if(!isEquip) return;
+
+      function equip(){
+        if(!inventory[name]) return;
+
+        if(Array.isArray(weaponDrops) && weaponDrops.some(w=>w && w.name===name)){
+          if(state.weapon) setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);
+          state.weapon=name;
+        }else if(name==="Iron Armor"){
+          if(state.armor) setInv(state.armor,(inventory[state.armor]?.count||0)+1);
+          state.armor=name;
+        }else{
+          if(state.tool) setInv(state.tool,(inventory[state.tool]?.count||0)+1);
+          state.tool=name;
+        }
+
+        setInv(name,(inventory[name]?.count||1)-1);
+        refreshDoll();
+        renderBag();
+        showMessage("✅ "+name+" equipped!");
+      }
+
+      card.addEventListener("dblclick",function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        equip();
+      },{passive:false});
+
+      let last=0,lx=0,ly=0;
+      card.addEventListener("pointerup",function(e){
+        const now=performance.now();
+        if(now-last<550 && Math.hypot(e.clientX-lx,e.clientY-ly)<55){
+          e.preventDefault();
+          e.stopPropagation();
+          equip();
+          last=0;
+          return;
+        }
+        last=now; lx=e.clientX; ly=e.clientY;
+      },{passive:false});
+
+      card.__weaponDoubleTapFixed=true;
+    });
+  }
+
+  const oldRenderBag=renderBag;
+  renderBag=function(){
+    oldRenderBag();
+    bindWeaponDoubleTap();
+    drawEquippedWeapon();
+  };
+
+  /* Bind after the existing bag has rendered and after future redraws. */
+  [0,150,400,900].forEach(t=>setTimeout(function(){
+    try{bindWeaponDoubleTap();drawEquippedWeapon();}catch(_){}
+  },t));
+
+  /* ----- Joystick visibility: game only, never the Play screen ----- */
+  const style=document.createElement("style");
+  style.textContent=`
+    #pandaniaJoystickOnly{display:none!important}
+    #gameWrap.pandaniaStarted #pandaniaJoystickOnly{display:flex!important}
+    #pandaniaMobileControls{display:none!important}
+    #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
+  `;
+  document.head.appendChild(style);
+
+  const gw=document.getElementById("gameWrap");
+  const play=document.getElementById("playButton");
+
+  function markStarted(){
+    if(gw) gw.classList.add("pandaniaStarted");
+  }
+
+  if(play) play.addEventListener("click",markStarted,true);
+  if(typeof gameStarted!=="undefined" && gameStarted) markStarted();
+
+  /* Some versions set gameStarted without a Play-button event. Keep only the
+     visibility state synchronized; no gameplay logic is touched. */
+  setInterval(function(){
+    if(!gw) return;
+    if(typeof gameStarted!=="undefined" && gameStarted) gw.classList.add("pandaniaStarted");
+    const started=gw.classList.contains("pandaniaStarted");
+
+    ["pandaniaJoystickOnly","pandaniaMobileControls"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.setProperty("display",started ? "flex" : "none","important");
+    });
+  },250);
 })();
 </script>
 

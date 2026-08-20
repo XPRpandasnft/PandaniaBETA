@@ -2215,6 +2215,63 @@ let monsters=[];
    SPAWN MONSTER
 ========================================================= */
 
+function monsterRoamBounds(type){
+    /* Special overworld monsters are permanently assigned to these regions.
+       Keeping the bounds here means both initial spawns and later respawns use
+       the exact same roaming area. */
+    if(type==="monster6")
+        return {x1:100,y1:1260,x2:900,y2:1660};
+    if(type==="roamer1")
+        return {x1:2050,y1:260,x2:2530,y2:720};
+    return null;
+}
+
+function findSafeMonsterSpawn(type,x,y){
+    const bounds=monsterRoamBounds(type);
+    const data=monsterTypes[type];
+    const r=Math.max(12,data?.r||20);
+
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const base={
+        x:bounds?clamp(x,bounds.x1,bounds.x2):x,
+        y:bounds?clamp(y,bounds.y1,bounds.y2):y
+    };
+
+    const safe=p=>{
+        if(!Number.isFinite(p.x)||!Number.isFinite(p.y)) return false;
+        if(bounds && (p.x<bounds.x1||p.x>bounds.x2||p.y<bounds.y1||p.y>bounds.y2)) return false;
+        if(blocked(p.x,p.y,r)) return false;
+        /* Don't drop a monster directly on another monster. */
+        if(monsters.some(m=>Math.hypot(p.x-m.x,p.y-m.y)<r+m.r+24)) return false;
+        return true;
+    };
+
+    if(safe(base)) return base;
+
+    /* Search outward from the requested point, but always remain inside the
+       monster's assigned region. */
+    for(let radius=35;radius<=260;radius+=35){
+        for(let a=0;a<Math.PI*2;a+=Math.PI/10){
+            const p={
+                x:base.x+Math.cos(a)*radius,
+                y:base.y+Math.sin(a)*radius
+            };
+            if(safe(p)) return p;
+        }
+    }
+
+    /* Last resort: sample the assigned region until a collision-free point is
+       found. */
+    for(let i=0;i<160;i++){
+        const p=bounds
+            ? {x:bounds.x1+Math.random()*(bounds.x2-bounds.x1),y:bounds.y1+Math.random()*(bounds.y2-bounds.y1)}
+            : {x:40+Math.random()*Math.max(1,world.width-80),y:40+Math.random()*Math.max(1,world.height-80)};
+        if(safe(p)) return p;
+    }
+
+    return base;
+}
+
 function spawnMonster(type,x,y){
 
     const data=monsterTypes[type];
@@ -2222,25 +2279,30 @@ function spawnMonster(type,x,y){
     if(!data)
         return;
 
+    const safe=findSafeMonsterSpawn(type,x,y);
+    const roamBounds=monsterRoamBounds(type);
+
     monsters.push({
 
         ...data,
 
         type,
 
-        x,
-        y,
+        x:safe.x,
+        y:safe.y,
 
         maxHp:data.hp,
-
         attackCooldown:0,
         bossFireCooldown:data.boss?600:0,
-
         hitFlash:0,
-
         chaseDistance:data.boss
             ?650
-            :330
+            :330,
+        roamBounds:roamBounds?{...roamBounds}:null,
+        roamTarget:null,
+        stuckFrames:0,
+        lastX:safe.x,
+        lastY:safe.y
     });
 }
 
@@ -2645,7 +2707,7 @@ function pandaniaMobileZoom(){
     const coarse=window.matchMedia("(pointer:coarse)").matches;
     const narrow=window.matchMedia("(max-width:700px)").matches;
     if(!coarse&&!narrow) return 1;
-    return window.matchMedia("(orientation:landscape)").matches ? .88 : .75;
+    return window.matchMedia("(orientation:landscape)").matches ? .94 : .88;
 }
 
 function updateCamera(){
@@ -2940,23 +3002,22 @@ function killMonster(monster){
 
     player.targetMonster=null;
 
-    /* Only respawn normal overworld enemies */
-
+    /* Respawn every non-boss overworld monster. Special monsters use their
+       assigned roam region instead of being scattered across the whole map. */
     if(!inDungeon && !monster.boss){
 
+        const respawnType=monster.type;
+        const bounds=monsterRoamBounds(respawnType);
+        const spawnX=bounds
+            ? bounds.x1+Math.random()*(bounds.x2-bounds.x1)
+            : 250+Math.random()*(world.width-500);
+        const spawnY=bounds
+            ? bounds.y1+Math.random()*(bounds.y2-bounds.y1)
+            : 180+Math.random()*(world.height-350);
+
         setTimeout(()=>{
-
-            spawnMonster(
-                monster.type,
-                250+
-                Math.random()*
-                (world.width-500),
-
-                180+
-                Math.random()*
-                (world.height-350)
-            );
-
+            if(inDungeon) return;
+            spawnMonster(respawnType,spawnX,spawnY);
         },4000);
     }
 
@@ -6791,7 +6852,7 @@ requestAnimationFrame(
     const style=document.createElement('style');
     style.textContent=`
       #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 10px;justify-content:space-between;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif}
-      #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+      #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none;box-shadow:0 3px 10px rgba(0,0,0,.35)}
       #pmDpad,#pmActions{pointer-events:auto} #pmDpad{text-align:center} #pmDpad>div{display:flex;justify-content:center} #pmActions{display:flex;gap:2px} #pmActions button{width:52px;height:52px;border-radius:16px}
       @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.bagEmptySlot{min-height:82px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
       @media(max-width:430px){#stats{width:165px}.name{margin-bottom:4px}#quest{width:165px}.questTitle{font-size:10px}#buttons .gameBtn{font-size:0;width:34px;height:34px;padding:0}.spell{width:52px;height:47px}.spellIcon{font-size:17px}#pmDpad button{width:43px;height:43px;font-size:18px}#pmActions button{width:47px;height:47px;font-size:18px}}
@@ -6799,17 +6860,36 @@ requestAnimationFrame(
     document.head.appendChild(style);
 
     function hold(btn,key){
-      const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;faceKey(key);};
-      const stop=e=>{e.preventDefault();keys[key]=false;};
-      btn.addEventListener('pointerdown',start);
-      btn.addEventListener('pointerup',stop);
-      btn.addEventListener('pointercancel',stop);
-      btn.addEventListener('lostpointercapture',stop);
+      const start=e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        btn.setPointerCapture?.(e.pointerId);
+        keys[key]=true;
+        faceKey(key);
+      };
+      const stop=e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        keys[key]=false;
+      };
+      btn.addEventListener('pointerdown',start,{passive:false});
+      btn.addEventListener('pointerup',stop,{passive:false});
+      btn.addEventListener('pointercancel',stop,{passive:false});
+      btn.addEventListener('lostpointercapture',stop,{passive:false});
+      btn.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();},{passive:false});
+      btn.addEventListener('selectstart',e=>{e.preventDefault();e.stopPropagation();},{passive:false});
     }
     box.querySelectorAll('[data-k]').forEach(b=>hold(b,b.dataset.k));
-    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();swordAttack();});
-    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
-    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();openBag();});
+
+    /* Prevent the mobile browser text-selection/caret loupe from appearing
+       when direction buttons are pressed or held. */
+    box.addEventListener('touchstart',e=>{e.preventDefault();},{passive:false});
+    box.addEventListener('touchmove',e=>{e.preventDefault();},{passive:false});
+    box.addEventListener('selectstart',e=>{e.preventDefault();},{passive:false});
+    box.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
+    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();swordAttack();},{passive:false});
+    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();interact();},{passive:false});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openBag();},{passive:false});
   }
   mobileUI();
 
@@ -6969,18 +7049,17 @@ requestAnimationFrame(
     }
 
     for(const m of monsters){
-      if(m.type==="monster6"){
-        m.roamBounds={x1:100,y1:1260,x2:900,y2:1660};
-      }else if(m.type==="roamer1"){
-        m.roamBounds={x1:2050,y1:260,x2:2530,y2:720};
-        m.defense=12;
-      }
+      const bounds=monsterRoamBounds(m.type);
+      if(bounds) m.roamBounds={...bounds};
+      if(m.type==="roamer1") m.defense=12;
     }
   }
 
   spawnSpecialOverworld();
 
-  /* Keep special monsters out of water and inside their assigned region. */
+  /* Keep special monsters inside their assigned regions and out of every
+     obstacle. If an obstacle blocks a path, recover the monster to a nearby
+     valid point instead of allowing it to remain permanently stuck. */
   const oldUpdateMonstersForSpecial=updateMonsters;
   updateMonsters=function(){
     oldUpdateMonstersForSpecial();
@@ -6991,17 +7070,35 @@ requestAnimationFrame(
       m.x=Math.max(m.roamBounds.x1,Math.min(m.roamBounds.x2,m.x));
       m.y=Math.max(m.roamBounds.y1,Math.min(m.roamBounds.y2,m.y));
 
-      /* If collision changes or a map edit puts one in a pond, move it
-         to a nearby known-safe point rather than leaving it in water. */
-      if(environment.ponds.some(p=>pointInRect(m.x,m.y,p,Math.max(8,m.r)))){
-        const safePoints=m.type==="roamer1"
-          ?[{x:2310,y:520},{x:2380,y:460},{x:2250,y:600}]
-          :[{x:330,y:1410},{x:560,y:1510},{x:780,y:1390}];
-        const safe=safePoints.find(p=>
-          !environment.ponds.some(w=>pointInRect(p.x,p.y,w,m.r)) &&
-          !environment.buildings.some(b=>circleRectCollision(p.x,p.y,m.r,b))
-        );
-        if(safe){m.x=safe.x;m.y=safe.y;}
+      const moved=Math.hypot(m.x-(m.lastX??m.x),m.y-(m.lastY??m.y));
+      if(moved<0.08) m.stuckFrames=(m.stuckFrames||0)+1;
+      else m.stuckFrames=0;
+      m.lastX=m.x;
+      m.lastY=m.y;
+
+      const currentlyBlocked=blocked(m.x,m.y,Math.max(8,m.r-2));
+      const stuckTooLong=(m.stuckFrames||0)>45;
+
+      if(currentlyBlocked || stuckTooLong){
+        const safe=findSafeMonsterSpawn(m.type,m.x,m.y);
+        if(safe){
+          m.x=safe.x;
+          m.y=safe.y;
+          m.lastX=safe.x;
+          m.lastY=safe.y;
+        }
+        m.stuckFrames=0;
+        m.disengageTarget=null;
+        m.roamTarget=null;
+        continue;
+      }
+
+      /* Do not let a special monster select an invalid disengage target. */
+      if(m.disengageTarget){
+        m.disengageTarget.x=Math.max(m.roamBounds.x1,Math.min(m.roamBounds.x2,m.disengageTarget.x));
+        m.disengageTarget.y=Math.max(m.roamBounds.y1,Math.min(m.roamBounds.y2,m.disengageTarget.y));
+        if(blocked(m.disengageTarget.x,m.disengageTarget.y,m.r))
+          m.disengageTarget=null;
       }
     }
   };

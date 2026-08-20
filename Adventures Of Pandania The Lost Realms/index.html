@@ -1557,6 +1557,9 @@ canvas.addEventListener("pointerdown",e=>{
         return;
 
     const p=getWorldMousePosition(e);
+    if(window.matchMedia && (window.matchMedia("(pointer:coarse)").matches || window.matchMedia("(max-width:700px)").matches)){
+      return;
+    }
     /* MOBILE: screen taps are NOT movement controls.
        Preserve dropped-item pickup, then stop before any movement/target logic. */
     if (
@@ -8224,6 +8227,57 @@ const css=document.createElement('style'); css.textContent=`@media (max-width:70
   `;
   document.head.appendChild(css);
   build();
+})();
+</script>
+
+
+<script>
+/* FINAL REQUESTED MOBILE CONTROL PATCH ONLY */
+(function(){
+  const mobile=()=>matchMedia("(pointer:coarse)").matches||matchMedia("(max-width:700px)").matches;
+  const wrap=document.getElementById("gameWrap");
+  if(!wrap||!mobile()) return;
+
+  const css=document.createElement("style");
+  css.textContent=`
+    @media(pointer:coarse),(max-width:700px){
+      #pmDpad,#pmActions{display:none!important}
+      #buttons .legacyMobileBagHidden{display:none!important}
+      #joystickOnlyFinal{position:absolute!important;left:12px!important;bottom:12px!important;width:104px!important;height:104px!important;z-index:10000!important;pointer-events:auto!important;touch-action:none!important}
+      #joystickOnlyFinal .jofBase{width:104px!important;height:104px!important;border-radius:50%!important;position:relative!important;background:rgba(10,13,19,.78)!important;border:2px solid rgba(255,216,106,.78)!important;box-sizing:border-box!important}
+      #joystickOnlyFinal .jofKnob{position:absolute!important;left:50%!important;top:50%!important;width:46px!important;height:46px!important;margin:0!important;transform:translate(-50%,-50%)!important;border-radius:50%!important;background:rgba(74,58,31,.95)!important;border:2px solid rgba(255,230,145,.88)!important;pointer-events:none!important}
+    }`;
+  document.head.appendChild(css);
+
+  const root=document.createElement("div");
+  root.id="joystickOnlyFinal";
+  root.innerHTML='<div class="jofBase"><div class="jofKnob"></div></div>';
+  wrap.appendChild(root);
+
+  const base=root.firstElementChild, knob=root.querySelector(".jofKnob");
+  let pid=null;
+
+  const stop=()=>{
+    keys.w=keys.a=keys.s=keys.d=false;
+    knob.style.transform="translate(-50%,-50%)";
+    pid=null;
+  };
+  const move=e=>{
+    const r=base.getBoundingClientRect(), max=r.width*.34;
+    let dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+    const len=Math.hypot(dx,dy)||1;
+    if(len>max){dx=dx/len*max;dy=dy/len*max}
+    knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+    const nx=dx/max,ny=dy/max,dead=.18;
+    keys.w=ny<-dead;keys.s=ny>dead;keys.a=nx<-dead;keys.d=nx>dead;
+    if(Math.abs(nx)>dead||Math.abs(ny)>dead){
+      player.targetX=null;player.targetY=null;player.targetMonster=null;
+    }
+  };
+
+  base.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();pid=e.pointerId;base.setPointerCapture?.(pid);move(e)},{passive:false});
+  base.addEventListener("pointermove",e=>{if(e.pointerId!==pid)return;e.preventDefault();e.stopPropagation();move(e)},{passive:false});
+  ["pointerup","pointercancel","lostpointercapture"].forEach(t=>base.addEventListener(t,e=>{e.preventDefault();e.stopPropagation();stop()},{passive:false}));
 })();
 </script>
 

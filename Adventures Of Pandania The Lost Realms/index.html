@@ -8016,9 +8016,171 @@ requestAnimationFrame(
 /* ===== END PANDANIA MOBILE UI CLEANUP v12 ===== */
 </script>
 
+
 <script>
+/* ===== FINAL EQUIPPED WEAPON ART FIX =====
+   Keep weapon artwork inside the existing paper-doll slot.
+   This deliberately runs last so older refreshDoll patches cannot
+   overwrite the working image renderer.
+*/
 (function(){
-const css=document.createElement('style'); css.textContent=`@media (max-width:700px),(pointer:coarse){#pmDpad,#pandaniaMobileControls #pmDpad,[id*="Dpad"]{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important}#buttons .gameBtn[onclick*="openBag"],#legacyBag,.legacyMobileBagHidden{display:none!important;visibility:hidden!important;pointer-events:none!important}#pandaniaMobileControls #pmBag{display:flex!important;visibility:visible!important;pointer-events:auto!important;position:relative!important;z-index:120!important}#pandaniaEquipment{width:min(94vw,360px)!important;max-width:min(94vw,360px)!important;max-height:78vh!important;overflow:hidden!important;box-sizing:border-box!important}#pandaniaEquipment #equipWeapon,#pandaniaEquipment .equipSlot,#pandaniaEquipment [id*="Weapon"]{min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}.paperDollEquipImage,#pandaniaEquipment .pdWeaponArtFinal img{width:auto!important;height:auto!important;max-width:58px!important;max-height:58px!important;object-fit:contain!important;display:block!important;margin-left:auto!important;margin-right:auto!important}#pandaniaEquipment .pdWeaponArtFinal{width:100%!important;max-width:100%!important;height:64px!important;max-height:64px!important;overflow:hidden!important;display:flex!important;align-items:center!important;justify-content:center!important}}`; document.head.appendChild(css); function clean(){if(!matchMedia('(max-width:700px),(pointer:coarse)').matches)return; document.querySelectorAll('#pmDpad,[id*="Dpad"]').forEach(e=>{e.style.setProperty('display','none','important');e.style.setProperty('visibility','hidden','important');e.style.setProperty('pointer-events','none','important')}); document.querySelectorAll('#buttons .gameBtn[onclick*="openBag"],#legacyBag,.legacyMobileBagHidden').forEach(e=>{e.style.setProperty('display','none','important');e.style.setProperty('visibility','hidden','important');e.style.setProperty('pointer-events','none','important')}); const b=document.querySelectorAll('#pandaniaMobileControls #pmBag'); for(let i=1;i<b.length;i++) b[i].remove(); const q=document.getElementById('pandaniaEquipment'); if(q)q.style.setProperty('overflow','hidden','important')} clean(); [50,150,400,900,1800].forEach(t=>setTimeout(clean,t)); new MutationObserver(clean).observe(document.body,{childList:true,subtree:true});})();
+  "use strict";
+
+  function resolveWeaponImage(name){
+    if(!name) return "";
+    let def = Array.isArray(window.weaponDrops)
+      ? window.weaponDrops.find(w => w && w.name === name)
+      : null;
+
+    /* XPR Lens was historically stored as Proton Lens in inventory. */
+    if(!def && name === "XPR Lens" && Array.isArray(window.weaponDrops)){
+      def = window.weaponDrops.find(w => w && w.image === "weapon4");
+    }
+    if(!def && name === "Proton Lens" && Array.isArray(window.weaponDrops)){
+      def = window.weaponDrops.find(w => w && (w.image === "weapon4" || w.name === "XPR Lens"));
+    }
+
+    const key = def && def.image ? def.image :
+      (name === "XPR Lens" || name === "Proton Lens" ? "weapon4" : "");
+
+    if(!key) return "";
+
+    if(window.images && window.images[key] && window.images[key].src)
+      return window.images[key].src;
+
+    if(window.imageFiles && window.imageFiles[key])
+      return window.imageFiles[key];
+
+    /* Final direct-path fallback. */
+    const folder = (typeof IMAGE_FOLDER === "string") ? IMAGE_FOLDER : "images/";
+    return folder + key + ".png";
+  }
+
+  function drawWeapon(){
+    const p = document.getElementById("pandaniaEquipment");
+    const el = document.getElementById("equipWeapon");
+    const state = window.__pandaniaEquipment;
+    if(!p || !el || !state) return;
+
+    const item = state.weapon || "";
+    const src = resolveWeaponImage(item);
+
+    if(!item){
+      el.innerHTML =
+        '<div class="paperDollEquipLabel">⚔️ Weapon</div><strong>Empty</strong>';
+      return;
+    }
+
+    el.innerHTML =
+      (src
+        ? '<div class="paperDollWeaponArtFinal">' +
+          '<img class="paperDollEquipImageFinal" src="' +
+          src.replace(/"/g,'&quot;') +
+          '" alt="' + item.replace(/"/g,'&quot;') + '">' +
+          '</div>'
+        : '') +
+      '<div class="paperDollEquipLabel">⚔️ Weapon</div>' +
+      '<strong>' + item.replace(/</g,'&lt;') + '</strong>' +
+      '<br><button class="pdUnequip" type="button">Unequip</button>';
+
+    const img = el.querySelector(".paperDollEquipImageFinal");
+    if(img){
+      img.onerror = function(){
+        const key = (item === "XPR Lens" || item === "Proton Lens") ? "weapon4" : "";
+        if(key && window.images && window.images[key] && this.src !== window.images[key].src){
+          this.src = window.images[key].src;
+        }
+      };
+    }
+
+    const b = el.querySelector(".pdUnequip");
+    if(b) b.onclick = function(e){
+      e.stopPropagation();
+      if(typeof setInv === "function"){
+        setInv(item,(window.inventory && window.inventory[item]?.count || 0)+1);
+      }
+      state.weapon = "";
+      drawWeapon();
+      if(typeof renderBag === "function") renderBag();
+    };
+  }
+
+  function keepWeaponArt(){
+    drawWeapon();
+    /* Image objects may finish loading after the first render. */
+    setTimeout(drawWeapon, 60);
+    setTimeout(drawWeapon, 250);
+    setTimeout(drawWeapon, 700);
+  }
+
+  const originalRefresh = window.refreshDoll;
+  window.refreshDoll = function(){
+    if(typeof originalRefresh === "function"){
+      try { originalRefresh.apply(this, arguments); } catch(e) {}
+    }
+    keepWeaponArt();
+  };
+
+  /* Make the image renderer independent of the paper-doll panel's
+     dimensions; the panel itself remains compact on mobile. */
+  const style = document.createElement("style");
+  style.textContent = `
+    #pandaniaEquipment{
+      max-width:100%!important;
+      width:100%!important;
+      min-width:0!important;
+      box-sizing:border-box!important;
+      overflow:hidden!important;
+    }
+    #pandaniaEquipment #equipWeapon{
+      min-width:0!important;
+      max-width:100%!important;
+      width:100%!important;
+      box-sizing:border-box!important;
+      overflow:hidden!important;
+    }
+    .paperDollWeaponArtFinal{
+      width:100%!important;
+      height:62px!important;
+      max-height:62px!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+    }
+    .paperDollEquipImageFinal{
+      display:block!important;
+      width:auto!important;
+      height:auto!important;
+      max-width:56px!important;
+      max-height:56px!important;
+      object-fit:contain!important;
+      margin:0 auto!important;
+      flex:0 0 auto!important;
+    }
+    @media(max-width:430px){
+      #pandaniaEquipment{
+        max-width:100%!important;
+        padding:7px!important;
+      }
+      .paperDollWeaponArtFinal{
+        height:54px!important;
+        max-height:54px!important;
+      }
+      .paperDollEquipImageFinal{
+        max-width:46px!important;
+        max-height:46px!important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* Initial and late passes. */
+  keepWeaponArt();
+  [100,400,1000,2000].forEach(t => setTimeout(keepWeaponArt,t));
+})();
 </script>
+
 </body>
 </html>

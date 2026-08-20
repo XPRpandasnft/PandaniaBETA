@@ -477,10 +477,6 @@ kbd{
     cursor:pointer;
     font-size:11px;
     font-weight:bold;
-    touch-action:manipulation;
-    user-select:none;
-    -webkit-user-select:none;
-    -webkit-tap-highlight-color:transparent;
 }
 
 .spell:hover{
@@ -672,7 +668,6 @@ kbd{
     height:42px;
     margin:0 auto;
 }
-
 .goldCoinCore{
     position:absolute;
     left:9px;
@@ -684,7 +679,6 @@ kbd{
     border:2px solid #fff2a8;
     box-shadow:0 0 12px #ffd84d, inset 3px 3px 0 rgba(255,248,199,.65);
 }
-
 .goldSpark{
     position:absolute;
     width:8px;
@@ -693,7 +687,6 @@ kbd{
     border-radius:2px;
     box-shadow:0 0 5px #fff6a0;
 }
-
 .goldSpark:after{
     content:"";
     position:absolute;
@@ -704,7 +697,6 @@ kbd{
     background:#fff6a0;
     border-radius:2px;
 }
-
 .goldSpark.s1{left:1px;top:7px}
 .goldSpark.s2{right:0;top:15px}
 .goldSpark.s3{left:3px;bottom:4px}
@@ -849,6 +841,7 @@ kbd{
         </div>
 
         <div style="font-size:12px">
+
             Level
             <span id="level">1</span>
 
@@ -866,6 +859,7 @@ kbd{
 
             <span id="xpText">0 / 100</span>
             XP
+
         </div>
 
     </div>
@@ -944,18 +938,6 @@ kbd{
     </button>
 
 </div>
-
-<script>
-/* Mobile browsers can treat a fast second tap as a page-zoom gesture.
-   Suppress that gesture only on spell buttons; their normal click handlers
-   still fire, so single and double taps continue to cast spells. */
-document.querySelectorAll(".spell").forEach(spell=>{
-    spell.addEventListener("dblclick",e=>{
-        e.preventDefault();
-        e.stopPropagation();
-    });
-});
-</script>
 
 <!-- ======================================================
      CONTROLS
@@ -1131,6 +1113,7 @@ document.querySelectorAll(".spell").forEach(spell=>{
     </div>
 
     <div id="mailList">
+
         <div>
             <b>PandaKnight</b><br>
             Welcome to Pandania!
@@ -1140,6 +1123,7 @@ document.querySelectorAll(".spell").forEach(spell=>{
             <b>PandaFisher</b><br>
             Meet me at the river.
         </div>
+
     </div>
 
 </div>
@@ -2073,246 +2057,578 @@ const trees=environment.trees;
 
 /* =========================================================
    NPCS
+   Uses npc1/npc2 image assets.
 ========================================================= */
 
-const npcs=[];
+const npcs=[
 
-function addNPC(x,y,name,icon,role,extra={}){
-    npcs.push({
-        x,y,
-        homeX:x,
-        homeY:y,
-        name,
-        icon,
-        role,
-        wander:false,
-        walkTimer:0,
-        targetX:x,
-        targetY:y,
-        ...extra
+    {
+        x:760,
+        y:420,
+        name:"Captain Panda",
+        image:"npc1",
+        quest:true,
+        wander:false
+    },
+
+    {
+        x:1000,
+        y:350,
+        name:"Merchant Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:520,
+        y:690,
+        name:"Fisher Panda",
+        image:"npc1",
+        wander:true
+    },
+
+    {
+        x:1490,
+        y:840,
+        name:"Knight Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:1940,
+        y:560,
+        name:"Elder Panda",
+        image:"npc1",
+        wander:false
+    },
+
+    {
+        x:900,
+        y:620,
+        name:"Villager Panda",
+        image:"npc2",
+        wander:true
+    },
+
+    {
+        x:1250,
+        y:480,
+        name:"Farmer Panda",
+        image:"npc1",
+        wander:true
+    }
+];
+
+npcs.forEach(n=>{
+
+    n.homeX=n.x;
+    n.homeY=n.y;
+    n.targetX=n.x;
+    n.targetY=n.y;
+    n.walkTimer=0;
+
+});
+
+/* =========================================================
+   MONSTER DATA
+========================================================= */
+
+const monsterTypes={
+
+    monster1:{
+        name:"Slime",
+        hp:45,
+        damage:8,
+        xp:30,
+        gold:8,
+        speed:.9,
+        r:18,
+        image:"monster1"
+    },
+
+    monster2:{
+        name:"Goblin",
+        hp:55,
+        damage:10,
+        xp:38,
+        gold:10,
+        speed:.85,
+        r:18,
+        image:"monster2"
+    },
+
+    monster3:{
+        name:"Skeleton",
+        hp:65,
+        damage:12,
+        xp:45,
+        gold:13,
+        speed:1,
+        r:19,
+        image:"monster3"
+    },
+
+    monster4:{
+        name:"Werewolf",
+        hp:80,
+        damage:14,
+        xp:55,
+        gold:18,
+        speed:.8,
+        r:21,
+        image:"monster4"
+    },
+
+    monster5:{
+        name:"Orc",
+        hp:100,
+        damage:18,
+        xp:70,
+        gold:25,
+        speed:.75,
+        r:23,
+        image:"monster5"
+    },
+
+    boss1:{
+        name:"Flameozn",
+        hp:500,
+        damage:25,
+        xp:300,
+        gold:250,
+        speed:.65,
+        r:40,
+        image:"boss1",
+        boss:true
+    }
+};
+
+let monsters=[];
+
+/* =========================================================
+   SPAWN MONSTER
+========================================================= */
+
+function spawnMonster(type,x,y){
+
+    const data=monsterTypes[type];
+
+    if(!data)
+        return;
+
+    monsters.push({
+
+        ...data,
+
+        type,
+
+        x,
+        y,
+
+        maxHp:data.hp,
+
+        attackCooldown:0,
+        bossFireCooldown:data.boss?600:0,
+
+        hitFlash:0,
+
+        chaseDistance:data.boss
+            ?650
+            :330
     });
 }
 
-addNPC(650,520,"Captain Panda","🐼","Quest Captain");
-addNPC(950,680,"Merchant Panda","🧺","Merchant",{wander:true});
-addNPC(1120,550,"Healer Panda","💚","Healer",{wander:true});
-addNPC(420,760,"Fisher Panda","🎣","Fisher",{wander:true});
-addNPC(2180,820,"Guard Panda","🛡️","Guard");
+/* Overworld monsters */
+
+spawnMonster("monster1",300,300);
+spawnMonster("monster2",470,410);
+spawnMonster("monster3",1120,440);
+spawnMonster("monster4",1530,390);
+spawnMonster("monster5",1260,350);
+spawnMonster("monster1",1600,900);
+spawnMonster("monster2",1980,900);
+spawnMonster("monster3",600,520);
+spawnMonster("monster4",880,600);
+spawnMonster("monster5",1430,620);
+spawnMonster("monster1",2050,440);
 
 /* =========================================================
-   MONSTERS
+   DUNGEON MONSTERS
 ========================================================= */
 
-const monsters=[];
+function spawnDungeonEnemies(){
 
-const monsterTypes={
-    monster1:{name:"Slime",hp:70,damage:8,xp:20,gold:5,speed:1.15,r:20,image:"monster1"},
-    monster2:{name:"Goblin",hp:95,damage:12,xp:30,gold:8,speed:1.25,r:21,image:"monster2"},
-    monster3:{name:"Skeleton",hp:115,damage:15,xp:40,gold:10,speed:1.05,r:22,image:"monster3"},
-    monster4:{name:"Werewolf",hp:145,damage:20,xp:55,gold:15,speed:1.4,r:24,image:"monster4"},
-    monster5:{name:"Orc",hp:180,damage:24,xp:70,gold:20,speed:.95,r:27,image:"monster5"},
-    boss1:{name:"FLAMEOZN",hp:650,damage:28,xp:350,gold:300,speed:.7,r:42,image:"boss1",boss:true}
-};
+    monsters=[];
+
+    spawnMonster("monster2",350,300);
+    spawnMonster("monster3",540,450);
+    spawnMonster("monster4",900,300);
+    spawnMonster("monster5",1100,550);
+
+    spawnMonster(
+        "boss1",
+        750,
+        350
+    );
+
+    /* Flameozn's four-way Fire Burst starts its 10-second cooldown
+       when the boss enters the dungeon. */
+    const boss=monsters.find(m=>m.boss);
+    if(boss) boss.bossFireCooldown=600;
+}
 
 /* =========================================================
-   MONSTER AI
-   Every monster chases player when within range.
+   DROPS
 ========================================================= */
 
-function updateMonsters(){
+let groundDrops=[];
 
-    /* Monsters are paused while the player is inside a house.
-       They must not attack, chase, or interact with the house interior. */
-    if(inHouse)
-        return;
+function createDrop(x,y,forcedType=null){
 
-    for(const m of monsters){
+    const types=[
 
-        if(m.attackCooldown>0)
-            m.attackCooldown--;
+        {
+            name:"PDA Coin",
+            icon:"🪙",
+            image:"pda"
+        },
 
-        if(m.hitFlash>0)
-            m.hitFlash--;
+        {
+            name:"Gold Coin",
+            icon:"🪙",
+            image:null
+        },
 
-        if(m.type==="boss1" && m.bossFireCooldown>0)
-            m.bossFireCooldown--;
+        {
+            name:"Fish",
+            icon:"🐟",
+            image:null
+        },
 
-        if(m.type==="boss1" && m.bossFireCooldown<=0){
-            for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
-                bossFireShots.push({x:m.x,y:m.y,vx:dir.x*5.2,vy:dir.y*5.2,life:150,damage:28});
-            }
-            m.bossFireCooldown=600;
-            bossSound();
-            showMessage("🔥 FLAMEOZN casts a four-way Fire Burst!");
+        {
+            name:"Bamboo Sword",
+            icon:"⚔️",
+            image:"weapon1"
+        },
+
+        {
+            name:"Iron Sword",
+            icon:"⚔️",
+            image:"weapon2"
+        },
+
+        {
+            name:"Goblin Saber",
+            icon:"⚔️",
+            image:"weapon3"
         }
+    ];
 
-        const d=Math.hypot(
-            player.x-m.x,
-            player.y-m.y
-        );
+    let type;
+
+    if(forcedType){
+
+        type=
+            types.find(t=>
+                t.name===forcedType
+            )||types[0];
+
+    }else{
+
+        const roll=Math.random();
+
+        if(roll<.25){
+
+            type=types[0];
+
+        }else if(roll<.48){
+
+            type=types[1];
+
+        }else if(roll<.62){
+
+            type=types[2];
+
+        }else if(roll<.77){
+
+            type=types[3];
+
+        }else if(roll<.91){
+
+            type=types[4];
+
+        }else{
+
+            type=types[5];
+        }
+    }
+
+    groundDrops.push({
+
+        x,
+        y,
+
+        name:type.name,
+        icon:type.icon,
+        image:type.image,
+
+        bob:Math.random()*Math.PI*2
+    });
+}
+
+/* =========================================================
+   COLLISION
+========================================================= */
+
+function circleRectCollision(cx,cy,r,rect){
+
+    const closestX=Math.max(
+        rect.x,
+        Math.min(cx,rect.x+rect.w)
+    );
+
+    const closestY=Math.max(
+        rect.y,
+        Math.min(cy,rect.y+rect.h)
+    );
+
+    const dx=cx-closestX;
+    const dy=cy-closestY;
+
+    return dx*dx+dy*dy<r*r;
+}
+
+function blocked(x,y,r=player.r){
+
+    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
+    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
+
+    if(
+        x<20 ||
+        y<20 ||
+        x>currentWidth-20 ||
+        y>currentHeight-20
+    ){
+        return true;
+    }
+
+    if(inDungeon){
 
         /*
-           Every monster has a chase radius.
-           Boss has a much larger radius.
+           Dungeon has mostly open floor.
+           The border and rock walls are enough
+           for the temporary version.
         */
 
-        if(d<m.chaseDistance){
+        return false;
+    }
 
-            if(d>52){
+    if(inHouse){
+        return false;
+    }
 
-                const dx=(player.x-m.x)/d;
-                const dy=(player.y-m.y)/d;
+    /* Pond artwork is the water: no old hard-coded blue water rectangles remain. */
+    for(const pond of environment.ponds){
 
-                const nx=
-                    m.x+
-                    dx*m.speed;
+        if(circleRectCollision(x,y,r,pond))
+            return true;
+    }
 
-                const ny=
-                    m.y+
-                    dy*m.speed;
+    /* Buildings stay completely solid, but their collision footprint is
+       slightly inset from the artwork so the player can walk close to walls
+       without needing to keep an unnecessarily wide gap. */
+    for(const building of environment.buildings){
+        const inset=building.type==="bando" ? 12 : 16;
+        const footprint={
+            x:building.x+inset,
+            y:building.y+inset,
+            w:Math.max(1,building.w-inset*2),
+            h:Math.max(1,building.h-inset*2)
+        };
+        if(circleRectCollision(x,y,r,footprint))
+            return true;
+    }
 
-                if(
-                    !blocked(
-                        nx,
-                        m.y,
-                        m.r
-                    )
-                ){
-                    m.x=nx;
-                }
+    /* Trees are real obstacles: use the lower trunk/footprint portion of
+       each image so players and monsters can walk near the canopy but not
+       through the trunk. */
+    for(const tree of environment.trees){
+        const footprint={
+            x:tree.x-tree.w*.22,
+            y:tree.y-tree.h*.36,
+            w:tree.w*.44,
+            h:tree.h*.42
+        };
+        if(circleRectCollision(x,y,r,footprint))
+            return true;
+    }
 
-                if(
-                    !blocked(
-                        m.x,
-                        ny,
-                        m.r
-                    )
-                ){
-                    m.y=ny;
-                }
+    return false;
+}
+
+/* =========================================================
+   PLAYER UPDATE
+========================================================= */
+
+function setPlayerFacing(dx,dy){
+    if(!dx && !dy) return;
+    const len=Math.hypot(dx,dy)||1;
+    player.facingX=dx/len;
+    player.facingY=dy/len;
+    if(Math.abs(dx)>=Math.abs(dy)){
+        player.facing=dx<0?-1:1;
+    }
+}
+
+function updatePlayer(){
+
+    let dx=0;
+    let dy=0;
+
+    if(keys["w"]||keys["arrowup"])
+        dy--;
+
+    if(keys["s"]||keys["arrowdown"])
+        dy++;
+
+    if(keys["a"]||keys["arrowleft"])
+        dx--;
+
+    if(keys["d"]||keys["arrowright"])
+        dx++;
+
+    if(dx||dy){
+
+        player.targetX=null;
+        player.targetY=null;
+        player.targetMonster=null;
+
+    }else{
+
+        if(
+            player.targetX!==null &&
+            player.targetY!==null
+        ){
+
+            const tx=player.targetX-player.x;
+            const ty=player.targetY-player.y;
+
+            const distance=Math.hypot(tx,ty);
+
+            if(distance>6){
+
+                dx=tx/distance;
+                dy=ty/distance;
 
             }else{
 
-                if(
-                    m.attackCooldown<=0 &&
-                    player.invincible<=0
-                ){
+                player.targetX=null;
+                player.targetY=null;
+            }
+        }
 
-                    player.hp-=m.damage;
-                    addDamageNumber(player.x,player.y-38,m.damage,"#f33");
+        if(
+            player.targetMonster &&
+            monsters.includes(player.targetMonster)
+        ){
 
-                    player.invincible=30;
-                    m.attackCooldown=
-                        m.boss
-                        ?80
-                        :(m.type==="monster6"
-                          ?50
-                          :(m.type==="monster7" ?40 :70));
+            const m=player.targetMonster;
 
-                    hitSound();
+            const tx=m.x-player.x;
+            const ty=m.y-player.y;
 
-                    if(m.boss)
-                        bossSound();
+            const distance=Math.hypot(tx,ty);
 
-                    showMessage(
-                        "💥 "+
-                        m.name+
-                        " hit you for "+
-                        m.damage+
-                        " damage!"
-                    );
+            if(distance>68){
 
-                    if(player.hp<=0)
-                        respawnPlayer();
-                }
+                dx=tx/distance;
+                dy=ty/distance;
+
+            }else{
+
+                swordAttack(m);
             }
         }
     }
-}
 
-/* =========================================================
-   NPC UPDATE
-========================================================= */
+    player.moving=!!(dx||dy);
 
-function updateNPCs(){
+    if(player.moving){
 
-    if(inDungeon)
-        return;
+        const len=Math.hypot(dx,dy);
 
-    for(const n of npcs){
+        if(len>0){
 
-        if(!n.wander)
-            continue;
-
-        n.walkTimer--;
-
-        if(n.walkTimer<=0){
-
-            n.targetX=
-                n.homeX+
-                (Math.random()-.5)*260;
-
-            n.targetY=
-                n.homeY+
-                (Math.random()-.5)*180;
-
-            n.walkTimer=
-                100+
-                Math.random()*250;
+            dx/=len;
+            dy/=len;
         }
 
-        const dx=n.targetX-n.x;
-        const dy=n.targetY-n.y;
+        setPlayerFacing(dx,dy);
 
-        const d=Math.hypot(dx,dy);
+        if(dx<0)
+            player.facing=-1;
 
-        if(d>8){
+        if(dx>0)
+            player.facing=1;
 
-            const speed=.45;
+        player.walkTime+=.32;
 
-            const nx=n.x+dx/d*speed;
-            const ny=n.y+dy/d*speed;
+        const mobileHorizontalBoost=(Math.abs(dx)>0 && Math.abs(dy)<0.01 && pandaniaMobileZoom()<1) ? 1.18 : 1;
+        const moveSpeed=player.speed*mobileHorizontalBoost;
+        const nx=player.x+dx*moveSpeed;
+        const ny=player.y+dy*moveSpeed;
 
-            if(
-                nx>30&&
-                nx<world.width-30&&
-                ny>30&&
-                ny<world.height-30
-            ){
-                n.x=nx;
-                n.y=ny;
-            }
+        if(!blocked(nx,player.y))
+            player.x=nx;
+
+        if(!blocked(player.x,ny))
+            player.y=ny;
+
+    }else{
+
+        player.walkTime*=.86;
+    }
+
+    if(player.attackCooldown>0)
+        player.attackCooldown--;
+
+    if(player.invincible>0)
+        player.invincible--;
+
+    if(player.swordSwing>0)
+        player.swordSwing--;
+
+    if(player.healEffect>0)
+        player.healEffect--;
+
+    if(player.healText>0)
+        player.healText--;
+
+    /* Auto dungeon entry when walking onto either entrance */
+
+    if(!inDungeon && !inHouse){
+        const nearbyEntrance=dungeonEntrances.find(e=>
+            Math.hypot(player.x-e.x,player.y-e.y)<65
+        );
+
+        if(nearbyEntrance){
+            enterDungeon(nearbyEntrance);
         }
     }
-}
 
-/* =========================================================
-   DUNGEON ENTRY
-========================================================= */
+    /* Auto dungeon exit */
 
-function enterDungeon(entrance){
-    activeDungeonEntrance=entrance;
-    inDungeon=true;
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-    player.x=dungeon.width/2;
-    player.y=dungeon.height-140;
-    spawnDungeonEnemies();
-    setZoneLabel(entrance.name);
-    showMessage("🕯️ Entered "+entrance.name+".");
-}
+    if(
+        inDungeon &&
+        Math.hypot(
+            player.x-dungeonExit.x,
+            player.y-dungeonExit.y
+        )<55
+    ){
 
-function leaveDungeon(){
-    inDungeon=false;
-    monsters.length=0;
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-    player.x=activeDungeonEntrance.x;
-    player.y=activeDungeonEntrance.y+100;
-    setZoneLabel("");
-    showMessage("🌲 Returned to Pandania.");
+        leaveDungeon();
+    }
 }
 
 /* =========================================================
@@ -2324,7 +2640,6 @@ function pandaniaMobileZoom(){
     const coarse=window.matchMedia("(pointer:coarse)").matches;
     const narrow=window.matchMedia("(max-width:700px)").matches;
     if(!coarse&&!narrow) return 1;
-    /* Slightly closer mobile framing. The game/canvas size itself is unchanged. */
     return window.matchMedia("(orientation:landscape)").matches ? .88 : .75;
 }
 
@@ -2364,8 +2679,11 @@ function updateCamera(){
 let audioCtx=null;
 
 function ensureAudio(){
+
     try{
+
         if(!audioCtx){
+
             audioCtx=new(
                 window.AudioContext||
                 window.webkitAudioContext
@@ -2383,12 +2701,14 @@ function ensureAudio(){
 }
 
 function tone(type,frequency,duration,volume){
+
     ensureAudio();
 
     if(!audioCtx)
         return;
 
     try{
+
         const osc=audioCtx.createOscillator();
         const gain=audioCtx.createGain();
 
@@ -2452,6 +2772,7 @@ function swordAttack(target=null){
         let distance=Infinity;
 
         for(const m of monsters){
+
             const vx=m.x-player.x;
             const vy=m.y-player.y;
             const d=Math.hypot(vx,vy);
@@ -2549,13 +2870,16 @@ function killMonster(monster){
     player.loot++;
 
     /* Always drop something */
+
     createDrop(
         monster.x,
         monster.y
     );
 
     /* Additional weapon chance */
+
     if(Math.random()<.30){
+
         const weapon=
             weaponDrops[
                 Math.floor(
@@ -2572,7 +2896,9 @@ function killMonster(monster){
     }
 
     /* Boss gives guaranteed weapon */
+
     if(monster.boss){
+
         createDrop(
             monster.x-25,
             monster.y,
@@ -2603,12 +2929,14 @@ function killMonster(monster){
         !questComplete &&
         !monster.boss
     ){
+
         questKills++;
     }
 
     player.targetMonster=null;
 
     /* Only respawn normal overworld enemies */
+
     if(!inDungeon && !monster.boss){
 
         setTimeout(()=>{
@@ -2618,6 +2946,7 @@ function killMonster(monster){
                 250+
                 Math.random()*
                 (world.width-500),
+
                 180+
                 Math.random()*
                 (world.height-350)
@@ -2640,206 +2969,435 @@ function gainXP(amount){
     while(player.xp>=player.xpNext){
 
         player.xp-=player.xpNext;
+
         player.level++;
-        player.xpNext=Math.floor(player.xpNext*1.35);
-        player.maxHp+=10;
+
+        player.xpNext=Math.floor(
+            player.xpNext*1.35
+        );
+
+        player.maxHp+=15;
         player.hp=player.maxHp;
+
         player.maxMana+=5;
         player.mana=player.maxMana;
-        showMessage("✨ Level up! You are now level "+player.level+"!");
-    }
-}
-
-/* =========================================================
-   DROPS
-========================================================= */
-
-let groundDrops=[];
-
-function createDrop(x,y,forcedType=null){
-
-    const types=[
-        {
-            name:"PDA Coin",
-            icon:"🪙",
-            image:"pda"
-        },
-
-        {
-            name:"Gold Coin",
-            icon:"🪙",
-            image:null
-        },
-
-        {
-            name:"Fish",
-            icon:"🐟",
-            image:null
-        },
-
-        {
-            name:"Bamboo Sword",
-            icon:"⚔️",
-            image:"weapon1"
-        },
-
-        {
-            name:"Iron Sword",
-            icon:"⚔️",
-            image:"weapon2"
-        },
-
-        {
-            name:"Goblin Saber",
-            icon:"⚔️",
-            image:"weapon3"
-        },
-        {
-            name:"Thunderma",
-            icon:"⚔️",
-            image:"weapon7"
-        }
-    ];
-
-    let type;
-
-    if(forcedType){
-        type=
-            types.find(t=>
-                t.name===forcedType
-            )||types[0];
-    }else{
-        const roll=Math.random();
-
-        if(roll<.25){
-            type=types[0];
-        }else if(roll<.48){
-            type=types[1];
-        }else if(roll<.62){
-            type=types[2];
-        }else if(roll<.77){
-            type=types[3];
-        }else if(roll<.91){
-            type=types[4];
-        }else{
-            type=types[5];
-        }
-    }
-
-    groundDrops.push({
-        x,
-        y,
-        name:type.name,
-        icon:type.icon,
-        image:type.image,
-        bob:Math.random()*Math.PI*2
-    });
-}
-
-/* =========================================================
-   COLLISION
-========================================================= */
-
-function circleRectCollision(cx,cy,r,rect){
-    const closestX=Math.max(
-        rect.x,
-        Math.min(cx,rect.x+rect.w)
-    );
-
-    const closestY=Math.max(
-        rect.y,
-        Math.min(cy,rect.y+rect.h)
-    );
-
-    const dx=cx-closestX;
-    const dy=cy-closestY;
-
-    return dx*dx+dy*dy<r*r;
-}
-
-function blocked(x,y,r=player.r){
-    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
-    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
-
-    if(
-        x<20 ||
-        y<20 ||
-        x>currentWidth-20 ||
-        y>currentHeight-20
-    ){
-        return true;
-    }
-
-    if(inDungeon){
-        /*
-           Dungeon has mostly open floor.
-           The border and rock walls are enough
-           for the temporary version.
-        */
-        return false;
-    }
-
-    if(inHouse){
-        return false;
-    }
-
-    /* Pond artwork is the water: no old hard-coded blue water rectangles remain. */
-    for(const pond of environment.ponds){
-        if(circleRectCollision(x,y,r,pond))
-            return true;
-    }
-
-    /* Buildings are solid. */
-    for(const b of environment.buildings){
-        if(circleRectCollision(x,y,r,b))
-            return true;
-    }
-
-    return false;
-}
-
-/* =========================================================
-   INTERACTION
-========================================================= */
-
-function interact(){
-
-    if(inHouse){leaveHouse();return;}
-
-    if(inDungeon){
-        if(
-            Math.hypot(
-                player.x-dungeonExit.x,
-                player.y-dungeonExit.y
-            )<100
-        ){
-            leaveDungeon();
-            return;
-        }
 
         showMessage(
-            "🕯️ The cave is cold and dangerous..."
+            "✨ LEVEL UP! Level "+
+            player.level+"!"
         );
-        return;
     }
+}
 
-    for(const n of npcs){
-        if(Math.hypot(player.x-n.x,player.y-n.y)<70){
-            openDialogue(n);
-            return;
+/* =========================================================
+   MONSTER AI
+   Every monster chases player when within range.
+========================================================= */
+
+function updateMonsters(){
+
+    /* Monsters are paused while the player is inside a house.
+       They must not attack, chase, or interact with the house interior. */
+    if(inHouse)
+        return;
+
+    for(const m of monsters){
+
+        if(m.attackCooldown>0)
+            m.attackCooldown--;
+
+        if(m.hitFlash>0)
+            m.hitFlash--;
+
+        if(m.type==="boss1" && m.bossFireCooldown>0)
+            m.bossFireCooldown--;
+
+        if(m.type==="boss1" && m.bossFireCooldown<=0){
+            for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
+                bossFireShots.push({x:m.x,y:m.y,vx:dir.x*5.2,vy:dir.y*5.2,life:150,damage:28});
+            }
+            m.bossFireCooldown=600;
+            bossSound();
+            showMessage("🔥 FLAMEOZN casts a four-way Fire Burst!");
+        }
+
+        const d=Math.hypot(
+            player.x-m.x,
+            player.y-m.y
+        );
+
+        /*
+           Every monster has a chase radius.
+           Boss has a much larger radius.
+        */
+
+        const specialLeashMonster =
+            m.type==="monster6" ||
+            m.type==="roamer1";
+
+        /*
+           Green Biters and the Troll Reaper disengage when the player
+           leaves their chase radius. They then walk away until the player
+           comes back into range, at which point the normal chase logic
+           resumes automatically.
+        */
+        if(specialLeashMonster && d>=m.chaseDistance){
+            if(
+                !m.disengageTarget ||
+                Math.hypot(
+                    m.x-m.disengageTarget.x,
+                    m.y-m.disengageTarget.y
+                )<25
+            ){
+                const awayX=m.x+(m.x-player.x);
+                const awayY=m.y+(m.y-player.y);
+                const len=Math.hypot(awayX-m.x,awayY-m.y)||1;
+
+                m.disengageTarget={
+                    x:m.x+((awayX-m.x)/len)*180,
+                    y:m.y+((awayY-m.y)/len)*180
+                };
+            }
+
+            const tx=m.disengageTarget.x-m.x;
+            const ty=m.disengageTarget.y-m.y;
+            const td=Math.hypot(tx,ty)||1;
+            const nx=m.x+(tx/td)*m.speed*.7;
+            const ny=m.y+(ty/td)*m.speed*.7;
+
+            if(!blocked(nx,m.y,m.r)) m.x=nx;
+            if(!blocked(m.x,ny,m.r)) m.y=ny;
+
+            continue;
+        }
+
+        /* Player is back in range: normal chase/attack resumes. */
+        m.disengageTarget=null;
+
+        if(d<m.chaseDistance){
+
+            if(d>52){
+
+                const dx=(player.x-m.x)/d;
+                const dy=(player.y-m.y)/d;
+
+                const nx=
+                    m.x+
+                    dx*m.speed;
+
+                const ny=
+                    m.y+
+                    dy*m.speed;
+
+                if(
+                    !blocked(
+                        nx,
+                        m.y,
+                        m.r
+                    )
+                ){
+                    m.x=nx;
+                }
+
+                if(
+                    !blocked(
+                        m.x,
+                        ny,
+                        m.r
+                    )
+                ){
+                    m.y=ny;
+                }
+
+            }else{
+
+                if(
+                    m.attackCooldown<=0 &&
+                    player.invincible<=0
+                ){
+
+                    player.hp-=m.damage;
+                    addDamageNumber(player.x,player.y-38,m.damage,"#f33");
+
+                    player.invincible=30;
+
+                    m.attackCooldown=
+                        m.boss
+                        ?80
+                        :(m.type==="monster6"
+                          ?50
+                          :(m.type==="monster7" ?40 :70));
+
+                    hitSound();
+
+                    if(m.boss)
+                        bossSound();
+
+                    showMessage(
+                        "💥 "+
+                        m.name+
+                        " hit you for "+
+                        m.damage+
+                        " damage!"
+                    );
+
+                    if(player.hp<=0)
+                        respawnPlayer();
+                }
+            }
         }
     }
+}
 
-    const nearbyHouse=houses.find(h=>
-        h.playerHouse &&
-        Math.hypot(player.x-h.doorX,player.y-h.doorY)<100
-    );
-    if(nearbyHouse){
-        enterHouse(nearbyHouse);
+/* =========================================================
+   NPC UPDATE
+========================================================= */
+
+function updateBossFireShots(){
+    for(let i=bossFireShots.length-1;i>=0;i--){
+        const q=bossFireShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;
+        if(q.life<=0||q.x<20||q.y<20||q.x>dungeon.width-20||q.y>dungeon.height-20){bossFireShots.splice(i,1);continue;}
+        if(Math.hypot(player.x-q.x,player.y-q.y)<24&&player.invincible<=0){
+            player.hp-=q.damage;addDamageNumber(player.x,player.y-38,q.damage,"#f33");player.invincible=30;hitSound();
+            showMessage("🔥 Flameozn's fire hit you for "+q.damage+" damage!");bossFireShots.splice(i,1);
+            if(player.hp<=0)respawnPlayer();
+        }
+    }
+}
+
+function updateNPCs(){
+
+    if(inDungeon)
+        return;
+
+    for(const n of npcs){
+
+        if(!n.wander)
+            continue;
+
+        n.walkTimer--;
+
+        if(n.walkTimer<=0){
+
+            n.targetX=
+                n.homeX+
+                (Math.random()-.5)*260;
+
+            n.targetY=
+                n.homeY+
+                (Math.random()-.5)*180;
+
+            n.walkTimer=
+                100+
+                Math.random()*250;
+        }
+
+        const dx=n.targetX-n.x;
+        const dy=n.targetY-n.y;
+
+        const d=Math.hypot(dx,dy);
+
+        if(d>8){
+
+            const speed=.45;
+
+            const nx=n.x+dx/d*speed;
+            const ny=n.y+dy/d*speed;
+
+            if(
+                nx>30&&
+                nx<world.width-30&&
+                ny>30&&
+                ny<world.height-30
+            ){
+
+                n.x=nx;
+                n.y=ny;
+            }
+        }
+    }
+}
+
+/* =========================================================
+   DUNGEON ENTRY
+========================================================= */
+
+let dungeonAudioCtx=null,dungeonMusicTimer=null,dungeonMusicStep=0;
+
+function startDungeonMusic(){
+    try{
+        ensureAudio();
+        dungeonAudioCtx=audioCtx;
+        if(!dungeonAudioCtx) return;
+
+        if(dungeonAudioCtx.state==='suspended'){
+            dungeonAudioCtx.resume().catch(()=>{});
+        }
+
+        if(dungeonMusicTimer) return;
+
+        /* Keep the normal Pandania music out of the dungeon. */
+        if(musicTimer){
+            clearInterval(musicTimer);
+            musicTimer=null;
+        }
+
+        const notes=[55,61.74,73.42,65.41,49,58.27,69.3,51.91];
+        const tick=()=>{
+            if(!inDungeon){
+                stopDungeonMusic();
+                return;
+            }
+
+            try{
+                const n=notes[dungeonMusicStep++%notes.length];
+                const o=dungeonAudioCtx.createOscillator();
+                const g=dungeonAudioCtx.createGain();
+                const t=dungeonAudioCtx.currentTime;
+
+                o.type='sine';
+                o.frequency.setValueAtTime(n,t);
+                g.gain.setValueAtTime(.0001,t);
+                g.gain.exponentialRampToValueAtTime(.055,t+.08);
+                g.gain.exponentialRampToValueAtTime(.0001,t+.62);
+
+                o.connect(g);
+                g.connect(dungeonAudioCtx.destination);
+                o.start(t);
+                o.stop(t+.65);
+            }catch(e){}
+        };
+
+        tick();
+        dungeonMusicTimer=setInterval(tick,760);
+    }catch(e){
+        console.warn('Dungeon music unavailable',e);
+    }
+}
+
+function stopDungeonMusic(){
+    if(dungeonMusicTimer){
+        clearInterval(dungeonMusicTimer);
+        dungeonMusicTimer=null;
+    }
+}
+
+function enterDungeon(entrance=dungeonEntrance){
+
+    if(inDungeon)
+        return;
+
+    if(
+        Math.hypot(
+            player.x-entrance.x,
+            player.y-entrance.y
+        )>140
+    ){
+        showMessage("🕯️ Get closer to the dungeon entrance.");
         return;
     }
 
-    showMessage("Nothing to interact with here.");
+    activeDungeonEntrance=entrance;
+    inDungeon=true;startDungeonMusic();bossFireShots=[];
+
+    player.x=750;
+    player.y=780;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    groundDrops=[];
+
+    spawnDungeonEnemies();
+
+    setZoneLabel(
+        entrance.name.toUpperCase()
+    );
+
+    showMessage(
+        "🕯️ You entered "+entrance.name+"..."
+    );
+
+    updateCamera();
+}
+
+function leaveDungeon(){
+
+    if(!inDungeon)
+        return;
+
+    inDungeon=false;
+    stopDungeonMusic();
+    bossFireShots=[];
+
+    /* Resume the normal overworld music after leaving the dungeon. */
+    if(gameStarted) resumeOverworldMusic();
+
+    player.x=activeDungeonEntrance.x;
+    player.y=activeDungeonEntrance.y+105;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    groundDrops=[];
+
+    /* Restore overworld monsters. */
+    monsters=[];
+
+    spawnMonster("monster1",300,300);
+    spawnMonster("monster2",470,410);
+    spawnMonster("monster3",1120,440);
+    spawnMonster("monster4",1530,390);
+    spawnMonster("monster5",1260,350);
+    spawnMonster("monster1",1600,900);
+    spawnMonster("monster2",1980,900);
+    spawnMonster("monster3",600,520);
+    spawnMonster("monster4",880,600);
+    spawnMonster("monster5",1430,620);
+    spawnMonster("monster1",2050,440);
+
+    setZoneLabel("");
+
+    showMessage(
+        "🌲 You returned to Pandania."
+    );
+
+    updateCamera();
+}
+
+/* =========================================================
+   ZONE LABEL
+========================================================= */
+
+let zoneLabelTimer=null;
+
+function setZoneLabel(text){
+
+    const el=
+        document.getElementById(
+            "zoneLabel"
+        );
+
+    if(!text){
+
+        el.classList.remove("show");
+
+        return;
+    }
+
+    el.textContent=text;
+
+    el.classList.add("show");
+
+    clearTimeout(zoneLabelTimer);
+
+    zoneLabelTimer=setTimeout(()=>{
+
+        el.classList.remove("show");
+
+    },3000);
 }
 
 /* =========================================================
@@ -2856,39 +3414,63 @@ function castFire(){
         return;
 
     if(player.mana<5){
-        showMessage("🔥 Not enough mana.");
+
+        showMessage(
+            "🔥 Not enough mana."
+        );
+
         return;
     }
 
     const target=findSpellTarget();
 
     if(!target){
-        showMessage("🔥 No monster in range.");
+
+        showMessage(
+            "🔥 No monster in range."
+        );
+
         return;
     }
 
     player.mana-=5;
 
     spellEffects.push({
+
         type:"fire",
+
         x:player.x,
         y:player.y,
+
         tx:target.x,
         ty:target.y,
+
         life:25,
         maxLife:25
     });
 
     setTimeout(()=>{
+
         if(monsters.includes(target)){
+
             const fireDamage=Math.max(1,28-(target.defense||0));
             target.hp-=fireDamage;
             addDamageNumber(target.x,target.y-38,fireDamage,"#fff");
+
             target.hitFlash=8;
+
             hitSound();
-            showMessage("🔥 Fireball hit "+target.name+" for "+fireDamage+" damage!");
-            if(target.hp<=0) killMonster(target);
+
+            showMessage(
+                "🔥 Fireball hit "+
+                target.name+
+                " for "+fireDamage+" damage!"
+            );
+
+            if(target.hp<=0)
+                killMonster(target);
         }
+
     },300);
 }
 
@@ -2898,37 +3480,60 @@ function castLightning(){
         return;
 
     if(player.mana<7){
-        showMessage("⚡ Not enough mana.");
+
+        showMessage(
+            "⚡ Not enough mana."
+        );
+
         return;
     }
 
     const target=findSpellTarget();
 
     if(!target){
-        showMessage("⚡ No monster in range.");
+
+        showMessage(
+            "⚡ No monster in range."
+        );
+
         return;
     }
 
     player.mana-=7;
 
     spellEffects.push({
+
         type:"lightning",
+
         x:target.x,
         y:target.y,
+
         life:20,
         maxLife:20
     });
 
     setTimeout(()=>{
+
         if(monsters.includes(target)){
+
             const lightningDamage=Math.max(1,40-(target.defense||0));
             target.hp-=lightningDamage;
             addDamageNumber(target.x,target.y-38,lightningDamage,"#fff");
+
             target.hitFlash=10;
+
             hitSound();
-            showMessage("⚡ Lightning struck "+target.name+" for "+lightningDamage+" damage!");
-            if(target.hp<=0) killMonster(target);
+
+            showMessage(
+                "⚡ Lightning struck "+
+                target.name+
+                " for "+lightningDamage+" damage!"
+            );
+
+            if(target.hp<=0)
+                killMonster(target);
         }
+
     },250);
 }
 
@@ -2938,23 +3543,37 @@ function castHeal(){
         return;
 
     if(player.mana<3){
-        showMessage("💚 Not enough mana.");
+
+        showMessage(
+            "💚 Not enough mana."
+        );
+
         return;
     }
 
     if(player.hp>=player.maxHp){
-        showMessage("💚 Your health is already full.");
+
+        showMessage(
+            "💚 Your health is already full."
+        );
+
         return;
     }
 
     player.mana-=3;
+
     player.healEffect=45;
 
     let pulses=5;
+
     const interval=setInterval(()=>{
+
         if(pulses<=0){
+
             clearInterval(interval);
+
             updateUI();
+
             return;
         }
 
@@ -2967,6 +3586,7 @@ function castHeal(){
         player.healAmount=5;
 
         pulses--;
+
     },180);
 }
 
@@ -2978,6 +3598,7 @@ function findSpellTarget(){
             player.targetMonster
         )
     ){
+
         return player.targetMonster;
     }
 
@@ -2985,6 +3606,7 @@ function findSpellTarget(){
     let distance=Infinity;
 
     for(const m of monsters){
+
         const d=Math.hypot(
             player.x-m.x,
             player.y-m.y
@@ -2994,6 +3616,7 @@ function findSpellTarget(){
             d<500 &&
             d<distance
         ){
+
             closest=m;
             distance=d;
         }
@@ -3003,7 +3626,7 @@ function findSpellTarget(){
 }
 
 /* =========================================================
-   INVENTORY / BAG HELPERS
+   DROPS
 ========================================================= */
 
 function inventoryUsedSlots(){return Object.values(inventory).filter(item=>item&&item.count>0).length;}
@@ -3014,404 +3637,827 @@ function collectDrop(drop){
     if(!canAddNewInventoryItem(drop.name)){showMessage("🎒 Your bag is full. Visit The Vault for extra bag space!");return false;}
 
     if(drop.name==="PDA Coin"){
+
         player.gold++;
+
         inventory["PDA Coin"].count++;
+
     }else if(drop.name==="Gold Coin"){
+
         player.gold+=5;
+
         inventory["Gold Coin"].count++;
+
     }else if(drop.name==="Fish"){
+
         player.fish++;
+
         inventory["Fish"].count++;
+
     }else{
+
         if(!inventory[drop.name]){
+
             inventory[drop.name]={
+
                 icon:"⚔️",
+
                 image:drop.image,
+
                 count:0
             };
         }
+
         inventory[drop.name].count++;
     }
 
-    showMessage("🎁 Picked up "+drop.name+"!");
+    showMessage(
+        "🎁 Picked up "+
+        drop.name+
+        "!"
+    );
+
     updateUI();
     return true;
 }
 
 /* =========================================================
-   HOUSE / DIALOGUE / UI HELPERS
+   INTERACTION
 ========================================================= */
 
+function interact(){
+
+    if(inHouse){leaveHouse();return;}
+
+    if(inDungeon){
+
+        if(
+            Math.hypot(
+                player.x-dungeonExit.x,
+                player.y-dungeonExit.y
+            )<100
+        ){
+
+            leaveDungeon();
+
+            return;
+        }
+
+        showMessage(
+            "🕯️ The cave is cold and dangerous..."
+        );
+
+        return;
+    }
+
+    for(const n of npcs){
+
+        if(
+            Math.hypot(
+                player.x-n.x,
+                player.y-n.y
+            )<75
+        ){
+
+            talkToNPC(n);
+
+            return;
+        }
+    }
+
+    for(const h of houses){
+
+        if(
+            Math.hypot(
+                player.x-h.doorX,
+                player.y-h.doorY
+            )<65
+        ){
+
+            enterHouse(h);
+
+            return;
+        }
+    }
+
+    if(
+        Math.hypot(
+            player.x-grandExchangeLocation.x,
+            player.y-grandExchangeLocation.y
+        )<110
+    ){
+
+        openExchange();
+
+        return;
+    }
+
+    const nearbyEntrance=dungeonEntrances.find(e=>
+        Math.hypot(player.x-e.x,player.y-e.y)<130
+    );
+
+    if(nearbyEntrance){
+
+        enterDungeon(nearbyEntrance);
+
+        return;
+    }
+
+    showMessage(
+        "Nothing nearby to interact with."
+    );
+}
+
 function enterHouse(h){
-    inHouse=true;
-    activeHouse=h;
-    houseReturnX=player.x;
-    houseReturnY=player.y;
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-    player.x=houseInterior.width/2;
-    player.y=houseInterior.height-120;
-    showMessage("🏠 Entered "+h.name+".");
+    if(!h)return;
+    houseReturnX=player.x; houseReturnY=player.y; activeHouse=h; inHouse=true;
+    player.x=houseInterior.exitX; player.y=430; player.targetX=null; player.targetY=null; player.targetMonster=null;
+    if(h.vault){vaultUnlocked=true;showMessage("🏦 The Vault is open! Your bag now has 36 hand-inventory slots.");}
+    else if(h.playerHouse){showMessage("🏠 Welcome to Your House. This empty room is ready for future furnishings.");}
+    else showMessage("🏠 You entered "+h.name+".");
 }
 
 function leaveHouse(){
-    inHouse=false;
-    player.x=houseReturnX;
-    player.y=houseReturnY;
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-    activeHouse=null;
-    showMessage("🚪 Left the house.");
-}
-
-function openDialogue(n){
-    document.getElementById("dialogueName").textContent=n.name;
-    document.getElementById("dialogueText").textContent=
-        n.role==="Quest Captain" ? "Welcome, adventurer. Pandania is full of danger and treasure." :
-        n.role==="Merchant" ? "Take a look at what I have for sale." :
-        n.role==="Healer" ? "Rest easy. Magic can mend what monsters break." :
-        n.role==="Fisher" ? "The river is calm today." :
-        "Stay alert. The wilds are dangerous.";
-    document.getElementById("dialogue").style.display="block";
-}
-
-function closeDialogue(){document.getElementById("dialogue").style.display="none";}
-function closeWindows(){document.querySelectorAll("#bagWindow,#exchangeWindow,#friendsWindow,#mailWindow").forEach(w=>w.style.display="none");}
-function openBag(){closeWindows();renderBag();document.getElementById("bagWindow").style.display="block";}
-function openExchange(){closeWindows();document.getElementById("exchangeWindow").style.display="block";}
-function openFriends(){closeWindows();document.getElementById("friendsWindow").style.display="block";}
-function openMail(){closeWindows();document.getElementById("mailWindow").style.display="block";}
-
-function renderBag(){
-    const bag=document.getElementById("bagItems");
-    if(!bag)return;
-    bag.innerHTML="";
-    Object.entries(inventory).forEach(([name,item])=>{
-        if(!item || item.count<=0)return;
-        const card=document.createElement("div");
-        card.className="itemCard";
-        card.innerHTML=`<div class="itemIcon">${item.image&&images[item.image]?`<img class="itemImage" src="${images[item.image].src}">`:item.icon||"📦"}</div><div class="itemName">${name}</div><div class="itemCount">x${item.count}</div>`;
-        bag.appendChild(card);
-    });
-}
-
-function createListing(){showMessage("🏪 Listing system is ready for future marketplace integration.");}
-function sendMail(){showMessage("✉️ Message sent.");}
-
-function updateUI(){
-    const hpFill=document.getElementById("hpFill");
-    const manaFill=document.getElementById("manaFill");
-    const xpFill=document.getElementById("xpFill");
-    if(hpFill)hpFill.style.width=(player.hp/player.maxHp*100)+"%";
-    if(manaFill)manaFill.style.width=(player.mana/player.maxMana*100)+"%";
-    if(xpFill)xpFill.style.width=(player.xp/player.xpNext*100)+"%";
-    const level=document.getElementById("level");
-    const gold=document.getElementById("gold");
-    const manaText=document.getElementById("manaText");
-    const xpText=document.getElementById("xpText");
-    const invGold=document.getElementById("invGold");
-    const invFish=document.getElementById("invFish");
-    const invPDA=document.getElementById("invPDA");
-    const invBlockchain=document.getElementById("invBlockchain");
-    const invWeapons=document.getElementById("invWeapons");
-    if(level)level.textContent=player.level;
-    if(gold)gold.textContent=player.gold;
-    if(manaText)manaText.textContent=Math.floor(player.mana);
-    if(xpText)xpText.textContent=Math.floor(player.xp)+" / "+player.xpNext;
-    if(invGold)invGold.textContent=player.gold;
-    if(invFish)invFish.textContent=player.fish;
-    if(invPDA)invPDA.textContent=inventory["PDA Coin"]?.count||0;
-    if(invBlockchain)invBlockchain.textContent=blockchainItems.length;
-    if(invWeapons)invWeapons.textContent=Object.entries(inventory).filter(([n,i])=>weaponDrops.some(w=>w.name===n)&&i.count>0).reduce((a,[n,i])=>a+i.count,0);
-}
-
-function showMessage(msg){
-    const el=document.getElementById("message");
-    if(!el)return;
-    el.textContent=msg;
-    el.classList.add("show");
-    clearTimeout(showMessage._timer);
-    showMessage._timer=setTimeout(()=>el.classList.remove("show"),2200);
-}
-
-function setZoneLabel(text){
-    const el=document.getElementById("zoneLabel");
-    if(!el)return;
-    el.textContent=text;
-    el.classList.toggle("show",!!text);
+    inHouse=false; activeHouse=null; player.x=houseReturnX; player.y=houseReturnY+55; player.targetX=null; player.targetY=null; player.targetMonster=null;
+    showMessage("🚪 You left the house.");
 }
 
 /* =========================================================
-   GAME STATE / START
+   QUEST
 ========================================================= */
 
-let gameStarted=false;
 let questStarted=false;
-let questComplete=false;
 let questKills=0;
-let walletSession=null;
-let walletLink=null;
+let questComplete=false;
+
+function talkToNPC(n){
+
+    if(n.quest){
+
+        if(!questStarted){
+
+            questStarted=true;
+
+            setQuest(
+                "The Monster Problem",
+                "Defeat 3 monsters and return to Captain Panda."
+            );
+
+            openDialogue(
+                n.name,
+                "Greetings, warrior! Monsters are appearing around Pandania. Defeat 3 of them and return to me."
+            );
+
+        }else if(
+            questKills>=3 &&
+            !questComplete
+        ){
+
+            questComplete=true;
+
+            player.gold+=100;
+
+            gainXP(100);
+
+            openDialogue(
+                n.name,
+                "Excellent work! Pandania is safer because of you. Here is 100 gold!"
+            );
+
+            setQuest(
+                "Quest Complete!",
+                "Captain Panda rewarded you."
+            );
+
+        }else{
+
+            openDialogue(
+                n.name,
+                "Keep fighting! We still need monsters defeated."
+            );
+        }
+
+        return;
+    }
+
+    const dialogue={
+
+        "Merchant Panda":
+            "Welcome to Pandania! The Grand Exchange is where adventurers trade their treasures.",
+
+        "Fisher Panda":
+            "The river is full of fish. Fishing equipment and treasure can sometimes be found as monster loot.",
+
+        "Knight Panda":
+            "Keep your weapon ready. The wilderness is dangerous.",
+
+        "Elder Panda":
+            "Pandania has many secrets. Explore every corner.",
+
+        "Villager Panda":
+            "It's nice to see more adventurers around town!",
+
+        "Farmer Panda":
+            "The monsters keep wandering into our fields."
+    };
+
+    openDialogue(
+        n.name,
+        dialogue[n.name]||
+        "Welcome to Pandania!"
+    );
+}
+
+function openDialogue(name,text){
+
+    document.getElementById(
+        "dialogueName"
+    ).textContent=name;
+
+    document.getElementById(
+        "dialogueText"
+    ).textContent=text;
+
+    document.getElementById(
+        "dialogue"
+    ).style.display="block";
+}
+
+function closeDialogue(){
+
+    document.getElementById(
+        "dialogue"
+    ).style.display="none";
+}
 
 function setQuest(title,text){
-    document.getElementById("questTitle").textContent=title;
-    document.getElementById("questText").textContent=text;
+
+    document.getElementById(
+        "questTitle"
+    ).textContent=title;
+
+    document.getElementById(
+        "questText"
+    ).textContent=text;
 }
 
-function startGame(){
-    gameStarted=true;
-    document.getElementById("startScreen").style.display="none";
-    gameWrap.classList.add("pandaniaStarted");
-    questStarted=true;
-    setQuest("Explore Pandania","Speak with Captain Panda to begin your first quest.");
-    showMessage("🐼 Welcome to Pandania!");
+/* =========================================================
+   RESPAWN
+========================================================= */
+
+function chooseSafeRespawn(){
+    const base=chooseSafePlayerSpawn();
+    const candidates=[base];
+
+    for(let radius=70;radius<=420;radius+=70){
+        for(let a=0;a<Math.PI*2;a+=Math.PI/8){
+            candidates.push({
+                x:base.x+Math.cos(a)*radius,
+                y:base.y+Math.sin(a)*radius
+            });
+        }
+    }
+
+    for(const c of candidates){
+        if(c.x<40||c.y<40||c.x>world.width-40||c.y>world.height-40)
+            continue;
+
+        if(monsters.some(m=>Math.hypot(c.x-m.x,c.y-m.y)<180))
+            continue;
+
+        if(blocked(c.x,c.y,player.r))
+            continue;
+
+        return c;
+    }
+
+    return base;
 }
 
-document.getElementById("playButton").addEventListener("click",startGame);
+function respawnPlayer(){
+
+    player.hp=player.maxHp;
+    player.mana=player.maxMana;
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+
+    player.gold=Math.max(
+        0,
+        player.gold-10
+    );
+
+    if(inDungeon){
+
+        leaveDungeon();
+
+    }else{
+
+        const safe=chooseSafeRespawn();
+        player.x=safe.x;
+        player.y=safe.y;
+    }
+
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+    player.invincible=Math.max(player.invincible||0,120);
+
+    showMessage(
+        "☠️ You were defeated! You lost 10 gold."
+    );
+}
+
+/* =========================================================
+   UI
+========================================================= */
+
+function updateUI(){
+
+    document.getElementById(
+        "level"
+    ).textContent=player.level;
+
+    document.getElementById(
+        "gold"
+    ).textContent=player.gold;
+
+    document.getElementById("manaText").textContent=player.mana;
+    document.getElementById("xpText").textContent=player.xp+" / "+player.xpNext;
+
+    document.getElementById(
+        "invGold"
+    ).textContent=player.gold;
+
+    document.getElementById(
+        "invFish"
+    ).textContent=player.fish;
+
+    document.getElementById("invPDA").textContent=inventory["PDA Coin"]?.count||0;
+    document.getElementById("invBlockchain").textContent=blockchainItems.length;
+
+    const weapons=
+        inventory["Wooden Sword"].count+
+        inventory["Bamboo Sword"].count+
+        inventory["Iron Sword"].count+
+        inventory["Goblin Saber"].count;
+
+    document.getElementById(
+        "invWeapons"
+    ).textContent=weapons;
+
+    document.getElementById(
+        "hpFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.hp/player.maxHp*100
+        )+"%";
+
+    document.getElementById(
+        "manaFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.mana/player.maxMana*100
+        )+"%";
+
+    document.getElementById(
+        "xpFill"
+    ).style.width=
+        Math.max(
+            0,
+            player.xp/player.xpNext*100
+        )+"%";
+}
+
+/* =========================================================
+   BAG
+========================================================= */
+
+function openBag(){
+
+    closeWindows();
+
+    renderBag();
+
+    document.getElementById(
+        "bagWindow"
+    ).style.display="block";
+}
+
+function renderBag(){
+    const container=document.getElementById("bagItems");
+    const blockchain=document.getElementById("blockchainItems");
+    if(!container||!blockchain)return;
+    container.innerHTML="";
+    Object.entries(inventory).forEach(([name,item])=>{
+        if(!item || item.count<=0)return;
+        const card=document.createElement("div");card.className="itemCard";
+        let iconHTML=item.image&&images[item.image]?`<img class="itemImage" src="${images[item.image].src}" alt="">`:name==="Gold Coin"?`<div class="goldBagIcon"><span class="goldCoinCore"></span><span class="goldSpark s1"></span><span class="goldSpark s2"></span><span class="goldSpark s3"></span><span class="goldSpark s4"></span></div>`:`<div class="itemIcon">${item.icon||"📦"}</div>`;
+        card.innerHTML=`${iconHTML}<div class="itemName">${name}</div><div class="itemCount">Quantity: ${item.count}</div>`;container.appendChild(card);
+    });
+    for(let i=inventoryUsedSlots();i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";container.appendChild(slot);}
+    for(const item of blockchainItems){const card=document.createElement("div");card.className="itemCard";card.innerHTML=`<div class="itemIcon">${item.icon||"⛓️"}</div><div class="itemName">${item.name||"Blockchain Item"}</div><div class="itemCount">Quantity: ${item.count||1}</div>`;blockchain.appendChild(card);}
+    for(let i=blockchainItems.length;i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";blockchain.appendChild(slot);}
+}
+
+/* =========================================================
+   EXCHANGE
+========================================================= */
+
+let listings=[
+
+    {
+        seller:"PandaKnight",
+        item:"Fishing Rod",
+        price:15
+    },
+
+    {
+        seller:"PandaMage",
+        item:"Iron Sword",
+        price:80
+    },
+
+    {
+        seller:"PandaFisher",
+        item:"Fish",
+        price:5
+    },
+
+    {
+        seller:"PandaMiner",
+        item:"Bamboo Sword",
+        price:25
+    }
+];
+
+function openExchange(){
+
+    closeWindows();
+
+    renderExchange();
+
+    document.getElementById(
+        "exchangeWindow"
+    ).style.display="block";
+}
+
+function renderExchange(){
+
+    const el=
+        document.getElementById(
+            "exchangeListings"
+        );
+
+    el.innerHTML="";
+
+    listings.forEach((l,index)=>{
+
+        const div=
+            document.createElement("div");
+
+        div.className="exchangeListing";
+
+        div.innerHTML=`
+
+            <div>
+                <b>${l.item}</b>
+                <br>
+                <span style="font-size:11px;color:#8fa2b8">
+                    Seller: ${l.seller}
+                </span>
+            </div>
+
+            <div>
+                <b style="color:#ffd75a">
+                    ${l.price} Gold
+                </b>
+
+                <button
+                    class="buyBtn"
+                    onclick="buyListing(${index})"
+                >
+                    Buy
+                </button>
+            </div>
+        `;
+
+        el.appendChild(div);
+    });
+}
+
+function createListing(){
+
+    const item=
+        document.getElementById(
+            "sellItem"
+        ).value.trim();
+
+    const price=Number(
+        document.getElementById(
+            "sellPrice"
+        ).value
+    );
+
+    if(!item||!price){
+
+        showMessage(
+            "Enter an item and price."
+        );
+
+        return;
+    }
+
+    listings.unshift({
+
+        seller:"Pandee",
+
+        item,
+
+        price
+    });
+
+    document.getElementById(
+        "sellItem"
+    ).value="";
+
+    document.getElementById(
+        "sellPrice"
+    ).value="";
+
+    renderExchange();
+
+    showMessage(
+        "🏪 Item listed on the Grand Exchange."
+    );
+}
+
+function buyListing(index){
+
+    const listing=listings[index];
+
+    if(player.gold<listing.price){
+
+        showMessage(
+            "Not enough gold."
+        );
+
+        return;
+    }
+
+    player.gold-=listing.price;
+
+    if(!inventory[listing.item]){
+
+        inventory[listing.item]={
+
+            icon:"📦",
+
+            count:0
+        };
+    }
+
+    inventory[listing.item].count++;
+
+    listings.splice(index,1);
+
+    renderExchange();
+
+    updateUI();
+
+    showMessage(
+        "🛒 Purchased "+
+        listing.item+"!"
+    );
+}
+
+/* =========================================================
+   FRIENDS / MAIL
+========================================================= */
+
+function openFriends(){
+
+    closeWindows();
+
+    document.getElementById(
+        "friendsWindow"
+    ).style.display="block";
+}
+
+function openMail(){
+
+    closeWindows();
+
+    document.getElementById(
+        "mailWindow"
+    ).style.display="block";
+}
+
+function sendMail(){
+
+    const to=
+        document.getElementById(
+            "mailTo"
+        ).value.trim();
+
+    const text=
+        document.getElementById(
+            "mailText"
+        ).value.trim();
+
+    if(!to||!text){
+
+        showMessage(
+            "Enter a player and message."
+        );
+
+        return;
+    }
+
+    const div=
+        document.createElement("div");
+
+    div.innerHTML=
+        "<b>To "+
+        escapeHTML(to)+
+        "</b><br>"+
+        escapeHTML(text);
+
+    document.getElementById(
+        "mailList"
+    ).prepend(div);
+
+    document.getElementById(
+        "mailTo"
+    ).value="";
+
+    document.getElementById(
+        "mailText"
+    ).value="";
+
+    showMessage(
+        "✉️ Message sent."
+    );
+}
+
+function escapeHTML(str){
+
+    return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+}
+
+function closeWindows(){
+
+    document.getElementById(
+        "bagWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "exchangeWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "friendsWindow"
+    ).style.display="none";
+
+    document.getElementById(
+        "mailWindow"
+    ).style.display="none";
+}
 
 /* =========================================================
    SAVE / LOAD
 ========================================================= */
 
 function saveGame(){
-    try{
-        localStorage.setItem("pandaniaSave",JSON.stringify({
-            player:{x:player.x,y:player.y,hp:player.hp,mana:player.mana,level:player.level,xp:player.xp,xpNext:player.xpNext,gold:player.gold,fish:player.fish,loot:player.loot},
-            inventory,
-            questStarted,
-            questComplete,
-            questKills
-        }));
-        showMessage("💾 Game saved.");
-    }catch(e){showMessage("⚠️ Could not save the game.");}
+
+    const save={
+
+        player:{
+            x:player.x,
+            y:player.y,
+            hp:player.hp,
+            maxHp:player.maxHp,
+            mana:player.mana,
+            maxMana:player.maxMana,
+            level:player.level,
+            xp:player.xp,
+            xpNext:player.xpNext,
+            gold:player.gold,
+            fish:player.fish,
+            loot:player.loot
+        },
+
+        inventory,
+
+        questStarted,
+        questKills,
+        questComplete,
+        vaultUnlocked
+    };
+
+    localStorage.setItem(
+        "pandaniaAdventuresSave",
+        JSON.stringify(save)
+    );
+
+    showMessage(
+        "💾 Game saved!"
+    );
 }
 
 function loadGame(){
+
+    const data=
+        localStorage.getItem(
+            "pandaniaAdventuresSave"
+        );
+
+    if(!data){
+
+        showMessage(
+            "No saved game found."
+        );
+
+        return;
+    }
+
     try{
-        const raw=localStorage.getItem("pandaniaSave");
-        if(!raw){showMessage("📂 No save found.");return;}
-        const s=JSON.parse(raw);
-        if(s.player)Object.assign(player,s.player);
-        if(s.inventory)Object.keys(s.inventory).forEach(k=>{if(inventory[k])inventory[k].count=s.inventory[k].count;});
-        questStarted=!!s.questStarted;
-        questComplete=!!s.questComplete;
-        questKills=s.questKills||0;
+
+        const save=JSON.parse(data);
+
+        Object.assign(
+            player,
+            save.player
+        );
+
+        if(save.inventory){
+
+            Object.keys(save.inventory)
+            .forEach(name=>{
+
+                inventory[name]=
+                    save.inventory[name];
+            });
+        }
+
+        questStarted=
+            save.questStarted||false;
+
+        questKills=
+            save.questKills||0;
+
+        questComplete=save.questComplete||false;
+        vaultUnlocked=!!save.vaultUnlocked;
+
         updateUI();
-        showMessage("📂 Game loaded.");
-    }catch(e){showMessage("⚠️ Could not load the save.");}
+
+        showMessage(
+            "📂 Game loaded!"
+        );
+
+    }catch(e){
+
+        console.error(e);
+
+        showMessage(
+            "Could not load save."
+        );
+    }
 }
 
 /* =========================================================
-   WEBAUTH
+   MESSAGE
 ========================================================= */
 
-async function connectWebAuth(){
-    const status=document.getElementById("walletStatus");
-    const button=document.getElementById("connectWalletButton");
-    try{
-        button.disabled=true;
-        status.textContent="Connecting...";
-        if(!window.WebAuth)throw new Error("WebAuth unavailable");
-        const result=await WebAuth.login({
-            appName:"Pandania Adventures",
-            appLogo:IMAGE_FOLDER+"pda.png",
-            enabledWalletTypes:["webauth"],
-            customStyleOptions:{
-                modalBackgroundColor:"#1b1510",
-                logoBackgroundColor:"#3d2919",
-                isLogoRound:true,
-                optionBackgroundColor:"#302218",
-                optionFontColor:"#fff",
-                primaryFontColor:"#f1d19a",
-                secondaryFontColor:"#b9a488",
-                linkColor:"#48d7ff"
-            },
-            transportOptions:{requestAccount:"pandaniaadventure",backButton:true}
-        });
-        if(!result||!result.session)throw new Error("Wallet connection was cancelled.");
-        walletSession=result.session;
-        walletLink=result.link;
-        const actor=result.session.auth&&result.session.auth.actor?result.session.auth.actor:"Connected";
-        status.textContent="✓ Connected: @"+actor;
-        status.classList.add("connected");
-        button.textContent="✓ WEBAUTH CONNECTED";
-        showMessage("🔐 WebAuth connected: @"+actor);
-    }catch(error){
-        console.error("WebAuth connection error:",error);
-        status.textContent="WebAuth cancelled or unavailable. You can still play normally.";
-        button.disabled=false;
-        button.textContent="🔐 CONNECT WEBAUTH";
-    }
+let messageTimer=null;
+
+function showMessage(text){
+
+    const el=
+        document.getElementById(
+            "message"
+        );
+
+    el.textContent=text;
+
+    el.classList.add("show");
+
+    clearTimeout(messageTimer);
+
+    messageTimer=setTimeout(()=>{
+
+        el.classList.remove("show");
+
+    },2200);
 }
-
-document.getElementById("connectWalletButton").addEventListener("click",connectWebAuth);
-
-/* =========================================================
-   DRAW HELPERS
-========================================================= */
-
-function drawEnvironmentImage(key,x,y,w,h){
-    const img=images[key];
-    if(!img)return;
-    ctx.drawImage(img,x-w/2,y-h,w,h);
-}
-
-function drawGround(){
-    ctx.fillStyle="#6f9b4c";
-    ctx.fillRect(0,0,world.width,world.height);
-    for(let x=0;x<world.width;x+=24){
-        for(let y=0;y<world.height;y+=24){
-            const n=Math.sin(x*4.2+y*7.1);
-            if(n>.75){ctx.fillStyle="rgba(40,80,30,.25)";ctx.fillRect(x,y,2,5);}
-        }
-    }
-    ctx.fillStyle="#a88958";
-    ctx.beginPath();ctx.ellipse(800,470,350,170,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(1280,720,250,130,0,0,Math.PI*2);ctx.fill();
-}
-
-function drawPonds(){for(const pond of environment.ponds)drawEnvironmentImage(pond.image,pond.x+pond.w/2,pond.y+pond.h,pond.w,pond.h);}
-function drawPaths(){ }
-function drawEnvironmentTrees(){for(const t of environment.trees)drawEnvironmentImage(t.image,t.x,t.y,t.w,t.h);}
-function drawEnvironmentDecorations(){for(const d of environment.decorations)drawEnvironmentImage(d.image,d.x,d.y+d.h/2,d.w,d.h);}
-function drawEnvironmentBuildings(){for(const b of environment.buildings)drawEnvironmentImage(b.image,b.x+b.w/2,b.y+b.h,b.w,b.h);}
-function drawGrandExchange(){ }
-function drawFishingSpots(){ }
-
-function drawDungeonEntrances(){
-    for(const entrance of dungeonEntrances){
-        drawEnvironmentImage(entrance.image,entrance.x,entrance.y+70,150,150);
-        ctx.save();
-        ctx.fillStyle="#ffd98b";
-        ctx.font="bold 13px Arial";
-        ctx.textAlign="center";
-        ctx.fillText(entrance.name,entrance.x,entrance.y+78);
-        ctx.restore();
-    }
-}
-
-function drawDungeonEntrance(){drawDungeonEntrances();}
-
-function drawDrops(){
-    for(const d of groundDrops){
-        const bob=Math.sin(Date.now()/260+d.bob)*4;
-        ctx.save();
-        if(d.image&&images[d.image]){
-            ctx.drawImage(images[d.image],d.x-18,d.y-18+bob,36,36);
-        }else{
-            ctx.font="28px Arial";
-            ctx.textAlign="center";
-            ctx.fillText(d.icon,d.x,d.y+10+bob);
-        }
-        ctx.restore();
-    }
-}
-
-function drawNPCs(){
-    for(const n of npcs){
-        ctx.save();
-        ctx.font="30px Arial";
-        ctx.textAlign="center";
-        ctx.fillText(n.icon,n.x,n.y+10);
-        ctx.fillStyle="#fff";
-        ctx.font="12px Arial";
-        ctx.fillText(n.name,n.x,n.y+28);
-        ctx.restore();
-    }
-}
-
-function drawMonsters(){
-    for(const m of monsters){
-        ctx.save();
-        const img=images[m.image];
-        if(img){
-            const size=m.r*2.2;
-            ctx.drawImage(img,m.x-size/2,m.y-size,size,size);
-        }else{
-            ctx.fillStyle=m.boss?"#e44":"#a44";
-            ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,Math.PI*2);ctx.fill();
-        }
-        if(m.hitFlash>0){ctx.globalAlpha=.45;ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(m.x,m.y,m.r+3,0,Math.PI*2);ctx.fill();}
-        ctx.fillStyle="#fff";
-        ctx.font="11px Arial";
-        ctx.textAlign="center";
-        ctx.fillText(m.name,m.x,m.y-m.r-8);
-        ctx.restore();
-    }
-}
-
-function drawPlayer(){
-    ctx.save();
-    const img=images.player1;
-    if(img){
-        const size=48;
-        ctx.drawImage(img,player.x-size/2,player.y-size,size,size);
-    }else{
-        ctx.font="42px Arial";
-        ctx.textAlign="center";
-        ctx.fillText("🐼",player.x,player.y+14);
-    }
-    ctx.restore();
-}
-
-function drawSpellEffects(){
-    for(let i=spellEffects.length-1;i>=0;i--){
-        const s=spellEffects[i];
-        s.life--;
-        ctx.save();
-        ctx.globalAlpha=Math.max(0,s.life/s.maxLife);
-        if(s.type==="fire"){
-            ctx.strokeStyle="#ff8a3d";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();
-        }else{
-            ctx.strokeStyle="#8dd8ff";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(s.x,s.y-35);ctx.lineTo(s.x,s.y+35);ctx.stroke();
-        }
-        ctx.restore();
-        if(s.life<=0)spellEffects.splice(i,1);
-    }
-}
-
-function drawBossFireShots(){
-    for(const q of bossFireShots){
-        ctx.save();
-        ctx.fillStyle="#ff9a2e";
-        ctx.shadowColor="#ff5b22";
-        ctx.shadowBlur=12;
-        ctx.beginPath();ctx.arc(q.x,q.y,8,0,Math.PI*2);ctx.fill();
-        ctx.restore();
-    }
-}
-
-function drawHouseInterior(){
-    const w=houseInterior.width,h=houseInterior.height;
-    ctx.fillStyle="#7b5538";ctx.fillRect(0,0,w,h);
-    ctx.fillStyle="#caa16d";ctx.fillRect(55,55,w-110,h-110);
-    ctx.fillStyle="#ead5ad";ctx.fillRect(80,80,w-160,h-160);
-    ctx.fillStyle="#8a5b37";ctx.fillRect(0,0,w,35);ctx.fillRect(0,h-35,w,35);ctx.fillRect(0,0,35,h);ctx.fillRect(w-35,0,35,h);
-    ctx.fillStyle="#3d281c";ctx.fillRect(houseInterior.exitX-42,h-70,84,70);
-    ctx.fillStyle="#ffd86a";ctx.font="bold 15px Arial";ctx.textAlign="center";ctx.fillText("EXIT",houseInterior.exitX,h-82);
-    ctx.fillStyle="rgba(40,25,15,.65)";ctx.font="bold 26px Georgia";ctx.fillText(activeHouse?.name||"House",w/2,115);
-}
-
-function drawDungeon(){
-    ctx.fillStyle="#5b4635";
-    ctx.fillRect(0,0,dungeon.width,dungeon.height);
-    ctx.fillStyle="#765b46";
-    for(let x=40;x<dungeon.width;x+=80){for(let y=40;y<dungeon.height;y+=80){ctx.fillRect(x,y,4,4);}}
-}
-
-function drawDungeonExit(){
-    ctx.save();
-    ctx.fillStyle="#24160e";
-    ctx.fillRect(dungeonExit.x-45,dungeonExit.y-25,90,50);
-    ctx.fillStyle="#ffd86a";
-    ctx.font="bold 14px Arial";
-    ctx.textAlign="center";
-    ctx.fillText("EXIT",dungeonExit.x,dungeonExit.y+5);
-    ctx.restore();
-}
-
-function drawMiniMap(){ }
 
 /* =========================================================
    DRAW
@@ -3419,9 +4465,15 @@ function drawMiniMap(){ }
 
 function draw(){
 
-    ctx.clearRect(0,0,W,H);
+    ctx.clearRect(
+        0,
+        0,
+        W,
+        H
+    );
 
     ctx.save();
+
     const z=pandaniaMobileZoom();
     if(z!==1){
         const viewW=W/z, viewH=H/z;
@@ -3434,8 +4486,11 @@ function draw(){
 
     if(inHouse){drawHouseInterior();}
     else if(inDungeon){
+
         drawDungeon();
+
     }else{
+
         drawGround();
         drawPonds();
         drawPaths();
@@ -3451,122 +4506,2117 @@ function draw(){
     }
 
     if(inDungeon){
+
         drawDungeonExit();
         drawDrops();
         drawMonsters();
     }
 
     drawPlayer();
+
     drawSpellEffects();
     if(inDungeon)drawBossFireShots();
     drawDamageNumbers();
 
     ctx.restore();
+
     drawMiniMap();
 }
+
+function drawHouseInterior(){
+    const w=houseInterior.width,h=houseInterior.height;
+    ctx.fillStyle="#7b5538";ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#caa16d";ctx.fillRect(55,55,w-110,h-110);
+    ctx.fillStyle="#ead5ad";ctx.fillRect(80,80,w-160,h-160);
+    ctx.fillStyle="#8a5b37";ctx.fillRect(0,0,w,35);ctx.fillRect(0,h-35,w,35);ctx.fillRect(0,0,35,h);ctx.fillRect(w-35,0,35,h);
+    ctx.fillStyle="#3d281c";ctx.fillRect(houseInterior.exitX-42,h-70,84,70);
+    ctx.fillStyle="#ffd86a";ctx.font="bold 15px Arial";ctx.textAlign="center";ctx.fillText("EXIT",houseInterior.exitX,h-82);
+    ctx.fillStyle="rgba(40,25,15,.65)";ctx.font="bold 26px Georgia";ctx.fillText(activeHouse?.name||"House",w/2,115);
+}
+
+/* =========================================================
+   GROUND
+========================================================= */
+
+function drawGround(){
+
+    ctx.fillStyle="#6f9b4c";
+
+    ctx.fillRect(
+        0,
+        0,
+        world.width,
+        world.height
+    );
+
+    for(let x=0;x<world.width;x+=24){
+
+        for(let y=0;y<world.height;y+=24){
+
+            const n=Math.sin(
+                x*4.2+y*7.1
+            );
+
+            if(n>.75){
+
+                ctx.fillStyle=
+                    "rgba(40,80,30,.25)";
+
+                ctx.fillRect(
+                    x,
+                    y,
+                    2,
+                    5
+                );
+            }
+        }
+    }
+
+    ctx.fillStyle="#a88958";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        800,
+        470,
+        350,
+        170,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        1280,
+        720,
+        250,
+        130,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+/* =========================================================
+   WATER
+========================================================= */
+
+function drawPonds(){
+
+    for(const pond of environment.ponds){
+        drawEnvironmentImage(
+            pond.image,
+            pond.x+pond.w/2,
+            pond.y+pond.h,
+            pond.w,
+            pond.h
+        );
+    }
+}
+
+/* =========================================================
+   PATHS
+========================================================= */
+
+function drawPaths(){
+
+    ctx.strokeStyle="#b99a66";
+
+    ctx.lineWidth=50;
+
+    ctx.lineCap="round";
+
+    ctx.beginPath();
+
+    ctx.moveTo(120,470);
+    ctx.lineTo(700,470);
+    ctx.lineTo(850,350);
+    ctx.lineTo(1200,350);
+    ctx.lineTo(1550,650);
+    ctx.lineTo(1900,650);
+
+    ctx.stroke();
+
+    ctx.lineWidth=35;
+
+    ctx.beginPath();
+
+    ctx.moveTo(850,350);
+    ctx.lineTo(850,100);
+
+    ctx.stroke();
+}
+
+/* =========================================================
+   TREES
+========================================================= */
+
+function drawEnvironmentTrees(){
+
+    /* Draw smaller trees first so larger trees naturally sit in front. */
+    const ordered=environment.trees.slice().sort((a,b)=>a.y-b.y);
+
+    for(const t of ordered){
+        drawEnvironmentImage(
+            t.image,
+            t.x,
+            t.y,
+            t.w,
+            t.h
+        );
+    }
+}
+
+/* =========================================================
+   HOUSES
+========================================================= */
+
+function drawEnvironmentBuildings(){
+
+    const ordered=environment.buildings.slice().sort((a,b)=>a.y-b.y);
+
+    for(const h of ordered){
+        drawEnvironmentImage(
+            h.image,
+            h.x+h.w/2,
+            h.y+h.h,
+            h.w,
+            h.h
+        );
+
+        /* A subtle doorway marker keeps the interaction point easy to find. */
+        ctx.save();
+        ctx.fillStyle="rgba(255,220,120,.75)";
+        ctx.beginPath();
+        ctx.arc(h.doorX,h.doorY,3,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        if(h.vault||h.playerHouse){ctx.save();ctx.fillStyle=h.vault?"#d8b4ff":"#ffe28a";ctx.font="bold 17px Georgia";ctx.textAlign="center";ctx.shadowColor="#000";ctx.shadowBlur=7;ctx.fillText(h.name,h.x+h.w/2,h.y-10);ctx.restore();}
+    }
+
+    ctx.save();
+    ctx.fillStyle="rgba(255,236,170,.9)";
+    ctx.font="bold 22px Georgia";
+    ctx.textAlign="center";
+    ctx.shadowColor="rgba(0,0,0,.75)";
+    ctx.shadowBlur=8;
+    ctx.fillText("PANDEN TOWN",townBounds.x+townBounds.w/2,townBounds.y-25);
+    ctx.restore();
+}
+
+function drawEnvironmentDecorations(){
+
+    const ordered=environment.decorations.slice().sort((a,b)=>a.y-b.y);
+
+    for(const d of ordered){
+        drawEnvironmentImage(
+            d.image,
+            d.x,
+            d.y,
+            d.w,
+            d.h
+        );
+    }
+}
+
+function drawRusticWindow(x,y){
+
+    ctx.fillStyle="#69b8c9";
+
+    ctx.fillRect(
+        x,
+        y,
+        38,
+        35
+    );
+
+    ctx.strokeStyle="#4a3022";
+    ctx.lineWidth=4;
+
+    ctx.strokeRect(
+        x,
+        y,
+        38,
+        35
+    );
+
+    ctx.beginPath();
+
+    ctx.moveTo(x+19,y);
+    ctx.lineTo(x+19,y+35);
+
+    ctx.moveTo(x,y+17);
+    ctx.lineTo(x+38,y+17);
+
+    ctx.stroke();
+}
+
+/* =========================================================
+   ENVIRONMENT IMAGE HELPER
+========================================================= */
+
+function drawEnvironmentImage(key,x,y,width,height){
+
+    const img=images[key];
+    if(!img) return false;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(
+        img,
+        x-width/2,
+        y-height,
+        width,
+        height
+    );
+    ctx.restore();
+
+    return true;
+}
+
+/* =========================================================
+   GRAND EXCHANGE
+========================================================= */
+
+function drawGrandExchange(){
+
+    const x=grandExchangeLocation.x;
+    const y=grandExchangeLocation.y;
+
+    ctx.save();
+
+    /* The exchange sign is physically attached to the selected house1. */
+    const house=grandExchangeBuilding;
+    const signX=house?house.x+house.w/2:x;
+    const signY=house?house.y+house.h*.56:y-22;
+
+    ctx.fillStyle="rgba(0,0,0,.45)";
+    ctx.fillRect(signX-70,signY-18,140,38);
+
+    ctx.strokeStyle="#e7b85b";
+    ctx.lineWidth=2;
+    ctx.strokeRect(signX-70,signY-18,140,38);
+
+    ctx.fillStyle="#ffd86a";
+    ctx.font="bold 13px Arial";
+    ctx.textAlign="center";
+    ctx.shadowColor="rgba(0,0,0,.85)";
+    ctx.shadowBlur=6;
+    ctx.fillText("GRAND EXCHANGE",signX,signY-2);
+
+    ctx.font="9px Arial";
+    ctx.fillStyle="#fff";
+    ctx.fillText("TRADE",signX,signY+12);
+
+    ctx.restore();
+}
+
+/* =========================================================
+   FISHING
+========================================================= */
+
+function drawFishingSpots(){
+
+    for(const s of fishingSpots){
+
+        ctx.save();
+
+        ctx.translate(
+            s.x,
+            s.y
+        );
+
+        ctx.fillStyle=
+            "rgba(255,221,90,.18)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            28,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.strokeStyle="#ffd85b";
+        ctx.lineWidth=3;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            18,
+            0,
+            Math.PI*2
+        );
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   DUNGEON ENTRANCE
+========================================================= */
+
+function drawDungeonEntrances(){
+
+    for(const entrance of dungeonEntrances){
+        const img=images[entrance.image];
+        const w=120;
+        const h=120;
+
+        if(img){
+            drawEnvironmentImage(
+                entrance.image,
+                entrance.x,
+                entrance.y+h/2-8,
+                w,
+                h
+            );
+        }else{
+            ctx.save();
+            ctx.fillStyle="#16110e";
+            ctx.beginPath();
+            ctx.ellipse(entrance.x,entrance.y,48,58,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        ctx.save();
+        ctx.fillStyle="#ffd46b";
+        ctx.font="bold 12px Georgia";
+        ctx.textAlign="center";
+        ctx.shadowColor="rgba(0,0,0,.85)";
+        ctx.shadowBlur=6;
+        ctx.fillText(entrance.name,entrance.x,entrance.y+78);
+        ctx.restore();
+    }
+}
+
+/* Backwards-compatible wrapper for any older call sites. */
+function drawDungeonEntrance(){
+    drawDungeonEntrances();
+}
+
+/* =========================================================
+   CAVE LAMP
+========================================================= */
+
+function drawCaveLamp(x,y){
+
+    ctx.save();
+
+    const glow=
+        30+
+        Math.sin(
+            Date.now()/180+x
+        )*5;
+
+    const gradient=
+        ctx.createRadialGradient(
+            x,
+            y,
+            2,
+            x,
+            y,
+            glow
+        );
+
+    gradient.addColorStop(
+        0,
+        "rgba(255,210,70,.55)"
+    );
+
+    gradient.addColorStop(
+        1,
+        "rgba(255,110,20,0)"
+    );
+
+    ctx.fillStyle=gradient;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y,
+        glow,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#5a3820";
+
+    ctx.fillRect(
+        x-5,
+        y,
+        10,
+        30
+    );
+
+    ctx.fillStyle="#ffad24";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-5,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#fff1a0";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-7,
+        4,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   DUNGEON
+========================================================= */
+
+function drawDungeon(){
+
+    /*
+       Brown gravel cave floor.
+    */
+
+    ctx.fillStyle="#5b4635";
+
+    ctx.fillRect(
+        0,
+        0,
+        dungeon.width,
+        dungeon.height
+    );
+
+    /* Gravel */
+
+    for(
+        let x=0;
+        x<dungeon.width;
+        x+=26
+    ){
+
+        for(
+            let y=0;
+            y<dungeon.height;
+            y+=26
+        ){
+
+            const n=
+                Math.sin(
+                    x*3.7+
+                    y*8.1
+                );
+
+            if(n>.15){
+
+                ctx.fillStyle=
+                    n>.65
+                    ?"rgba(165,130,88,.28)"
+                    :"rgba(30,20,15,.25)";
+
+                const size=
+                    2+
+                    Math.abs(n)*3;
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    x+(n*9),
+                    y+(n*7),
+                    size,
+                    0,
+                    Math.PI*2
+                );
+
+                ctx.fill();
+            }
+        }
+    }
+
+    /* Cave walls */
+
+    ctx.fillStyle="#33271f";
+
+    ctx.fillRect(
+        0,
+        0,
+        dungeon.width,
+        85
+    );
+
+    ctx.fillRect(
+        0,
+        dungeon.height-85,
+        dungeon.width,
+        85
+    );
+
+    ctx.fillRect(
+        0,
+        0,
+        80,
+        dungeon.height
+    );
+
+    ctx.fillRect(
+        dungeon.width-80,
+        0,
+        80,
+        dungeon.height
+    );
+
+    /* Jagged rock edges */
+
+    ctx.fillStyle="#4a382b";
+
+    for(
+        let x=0;
+        x<dungeon.width;
+        x+=70
+    ){
+
+        ctx.beginPath();
+
+        ctx.moveTo(x,85);
+
+        ctx.lineTo(x+30,55);
+        ctx.lineTo(x+55,85);
+
+        ctx.closePath();
+
+        ctx.fill();
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            dungeon.height-85
+        );
+
+        ctx.lineTo(
+            x+30,
+            dungeon.height-55
+        );
+
+        ctx.lineTo(
+            x+55,
+            dungeon.height-85
+        );
+
+        ctx.closePath();
+
+        ctx.fill();
+    }
+
+    /*
+       Fire lamps along walls.
+    */
+
+    for(
+        let x=160;
+        x<dungeon.width-120;
+        x+=180
+    ){
+
+        drawCaveLamp(
+            x,
+            105
+        );
+
+        drawCaveLamp(
+            x+90,
+            dungeon.height-110
+        );
+    }
+
+    for(
+        let y=190;
+        y<dungeon.height-180;
+        y+=190
+    ){
+
+        drawCaveLamp(
+            105,
+            y
+        );
+
+        drawCaveLamp(
+            dungeon.width-105,
+            y+70
+        );
+    }
+
+    /* Dungeon title */
+
+    ctx.fillStyle=
+        "rgba(20,10,5,.75)";
+
+    ctx.fillRect(
+        475,
+        105,
+        550,
+        70
+    );
+
+    ctx.fillStyle="#ffd27b";
+
+    ctx.font="bold 28px Georgia";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "THE LOST CAVE",
+        750,
+        138
+    );
+
+    ctx.font="12px Arial";
+
+    ctx.fillStyle="#d7c1a4";
+
+    ctx.fillText(
+        "A temporary dungeon — defeat the Cave Guardian",
+        750,
+        158
+    );
+}
+
+/* =========================================================
+   DUNGEON EXIT
+========================================================= */
+
+function drawDungeonExit(){
+
+    const x=dungeonExit.x;
+    const y=dungeonExit.y;
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(0,0,0,.5)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+20,
+        75,
+        38,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#2d241e";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y,
+        48,
+        62,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#090807";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+5,
+        33,
+        47,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#ffd36b";
+
+    ctx.font="bold 13px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "EXIT",
+        x,
+        y+85
+    );
+
+    ctx.restore();
+}
+
+/* =========================================================
+   DROPS
+========================================================= */
+
+function drawDrops(){
+
+    for(const d of groundDrops){
+
+        d.bob+=.035;
+
+        const bob=
+            Math.sin(d.bob)*3;
+
+        ctx.save();
+
+        ctx.translate(
+            d.x,
+            d.y+bob
+        );
+
+        ctx.fillStyle=
+            "rgba(255,220,80,.14)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            26,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        if(
+            d.image &&
+            images[d.image]
+        ){
+
+            const img=images[d.image];
+
+            ctx.imageSmoothingEnabled=false;
+
+            ctx.drawImage(
+                img,
+                -22,
+                -22,
+                44,
+                44
+            );
+
+        }else if(d.name==="Gold Coin"){
+
+            /* Sparkly gold coin fallback art — no external asset required. */
+            ctx.shadowColor="#ffd84d";
+            ctx.shadowBlur=14;
+            ctx.fillStyle="#ffd43b";
+            ctx.beginPath();
+            ctx.arc(0,0,11,0,Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur=0;
+            ctx.strokeStyle="#fff2a8";
+            ctx.lineWidth=2;
+            ctx.stroke();
+            ctx.fillStyle="#fff8c7";
+            ctx.beginPath();
+            ctx.arc(-3,-4,3,0,Math.PI*2);
+            ctx.fill();
+            for(let s=0;s<4;s++){
+                const a=Date.now()/350+s*Math.PI/2;
+                const sx=Math.cos(a)*17, sy=Math.sin(a)*17;
+                ctx.fillStyle="rgba(255,246,150,.9)";
+                ctx.fillRect(sx-1,sy-3,2,6);
+                ctx.fillRect(sx-3,sy-1,6,2);
+            }
+        }else{
+
+            ctx.font="26px Arial";
+
+            ctx.textAlign="center";
+
+            ctx.fillText(
+                d.icon,
+                0,
+                8
+            );
+        }
+
+        ctx.fillStyle="#fff";
+
+        ctx.font="bold 11px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            d.name,
+            0,
+            -30
+        );
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   IMAGE SPRITE HELPER
+========================================================= */
+
+function drawSprite(
+    imageKey,
+    x,
+    y,
+    width,
+    height,
+    flip=false,
+    alpha=1
+){
+
+    const img=images[imageKey];
+
+    if(!img){
+
+        return false;
+    }
+
+    ctx.save();
+
+    ctx.globalAlpha=alpha;
+
+    ctx.translate(x,y);
+
+    if(flip)
+        ctx.scale(-1,1);
+
+    ctx.imageSmoothingEnabled=false;
+
+    ctx.drawImage(
+        img,
+        -width/2,
+        -height,
+        width,
+        height
+    );
+
+    ctx.restore();
+
+    return true;
+}
+
+/* =========================================================
+   NPC DRAW
+========================================================= */
+
+function drawNPCs(){
+
+    for(const n of npcs){
+
+        const drawn=
+            drawSprite(
+                n.image,
+                n.x,
+                n.y,
+                58,
+                76,
+                false,
+                1
+            );
+
+        if(!drawn){
+
+            drawFallbackNPC(
+                n.x,
+                n.y
+            );
+        }
+
+        ctx.fillStyle="#fff";
+
+        ctx.font="11px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            n.name,
+            n.x,
+            n.y-82
+        );
+
+        if(
+            n.quest &&
+            !questComplete
+        ){
+
+            ctx.fillStyle="#ffd54d";
+
+            ctx.font="bold 18px Arial";
+
+            ctx.fillText(
+                "!",
+                n.x,
+                n.y-92
+            );
+        }
+    }
+}
+
+/* =========================================================
+   NPC FALLBACK
+========================================================= */
+
+function drawFallbackNPC(x,y){
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y-28,
+        17,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#111";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x-10,
+        y-44,
+        7,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        x+10,
+        y-44,
+        7,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+3,
+        18,
+        25,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+/* =========================================================
+   MONSTER DRAW
+========================================================= */
+
+function drawMonster(m){
+
+    ctx.save();
+
+    /*
+       Shadow
+    */
+
+    ctx.fillStyle="rgba(0,0,0,.35)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        m.x,
+        m.y+5,
+        m.r+5,
+        8,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    const size=
+        m.type==="roamer1"
+        ?110
+        :(m.boss ?120 :65);
+
+    const drawn=
+        drawSprite(
+            m.image,
+            m.x,
+            m.y,
+            size,
+            size,
+            false,
+            1
+        );
+
+    if(!drawn){
+
+        ctx.fillStyle=
+            m.boss
+            ?"#5b1d32"
+            :"#75a83f";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            m.x,
+            m.y-25,
+            m.boss?40:22,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+
+    ctx.restore();
+
+    /* Health bar */
+
+    const width=
+        (m.boss||m.type==="roamer1")
+        ?110
+        :50;
+
+    ctx.fillStyle="#191919";
+
+    ctx.fillRect(
+        m.x-width/2,
+        m.y-size-8,
+        width,
+        7
+    );
+
+    ctx.fillStyle=
+        m.boss
+        ?"#d7263d"
+        :"#e74c3c";
+
+    ctx.fillRect(
+        m.x-width/2,
+        m.y-size-8,
+        width*
+        Math.max(
+            0,
+            m.hp/m.maxHp
+        ),
+        7
+    );
+
+    ctx.fillStyle="#fff";
+
+    ctx.font=
+        m.boss
+        ?"bold 13px Arial"
+        :"9px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        m.name,
+        m.x,
+        m.y-size-12
+    );
+
+    if(m.boss){
+
+        ctx.fillStyle="#ffd36b";
+
+        ctx.font="bold 11px Arial";
+
+        ctx.fillText(
+            "BOSS",
+            m.x,
+            m.y-size-27
+        );
+    }
+
+    if(m.hitFlash){
+
+        ctx.fillStyle=
+            "rgba(255,70,70,.35)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            m.x,
+            m.y-30,
+            size*.45,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+}
+
+function drawMonsters(){
+
+    for(const m of monsters)
+        drawMonster(m);
+}
+
+/* =========================================================
+   PLAYER
+========================================================= */
+
+function drawPlayer(){
+
+    const bob=
+        player.moving
+        ?Math.abs(
+            Math.sin(
+                player.walkTime
+            )
+        )*3
+        :Math.sin(
+            Date.now()/700
+        )*.35;
+
+    const alpha=
+        player.invincible>0 &&
+        Math.floor(
+            player.invincible/4
+        )%2===0
+        ?0.25
+        :1;
+
+    const drawn=
+        drawSprite(
+            "player1",
+            player.x,
+            player.y+bob,
+            76,
+            100,
+            player.facing<0,
+            alpha
+        );
+
+    if(!drawn){
+
+        drawFallbackPlayer();
+    }
+
+    /*
+       Player name.
+    */
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(255,255,255,.95)";
+
+    ctx.font="bold 10px Arial";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "Pandee",
+        player.x,
+        player.y-108
+    );
+
+    ctx.restore();
+
+    drawPlayerEffects();
+}
+
+/* =========================================================
+   PLAYER FALLBACK
+========================================================= */
+
+function drawFallbackPlayer(){
+
+    ctx.save();
+
+    ctx.translate(
+        player.x,
+        player.y
+    );
+
+    const walk=
+        player.moving
+        ?Math.sin(
+            player.walkTime
+        )*4
+        :0;
+
+    ctx.fillStyle="rgba(0,0,0,.3)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        20,
+        25,
+        8,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#151820";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        -9+walk,
+        19,
+        8,
+        5,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        9-walk,
+        19,
+        8,
+        5,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#f4f4f4";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        -2,
+        22,
+        28,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle="#151820";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        -15,
+        -30,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.arc(
+        15,
+        -30,
+        9,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   PLAYER EFFECTS
+========================================================= */
+
+function drawPlayerEffects(){
+
+    const x=player.x;
+    const y=player.y;
+
+    if(player.swordSwing>0){
+
+        ctx.save();
+
+        ctx.translate(
+            x,
+            y
+        );
+
+        const angle=Math.atan2(
+            player.facingY,
+            player.facingX
+        );
+
+        ctx.rotate(angle);
+
+        const progress=
+            1-player.swordSwing/12;
+
+        ctx.rotate(
+            -1.5+
+            progress*3
+        );
+
+        ctx.strokeStyle="#dedede";
+        ctx.lineWidth=4;
+        ctx.lineCap="round";
+
+        ctx.beginPath();
+
+        ctx.moveTo(19,2);
+        ctx.lineTo(45,-28);
+
+        ctx.stroke();
+
+        ctx.strokeStyle="#79542d";
+        ctx.lineWidth=3;
+
+        ctx.beginPath();
+
+        ctx.moveTo(15,6);
+        ctx.lineTo(23,13);
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    if(player.healEffect>0){
+
+        ctx.save();
+
+        ctx.fillStyle=
+            "rgba(50,255,110,.18)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            x,
+            y-30,
+            55+
+            Math.sin(
+                Date.now()/70
+            )*4,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.strokeStyle=
+            "rgba(80,255,130,.6)";
+
+        ctx.lineWidth=3;
+
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    if(player.healText>0){
+
+        ctx.save();
+
+        ctx.fillStyle="#67ff91";
+
+        ctx.font="bold 17px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "+"+
+            player.healAmount,
+            x,
+            y-90-
+            (25-player.healText)*.6
+        );
+
+        ctx.restore();
+    }
+}
+
+/* =========================================================
+   SPELL EFFECTS
+========================================================= */
+
+function drawBossFireShots(){for(const q of bossFireShots){ctx.save();ctx.translate(q.x,q.y);ctx.shadowColor="#ff4b18";ctx.shadowBlur=14;ctx.fillStyle="#ff4b18";ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ffd36a";ctx.beginPath();ctx.arc(2,-2,6,0,Math.PI*2);ctx.fill();ctx.restore();}}
+
+function drawSpellEffects(){
+
+    for(
+        let i=spellEffects.length-1;
+        i>=0;
+        i--
+    ){
+
+        const e=spellEffects[i];
+
+        e.life--;
+
+        if(e.life<=0){
+
+            spellEffects.splice(i,1);
+
+            continue;
+        }
+
+        if(e.type==="fire"){
+
+            const progress=
+                1-
+                e.life/e.maxLife;
+
+            const x=
+                e.x+
+                (e.tx-e.x)*
+                progress;
+
+            const y=
+                e.y+
+                (e.ty-e.y)*
+                progress;
+
+            ctx.fillStyle=
+                "rgba(255,80,20,.20)";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                25,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+
+            ctx.fillStyle="#ff4a16";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                12,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+
+            ctx.fillStyle="#ffd84d";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                x,
+                y,
+                7,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+
+        if(e.type==="lightning"){
+
+            const alpha=
+                e.life/e.maxLife;
+
+            ctx.save();
+
+            ctx.strokeStyle=
+                "rgba(110,210,255,"+
+                alpha+
+                ")";
+
+            ctx.shadowColor="#67cfff";
+            ctx.shadowBlur=15;
+
+            ctx.lineWidth=5;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                e.x,
+                e.y-90
+            );
+
+            ctx.lineTo(
+                e.x-12,
+                e.y-55
+            );
+
+            ctx.lineTo(
+                e.x+8,
+                e.y-35
+            );
+
+            ctx.lineTo(
+                e.x-10,
+                e.y
+            );
+
+            ctx.lineTo(
+                e.x+5,
+                e.y+15
+            );
+
+            ctx.stroke();
+
+            ctx.restore();
+
+            ctx.fillStyle=
+                "rgba(220,250,255,"+
+                alpha+
+                ")";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                e.x,
+                e.y,
+                25,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+    }
+}
+
+/* =========================================================
+   MINIMAP
+========================================================= */
+
+function drawMiniMap(){
+
+    const size=130;
+
+    const x=W-size-15;
+    const y=H-size-15;
+
+    ctx.save();
+
+    ctx.globalAlpha=.9;
+
+    ctx.fillStyle=
+        inDungeon
+        ?"rgba(55,35,25,.98)"
+        :"#0a1118";
+
+    ctx.fillRect(
+        x,
+        y,
+        size,
+        size
+    );
+
+    ctx.strokeStyle="#637287";
+
+    ctx.strokeRect(
+        x,
+        y,
+        size,
+        size
+    );
+
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
+
+    const sx=size/currentWidth;
+    const sy=size/currentHeight;
+
+    if(inDungeon){
+
+        ctx.fillStyle="#75563f";
+
+        ctx.fillRect(
+            x+5,
+            y+5,
+            size-10,
+            size-10
+        );
+
+        ctx.fillStyle="#ffb52e";
+
+        for(
+            let lx=15;
+            lx<size-10;
+            lx+=25
+        ){
+
+            ctx.fillRect(
+                x+lx,
+                y+7,
+                3,
+                3
+            );
+        }
+
+    }else{
+
+        ctx.fillStyle="#287ca8";
+
+        for(const pond of environment.ponds){
+
+            ctx.fillRect(
+                x+pond.x*sx,
+                y+pond.y*sy,
+                pond.w*sx,
+                pond.h*sy
+            );
+        }
+
+        ctx.fillStyle="#d6a65c";
+
+        for(const h of environment.buildings){
+
+            ctx.fillRect(
+                x+h.x*sx,
+                y+h.y*sy,
+                h.w*sx,
+                h.h*sy
+            );
+        }
+
+        ctx.fillStyle="#a05c32";
+
+        for(const entrance of dungeonEntrances){
+            ctx.fillRect(
+                x+entrance.x*sx-3,
+                y+entrance.y*sy-3,
+                6,
+                6
+            );
+        }
+    }
+
+    ctx.fillStyle="#ff4f5f";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x+player.x*sx,
+        y+player.y*sy,
+        3,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================================================
+   MUSIC
+========================================================= */
+
+let musicStarted=false;
+let musicTimer=null;
+
+function startMusic(){
+
+    if(musicStarted)
+        return;
+
+    ensureAudio();
+
+    if(!audioCtx)
+        return;
+
+    musicStarted=true;
+
+    const notes=[
+
+        261.63,
+        293.66,
+        329.63,
+        392,
+        329.63,
+        293.66,
+        261.63,
+        220,
+
+        246.94,
+        293.66,
+        329.63,
+        440,
+        392,
+        329.63,
+        293.66,
+        246.94
+    ];
+
+    let index=0;
+
+    musicTimer=setInterval(()=>{
+
+        if(!audioCtx)
+            return;
+
+        try{
+
+            const osc=
+                audioCtx.createOscillator();
+
+            const gain=
+                audioCtx.createGain();
+
+            osc.type="triangle";
+
+            osc.frequency.value=
+                notes[
+                    index%notes.length
+                ];
+
+            gain.gain.setValueAtTime(
+                .0001,
+                audioCtx.currentTime
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+                .025,
+                audioCtx.currentTime+.05
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+                .0001,
+                audioCtx.currentTime+.7
+            );
+
+            osc.connect(gain);
+            gain.connect(
+                audioCtx.destination
+            );
+
+            osc.start();
+
+            osc.stop(
+                audioCtx.currentTime+.75
+            );
+
+            index++;
+
+        }catch(e){}
+
+    },700);
+}
+
+function resumeOverworldMusic(){
+    if(!audioCtx || musicTimer || inDungeon) return;
+
+    const notes=[261.63,293.66,329.63,392,329.63,293.66,261.63,220,246.94,293.66,329.63,440,392,329.63,293.66,246.94];
+    let index=0;
+
+    musicTimer=setInterval(()=>{
+        if(!audioCtx || inDungeon) return;
+        try{
+            const osc=audioCtx.createOscillator();
+            const gain=audioCtx.createGain();
+            osc.type='triangle';
+            osc.frequency.value=notes[index%notes.length];
+            gain.gain.setValueAtTime(.0001,audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(.025,audioCtx.currentTime+.05);
+            gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime+.75);
+            index++;
+        }catch(e){}
+    },700);
+}
+
+/* =========================================================
+   GAME STATE
+========================================================= */
+
+let gameStarted=false;
+
+/* =========================================================
+   START GAME
+========================================================= */
+
+document.getElementById(
+    "playButton"
+).addEventListener(
+    "click",
+    ()=>{
+
+        ensureAudio();
+
+        startMusic();
+
+        gameStarted=true;
+
+        document.getElementById(
+            "startScreen"
+        ).style.display="none";
+
+        showMessage(
+            "🐼 Welcome to Pandania!"
+        );
+    }
+);
+
+/* =========================================================
+   WEBAUTH
+========================================================= */
+
+let walletSession=null;
+let walletLink=null;
+
+const PANDA_ASSET=
+"https://ipfs-gateway.soon.market/ipfs/QmakHQRpk7rXdqMkrg1nYhvLmWahnRpSBbWYNqAd8JtGfD";
+
+async function connectWebAuth(){
+
+    const status=
+        document.getElementById(
+            "walletStatus"
+        );
+
+    const button=
+        document.getElementById(
+            "connectWalletButton"
+        );
+
+    status.textContent=
+        "Connecting to XPR Network...";
+
+    button.disabled=true;
+
+    try{
+
+        const sdk=await import(
+            "https://esm.sh/@proton/web-sdk"
+        );
+
+        const ConnectWallet=
+            sdk.ConnectWallet||
+            sdk.default||
+            sdk;
+
+        if(
+            typeof ConnectWallet!=="function"
+        ){
+
+            throw new Error(
+                "XPR Web SDK could not be loaded."
+            );
+        }
+
+        const result=
+            await ConnectWallet({
+
+            linkOptions:{
+
+                chainId:
+                "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0",
+
+                endpoints:[
+
+                    "https://api.protonnz.com",
+
+                    "https://proton.eosusa.io",
+
+                    "https://proton.protonuk.io"
+                ],
+
+                restoreSession:false
+            },
+
+            selectorOptions:{
+
+                appName:
+                    "Pandania Adventures",
+
+                appLogo:
+                    PANDA_ASSET,
+
+                enabledWalletTypes:[
+                    "webauth"
+                ],
+
+                customStyleOptions:{
+
+                    modalBackgroundColor:
+                        "#1b1510",
+
+                    logoBackgroundColor:
+                        "#3d2919",
+
+                    isLogoRound:true,
+
+                    optionBackgroundColor:
+                        "#302218",
+
+                    optionFontColor:"#fff",
+
+                    primaryFontColor:
+                        "#f1d19a",
+
+                    secondaryFontColor:
+                        "#b9a488",
+
+                    linkColor:"#48d7ff"
+                }
+            },
+
+            transportOptions:{
+
+                requestAccount:
+                    "pandaniaadventure",
+
+                backButton:true
+            }
+        });
+
+        if(
+            !result||
+            !result.session
+        ){
+
+            throw new Error(
+                "Wallet connection was cancelled."
+            );
+        }
+
+        walletSession=
+            result.session;
+
+        walletLink=
+            result.link;
+
+        const actor=
+            result.session.auth &&
+            result.session.auth.actor
+            ?result.session.auth.actor
+            :"Connected";
+
+        status.textContent=
+            "✓ Connected: @"+
+            actor;
+
+        status.classList.add(
+            "connected"
+        );
+
+        button.textContent=
+            "✓ WEBAUTH CONNECTED";
+
+        showMessage(
+            "🔐 WebAuth connected: @"+
+            actor
+        );
+
+    }catch(error){
+
+        console.error(
+            "WebAuth connection error:",
+            error
+        );
+
+        status.textContent=
+            "WebAuth cancelled or unavailable. You can still play normally.";
+
+        button.disabled=false;
+
+        button.textContent=
+            "🔐 CONNECT WEBAUTH";
+    }
+}
+
+document.getElementById(
+    "connectWalletButton"
+).addEventListener(
+    "click",
+    connectWebAuth
+);
 
 /* =========================================================
    GAME LOOP
 ========================================================= */
-
-function updatePlayer(){
-    let dx=0,dy=0;
-    if(keys.w||keys.arrowup)dy-=1;
-    if(keys.s||keys.arrowdown)dy+=1;
-    if(keys.a||keys.arrowleft)dx-=1;
-    if(keys.d||keys.arrowright)dx+=1;
-
-    if(dx||dy){
-        const len=Math.hypot(dx,dy)||1;
-        dx/=len;dy/=len;
-        setPlayerFacing(dx,dy);
-        player.moving=true;
-        player.walkTime+=.32;
-        const mobileHorizontalBoost=(Math.abs(dx)>0 && Math.abs(dy)<0.01 && pandaniaMobileZoom()<1) ? 1.18 : 1;
-        const moveSpeed=player.speed*mobileHorizontalBoost;
-        const nx=player.x+dx*moveSpeed;
-        const ny=player.y+dy*moveSpeed;
-        if(!blocked(nx,player.y))player.x=nx;
-        if(!blocked(player.x,ny))player.y=ny;
-    }else if(player.targetMonster){
-        const target=player.targetMonster;
-        if(monsters.includes(target)){
-            const tx=target.x-player.x,ty=target.y-player.y,d=Math.hypot(tx,ty);
-            if(d>78){
-                const md=d||1;
-                const nx=player.x+tx/md*player.speed;
-                const ny=player.y+ty/md*player.speed;
-                setPlayerFacing(tx/md,ty/md);
-                player.moving=true;
-                if(!blocked(nx,player.y))player.x=nx;
-                if(!blocked(player.x,ny))player.y=ny;
-            }else{
-                player.moving=false;
-                swordAttack(target);
-            }
-        }else{player.targetMonster=null;}
-    }else if(player.targetX!=null&&player.targetY!=null){
-        const tx=player.targetX-player.x,ty=player.targetY-player.y,d=Math.hypot(tx,ty);
-        if(d>5){
-            const md=d||1;
-            const nx=player.x+tx/md*player.speed;
-            const ny=player.y+ty/md*player.speed;
-            setPlayerFacing(tx/md,ty/md);
-            player.moving=true;
-            if(!blocked(nx,player.y))player.x=nx;
-            if(!blocked(player.x,ny))player.y=ny;
-        }else{
-            player.targetX=null;player.targetY=null;player.moving=false;
-        }
-    }else{
-        player.moving=false;
-        player.walkTime*=.86;
-    }
-
-    if(player.attackCooldown>0)player.attackCooldown--;
-    if(player.invincible>0)player.invincible--;
-    if(player.swordSwing>0)player.swordSwing--;
-    if(player.healEffect>0)player.healEffect--;
-    if(player.healText>0)player.healText--;
-
-    /* Auto dungeon entry when walking onto either entrance */
-    if(!inDungeon&&!inHouse){
-        const nearbyEntrance=dungeonEntrances.find(e=>Math.hypot(player.x-e.x,player.y-e.y)<65);
-        if(nearbyEntrance)enterDungeon(nearbyEntrance);
-    }
-
-    /* Auto dungeon exit */
-    if(inDungeon&&Math.hypot(player.x-dungeonExit.x,player.y-dungeonExit.y)<55)leaveDungeon();
-}
-
-function setPlayerFacing(dx,dy){
-    if(Math.abs(dx)>0.01)player.facing=dx<0?-1:1;
-    player.facingX=dx;
-    player.facingY=dy;
-}
-
-function respawnPlayer(){
-    player.hp=player.maxHp;
-    player.mana=player.maxMana;
-    player.invincible=90;
-    player.x=safePlayerSpawn.x;
-    player.y=safePlayerSpawn.y;
-    player.targetX=null;player.targetY=null;player.targetMonster=null;
-    showMessage("💫 You were defeated and returned to town.");
-}
 
 function safeUpdate(){
 
     try{
         updatePlayer();
     }catch(e){
-        console.error("Player update error:",e);
+        console.error(
+            "Player update error:",
+            e
+        );
     }
 
     try{
         updateMonsters();
     }catch(e){
-        console.error("Monster update error:",e);
+        console.error(
+            "Monster update error:",
+            e
+        );
     }
 
     updateDamageNumbers();
@@ -3575,41 +6625,87 @@ function safeUpdate(){
     try{
         updateNPCs();
     }catch(e){
-        console.error("NPC update error:",e);
+        console.error(
+            "NPC update error:",
+            e
+        );
     }
 
     try{
         updateCamera();
     }catch(e){
-        console.error("Camera update error:",e);
+        console.error(
+            "Camera update error:",
+            e
+        );
     }
 
     try{
         updateUI();
     }catch(e){
-        console.error("UI update error:",e);
+        console.error(
+            "UI update error:",
+            e
+        );
     }
 }
 
 function safeDraw(){
 
     try{
+
         draw();
+
     }catch(error){
-        console.error("Renderer recovered:",error);
+
+        console.error(
+            "Renderer recovered:",
+            error
+        );
+
         try{
-            ctx.setTransform(1,0,0,1,0,0);
-            ctx.clearRect(0,0,W,H);
-            ctx.fillStyle=inDungeon?"#5b4635":"#6f9b4c";
-            ctx.fillRect(0,0,W,H);
+
+            ctx.setTransform(
+                1,
+                0,
+                0,
+                1,
+                0,
+                0
+            );
+
+            ctx.clearRect(
+                0,
+                0,
+                W,
+                H
+            );
+
+            ctx.fillStyle=
+                inDungeon
+                ?" #5b4635".trim()
+                :"#6f9b4c";
+
+            ctx.fillRect(
+                0,
+                0,
+                W,
+                H
+            );
+
         }catch(e){}
     }
 }
 
 function gameLoop(){
+
     safeUpdate();
+
     safeDraw();
-    requestAnimationFrame(gameLoop);
+
+    requestAnimationFrame(
+        gameLoop
+    );
 }
 
 /* =========================================================
@@ -3617,47 +6713,103 @@ function gameLoop(){
 ========================================================= */
 
 updateUI();
-setQuest("Explore Pandania","Speak with Captain Panda to begin your first quest.");
+
+setQuest(
+    "Explore Pandania",
+    "Speak with Captain Panda to begin your first quest."
+);
 
 /* Initial drops */
-createDrop(900,560,"PDA Coin");
-createDrop(960,590,"Fish");
-createDrop(1030,610,"Bamboo Sword");
-createDrop(1110,580,"Iron Sword");
-createDrop(1160,600,"Goblin Saber");
 
-requestAnimationFrame(gameLoop);
+createDrop(
+    900,
+    560,
+    "PDA Coin"
+);
+
+createDrop(
+    960,
+    590,
+    "Fish"
+);
+
+createDrop(
+    1030,
+    610,
+    "Bamboo Sword"
+);
+
+createDrop(
+    1110,
+    580,
+    "Iron Sword"
+);
+
+createDrop(
+    1160,
+    600,
+    "Goblin Saber"
+);
+
+requestAnimationFrame(
+    gameLoop
+);
+
+
+
+
+
+
+
+
+
 
 /* ===== PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
 (function(){
   const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null});
+
+  /* Keep keyboard/mobile direction state synchronized with the real player. */
   function faceKey(k){
     const map={a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0],w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1]};
     const v=map[k];
     if(v) setPlayerFacing(v[0],v[1]);
   }
   window.addEventListener('keydown',e=>faceKey(e.key.toLowerCase()),true);
+
+  /* Mobile controls: D-pad, sword, interact, and bag. */
   function mobileUI(){
     if(document.getElementById('pandaniaMobileControls')) return;
     const box=document.createElement('div');
     box.id='pandaniaMobileControls';
     box.innerHTML=`
-      <div id="pmDpad"><button data-k="w" aria-label="Move up">▲</button><div><button data-k="a" aria-label="Move left">◀</button><button data-k="s" aria-label="Move down">▼</button><button data-k="d" aria-label="Move right">▶</button></div></div>
-      <div id="pmActions"><button id="pmAttack" aria-label="Sword attack">⚔️</button><button id="pmInteract" aria-label="Interact">💬</button><button id="pmBag" aria-label="Open bag">🎒</button></div>`;
+      <div id="pmDpad">
+        <button data-k="w" aria-label="Move up">▲</button>
+        <div><button data-k="a" aria-label="Move left">◀</button><button data-k="s" aria-label="Move down">▼</button><button data-k="d" aria-label="Move right">▶</button></div>
+      </div>
+      <div id="pmActions">
+        <button id="pmAttack" aria-label="Sword attack">⚔️</button>
+        <button id="pmInteract" aria-label="Interact">💬</button>
+        <button id="pmBag" aria-label="Open bag">🎒</button>
+      </div>`;
     document.getElementById('gameWrap').appendChild(box);
+
     const style=document.createElement('style');
     style.textContent=`
       #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 10px;justify-content:space-between;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif}
       #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(0,0,0,.35)}
       #pmDpad,#pmActions{pointer-events:auto} #pmDpad{text-align:center} #pmDpad>div{display:flex;justify-content:center} #pmActions{display:flex;gap:2px} #pmActions button{width:52px;height:52px;border-radius:16px}
-      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.bagEmptySlot{min-height:82px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
+      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.bagEmptySlot{min-height:82px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
       @media(max-width:430px){#stats{width:165px}.name{margin-bottom:4px}#quest{width:165px}.questTitle{font-size:10px}#buttons .gameBtn{font-size:0;width:34px;height:34px;padding:0}.spell{width:52px;height:47px}.spellIcon{font-size:17px}#pmDpad button{width:43px;height:43px;font-size:18px}#pmActions button{width:47px;height:47px;font-size:18px}}
     `;
     document.head.appendChild(style);
+
     function hold(btn,key){
       const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;faceKey(key);};
       const stop=e=>{e.preventDefault();keys[key]=false;};
-      btn.addEventListener('pointerdown',start);btn.addEventListener('pointerup',stop);btn.addEventListener('pointercancel',stop);btn.addEventListener('lostpointercapture',stop);
+      btn.addEventListener('pointerdown',start);
+      btn.addEventListener('pointerup',stop);
+      btn.addEventListener('pointercancel',stop);
+      btn.addEventListener('lostpointercapture',stop);
     }
     box.querySelectorAll('[data-k]').forEach(b=>hold(b,b.dataset.k));
     document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();swordAttack();});
@@ -3665,28 +6817,57 @@ requestAnimationFrame(gameLoop);
     document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();openBag();});
   }
   mobileUI();
+
+  /* Prevent browser double-tap zoom on spell buttons while preserving
+     their normal onclick spell-casting behavior. */
+  document.addEventListener("dblclick",e=>{
+    const spell=e.target.closest?.(".spell");
+    if(spell){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  },{capture:true,passive:false});
+
   const mobileLayoutFix=document.createElement("style");
   mobileLayoutFix.textContent=`
-    @media (max-width:700px),(pointer:coarse){#gameWrap{overflow:hidden;}#pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom));}#pmDpad{margin-left:4px;}#pmActions{margin-right:4px;}}
-    @media (orientation:landscape) and (max-width:900px){#pandaniaMobileControls{left:0;right:0;bottom:max(5px,env(safe-area-inset-bottom));padding:0 14px;}#pandaniaMobileControls button{width:44px;height:44px;}#pmActions button{width:48px;height:48px;}#spellBar{bottom:8px;right:50%;transform:translateX(50%);max-width:52vw;}#message{bottom:60px;}#quest{top:58px;left:6px;}#zoneLabel{top:58px;}}
-    @media (orientation:portrait) and (max-width:700px){#spellBar{bottom:74px;}#message{bottom:136px;}}
+    @media (max-width:700px),(pointer:coarse){
+      #gameWrap{overflow:hidden;}
+      #pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom));}
+      #pmDpad{margin-left:4px;}
+      #pmActions{margin-right:4px;}
+    }
+    @media (orientation:landscape) and (max-width:900px){
+      #pandaniaMobileControls{left:0;right:0;bottom:max(5px,env(safe-area-inset-bottom));padding:0 14px;}
+      #pandaniaMobileControls button{width:44px;height:44px;}
+      #pmActions button{width:48px;height:48px;}
+      #spellBar{bottom:8px;right:50%;transform:translateX(50%);max-width:52vw;}
+      #message{bottom:60px;}
+      #quest{top:58px;left:6px;}
+      #zoneLabel{top:58px;}
+    }
+    @media (orientation:portrait) and (max-width:700px){
+      #spellBar{bottom:74px;}
+      #message{bottom:136px;}
+    }
   `;
   document.head.appendChild(mobileLayoutFix);
+
+  /* Equipment panel retained from the previous gameplay patch. */
   function ensureDoll(){
     const items=document.getElementById('bagItems'); if(!items)return;
     let p=document.getElementById('pandaniaEquipment'); if(p)return p;
-    p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;';
-    p.innerHTML='<b>Equipment</b><div id="pandaniaEquipmentSlots"></div>';
-    items.parentNode.insertBefore(p,items);
-    return p;
+    p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;border:2px solid #8b683e;border-radius:12px;background:#15100c;color:#fff';
+    p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
+    items.parentNode.insertBefore(p,items);return p;
   }
-  function setInv(n,v){if(inventory[n])inventory[n].count=Math.max(0,v);}
+  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
   function refreshDoll(){
-    const slots=document.getElementById('pandaniaEquipmentSlots');if(!slots)return;
-    slots.innerHTML=`<div>⚔️ Weapon: <b>${state.weapon||'None'}</b></div><div>🛡️ Armor: <b>${state.armor||'None'}</b></div><div>🧰 Tool: <b>${state.tool||'None'}</b></div>`;
+    const p=ensureDoll();if(!p)return;
+    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
+    vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
   }
-  const oldRenderBag=renderBag;
-  renderBag=function(){oldRenderBag();ensureDoll();refreshDoll();};
+  const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
   setTimeout(()=>{ensureDoll();refreshDoll();},200);
   window.__pandaniaGameplayV7=true;
 })();
@@ -3694,19 +6875,91 @@ requestAnimationFrame(gameLoop);
 
 /* ===== PANDANIA CONTENT FIX / DUNGEON LEVELS v2 ===== */
 (function(){
-  const mobileFixStyle=document.createElement("style");
-  mobileFixStyle.textContent=`#pandaniaMobileControls{display:none!important}#gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}`;
-  document.head.appendChild(mobileFixStyle);
-  const playButton=document.getElementById("playButton");
-  if(playButton)playButton.addEventListener("click",()=>{gameWrap.classList.add("pandaniaStarted");},true);
-  if(gameStarted)gameWrap.classList.add("pandaniaStarted");
+  "use strict";
 
+  /* ---------------------------------------------------------
+     Mobile controls: keep them off the login/start screen.
+     They become visible only after Play has been pressed.
+  --------------------------------------------------------- */
+  const mobileFixStyle=document.createElement("style");
+  mobileFixStyle.textContent=`
+    #pandaniaMobileControls{display:none!important}
+    #gameWrap.pandaniaStarted #pandaniaMobileControls{
+      display:flex!important;
+    }
+  `;
+  document.head.appendChild(mobileFixStyle);
+
+  const startScreen=document.getElementById("startScreen");
+  const playButton=document.getElementById("playButton");
+  if(playButton){
+    playButton.addEventListener("click",()=>{
+      gameWrap.classList.add("pandaniaStarted");
+    },true);
+  }
+
+  /* If the game is restored/already started, reflect that state. */
+  if(gameStarted) gameWrap.classList.add("pandaniaStarted");
+
+  /* ---------------------------------------------------------
+     New overworld monsters
+  --------------------------------------------------------- */
   Object.assign(monsterTypes,{
-    monster6:{name:"Green Biter",hp:90,damage:14,xp:60,gold:18,speed:1.45,r:21,image:"monster6"},
-    monster7:{name:"Dungeon Beast",hp:135,damage:12,xp:95,gold:30,speed:.9,r:22,image:"monster7"},
-    roamer1:{name:"Troll Reaper",hp:320,damage:30,defense:12,xp:180,gold:65,speed:.9,r:34,image:"roamer1"},
-    boss2:{name:"Boss2",hp:850,damage:32,xp:500,gold:400,speed:.62,r:43,image:"boss2",boss:true,dungeonLevel:2},
-    boss3:{name:"Boss3",hp:1200,damage:38,xp:750,gold:600,speed:.58,r:46,image:"boss3",boss:true,dungeonLevel:3}
+    monster6:{
+      name:"Green Biter",
+      hp:90,
+      damage:14,
+      xp:60,
+      gold:18,
+      speed:1.45,
+      r:21,
+      image:"monster6"
+    },
+    monster7:{
+      name:"Dungeon Beast",
+      hp:135,
+      damage:12,
+      xp:95,
+      gold:30,
+      speed:.9,
+      r:22,
+      image:"monster7"
+    },
+    roamer1:{
+      name:"Troll Reaper",
+      hp:320,
+      damage:30,
+      defense:12,
+      xp:180,
+      gold:65,
+      speed:.9,
+      r:34,
+      image:"roamer1"
+    },
+    boss2:{
+      name:"Boss2",
+      hp:850,
+      damage:32,
+      xp:500,
+      gold:400,
+      speed:.62,
+      r:43,
+      image:"boss2",
+      boss:true,
+      dungeonLevel:2
+    },
+    boss3:{
+      name:"Boss3",
+      hp:1200,
+      damage:38,
+      xp:750,
+      gold:600,
+      speed:.58,
+      r:46,
+      image:"boss3",
+      boss:true,
+      dungeonLevel:3
+    }
   });
 
   const specialMonsterDefs=[
@@ -3717,98 +6970,41 @@ requestAnimationFrame(gameLoop);
   ];
 
   function spawnSpecialOverworld(){
+    /* Troll Reaper is unique. Remove accidental duplicates before ensuring
+       the single intended Reaper exists at his top-right roaming corner. */
     const reapers=monsters.filter(m=>m.type==="roamer1");
     for(let i=1;i<reapers.length;i++){
       const idx=monsters.indexOf(reapers[i]);
-      if(idx!==-1)monsters.splice(idx,1);
+      if(idx!==-1) monsters.splice(idx,1);
     }
 
     for(const [type,x,y] of specialMonsterDefs){
-      const exists=monsters.some(m=>m.type===type&&Math.hypot(m.x-x,m.y-y)<160);
-      if(!exists)spawnMonster(type,x,y);
+      const exists=monsters.some(m=>m.type===type && Math.hypot(m.x-x,m.y-y)<160);
+      if(!exists) spawnMonster(type,x,y);
     }
 
     for(const m of monsters){
       if(m.type==="monster6"){
         m.roamBounds={x1:100,y1:1260,x2:900,y2:1660};
-        m.wasChasing=false;
-        m.roamTargetX=null;
-        m.roamTargetY=null;
       }else if(m.type==="roamer1"){
         m.roamBounds={x1:2050,y1:260,x2:2530,y2:720};
         m.defense=12;
-        m.wasChasing=false;
-        m.roamTargetX=null;
-        m.roamTargetY=null;
       }
     }
   }
 
   spawnSpecialOverworld();
 
-  /* Keep special monsters in their assigned region and make them
-     disengage into roaming movement when the player leaves aggro range. */
+  /* Keep special monsters out of water and inside their assigned region. */
   const oldUpdateMonstersForSpecial=updateMonsters;
   updateMonsters=function(){
     oldUpdateMonstersForSpecial();
 
     for(const m of monsters){
-      if(!m.roamBounds)continue;
+      if(!m.roamBounds) continue;
 
       m.x=Math.max(m.roamBounds.x1,Math.min(m.roamBounds.x2,m.x));
       m.y=Math.max(m.roamBounds.y1,Math.min(m.roamBounds.y2,m.y));
-
-      /* Green Biters and Troll Reapers actively disengage when the player
-         leaves their chase radius. They walk away from the player and then
-         continue roaming. If the player re-enters the radius, the normal
-         monster AI above immediately takes over and they chase again. */
-      if(m.type==="monster6"||m.type==="roamer1"){
-        const distanceToPlayer=Math.hypot(player.x-m.x,player.y-m.y);
-        const inAggroRange=distanceToPlayer<m.chaseDistance;
-
-        if(inAggroRange){
-          m.roamTargetX=null;
-          m.roamTargetY=null;
-          m.wasChasing=true;
-        }else{
-          if(m.wasChasing||m.roamTargetX==null||m.roamTargetY==null){
-            let awayX=m.x-player.x;
-            let awayY=m.y-player.y;
-            const awayDistance=Math.hypot(awayX,awayY);
-
-            if(awayDistance>0.001){
-              awayX/=awayDistance;
-              awayY/=awayDistance;
-            }else{
-              awayX=Math.random()-.5;
-              awayY=Math.random()-.5;
-              const randomDistance=Math.hypot(awayX,awayY)||1;
-              awayX/=randomDistance;
-              awayY/=randomDistance;
-            }
-
-            const roamDistance=m.type==="roamer1"?180:150;
-            m.roamTargetX=Math.max(m.roamBounds.x1,Math.min(m.roamBounds.x2,m.x+awayX*roamDistance));
-            m.roamTargetY=Math.max(m.roamBounds.y1,Math.min(m.roamBounds.y2,m.y+awayY*roamDistance));
-          }
-
-          m.wasChasing=false;
-
-          const dx=m.roamTargetX-m.x;
-          const dy=m.roamTargetY-m.y;
-          const targetDistance=Math.hypot(dx,dy);
-
-          if(targetDistance>8){
-            const nx=m.x+(dx/targetDistance)*m.speed;
-            const ny=m.y+(dy/targetDistance)*m.speed;
-            if(!blocked(nx,m.y,m.r))m.x=nx;
-            if(!blocked(m.x,ny,m.r))m.y=ny;
-          }else{
-            m.roamTargetX=null;
-            m.roamTargetY=null;
-          }
-        }
-      }
 
       /* If collision changes or a map edit puts one in a pond, move it
          to a nearby known-safe point rather than leaving it in water. */
@@ -3817,27 +7013,372 @@ requestAnimationFrame(gameLoop);
           ?[{x:2310,y:520},{x:2380,y:460},{x:2250,y:600}]
           :[{x:330,y:1410},{x:560,y:1510},{x:780,y:1390}];
         const safe=safePoints.find(p=>
-          !environment.ponds.some(w=>pointInRect(p.x,p.y,w,m.r))&&
+          !environment.ponds.some(w=>pointInRect(p.x,p.y,w,m.r)) &&
           !environment.buildings.some(b=>circleRectCollision(p.x,p.y,m.r,b))
         );
         if(safe){m.x=safe.x;m.y=safe.y;}
       }
     }
   };
-})();
 
-/* =========================================================
-   FINAL MOBILE/EQUIPMENT CSS COMPATIBILITY
-========================================================= */
-(function(){
-  const style=document.createElement("style");
-  style.textContent=`
-    #pandaniaMobileControls{display:none}
-    @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex!important}}
-  `;
-  document.head.appendChild(style);
+  /* ---------------------------------------------------------
+     Boss3 — Electric Strike (every 15 seconds)
+  --------------------------------------------------------- */
+  window.__bossElectricStrikes=window.__bossElectricStrikes||[];
+  function updateBossElectricStrikes(){
+    if(!inDungeon) { window.__bossElectricStrikes.length=0; return; }
+    for(const s of window.__bossElectricStrikes){
+      s.life--;
+    }
+    window.__bossElectricStrikes=window.__bossElectricStrikes.filter(s=>s.life>0);
+  }
+
+  const oldBossUpdateForElectric=updateMonsters;
+  updateMonsters=function(){
+    oldBossUpdateForElectric();
+    if(!inDungeon) return;
+    for(const m of monsters){
+      if(m.type!=="boss3") continue;
+      if(m.bossElectricCooldown==null) m.bossElectricCooldown=900;
+      if(m.bossElectricCooldown>0) m.bossElectricCooldown--;
+      if(m.bossElectricCooldown<=0){
+        const dx=player.x-m.x, dy=player.y-m.y;
+        const len=Math.hypot(dx,dy)||1;
+        window.__bossElectricStrikes.push({
+          x:player.x,y:player.y,sourceX:m.x,sourceY:m.y,life:28,damage:34
+        });
+        if(Math.hypot(player.x-m.x,player.y-m.y)<900 && player.invincible<=0){
+          player.hp-=34;
+          addDamageNumber(player.x,player.y-48,34,"#f33");
+          player.invincible=30;
+          hitSound();
+          showMessage("⚡ BOSS3 unleashes ELECTRIC STRIKE!");
+        }
+        m.bossElectricCooldown=900;
+      }
+    }
+  };
+
+  const oldBossElectricUpdate=updateBossFireShots;
+  updateBossFireShots=function(){
+    oldBossElectricUpdate();
+    updateBossElectricStrikes();
+  };
+
+  const oldDrawForElectric=draw;
+  draw=function(){
+    oldDrawForElectric();
+    if(!inDungeon) return;
+    for(const s of window.__bossElectricStrikes){
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,s.life/8);
+      ctx.strokeStyle="#9ff6ff";
+      ctx.shadowColor="#53e7ff";
+      ctx.shadowBlur=18;
+      ctx.lineWidth=5;
+      ctx.beginPath();
+      ctx.moveTo(s.sourceX,s.sourceY);
+      const segments=7;
+      for(let i=1;i<=segments;i++){
+        const t=i/segments;
+        const x=s.sourceX+(s.x-s.sourceX)*t+(i<segments?(i%2?10:-10):0);
+        const y=s.sourceY+(s.y-s.sourceY)*t+(i<segments?(i%2?-8:8):0);
+        ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      ctx.fillStyle="#e8ffff";
+      ctx.beginPath();ctx.arc(s.x,s.y,22,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+  };
+
+  /* ---------------------------------------------------------
+     PandaWitch — beside the bottom-right abandoned house
+  --------------------------------------------------------- */
+  const oldWitch=npcs.find(n=>n.name==="PandaWitch");
+  if(!oldWitch){
+    const abandoned=environment.buildings
+      .filter(b=>b.type==="bando")
+      .sort((a,b)=>(b.x+b.y)-(a.x+a.y))[0];
+
+    const wx=abandoned ? abandoned.x+abandoned.w+34 : 2250;
+    const wy=abandoned ? abandoned.y+abandoned.h-8 : 1300;
+
+    npcs.push({
+      x:wx,y:wy,
+      name:"PandaWitch",
+      image:"npc3",
+      quest:true,
+      wander:false
+    });
+  }
+
+  /* ---------------------------------------------------------
+     New weapon drops
+     The existing 30% weapon-drop system now includes all seven
+     new weapons. A forced new weapon drop is also supported.
+  --------------------------------------------------------- */
+  const newWeaponNames=new Set([
+    "Proton Lens","Spiked Twin Blade","Purple Ice Blade",
+    "Thunderma","Diamond staff","Golden Beacon Staff","Purplereign"
+  ]);
+
+  const oldCreateDropForWeapons=createDrop;
+  createDrop=function(x,y,forcedType=null){
+    if(newWeaponNames.has(forcedType)){
+      const weapon=weaponDrops.find(w=>w.name===forcedType);
+      if(weapon){
+        groundDrops.push({
+          x,y,
+          name:weapon.name,
+          icon:"⚔️",
+          image:weapon.image,
+          bob:Math.random()*Math.PI*2
+        });
+        return;
+      }
+    }
+    return oldCreateDropForWeapons(x,y,forcedType);
+  };
+
+  /* ---------------------------------------------------------
+     Dungeon levels
+  --------------------------------------------------------- */
+  let dungeonLevel=1;
+  let dungeonStairOpen=false;
+
+  const dungeonStair={
+    x:750,
+    y:235
+  };
+
+  function spawnDungeonLevel(level){
+    monsters=[];
+
+    if(level===1){
+      spawnMonster("monster2",350,300);
+      spawnMonster("monster3",540,450);
+      spawnMonster("monster4",900,300);
+      spawnMonster("monster5",1100,550);
+      spawnMonster("boss1",750,350);
+    }else if(level===2){
+      spawnMonster("boss2",520,400);
+      spawnMonster("boss2",980,400);
+    }else{
+      spawnMonster("monster7",330,300);
+      spawnMonster("monster7",520,560);
+      spawnMonster("monster7",1080,300);
+      spawnMonster("monster7",1180,620);
+      spawnMonster("boss3",750,350);
+    }
+  }
+
+  function bossesRemainingOnCurrentLevel(){
+    return monsters.some(m=>
+      m.boss && (m.dungeonLevel||1)===dungeonLevel
+    );
+  }
+
+  function openDungeonStair(){
+    if(dungeonStairOpen)return;
+    dungeonStairOpen=true;
+    showMessage("⬇️ The way deeper into the dungeon has opened!");
+  }
+
+  /* Replace the original one-floor dungeon spawn. */
+  spawnDungeonEnemies=function(){
+    dungeonStairOpen=false;
+    spawnDungeonLevel(dungeonLevel);
+  };
+
+  const oldEnterDungeonForLevels=enterDungeon;
+  enterDungeon=function(entrance=dungeonEntrance){
+    dungeonLevel=1;
+    dungeonStairOpen=false;
+    const result=oldEnterDungeonForLevels(entrance);
+    /* oldEnterDungeon calls the replaced spawnDungeonEnemies() */
+    return result;
+  };
+
+  const oldLeaveDungeonForLevels=leaveDungeon;
+  leaveDungeon=function(){
+    dungeonLevel=1;
+    dungeonStairOpen=false;
+    const result=oldLeaveDungeonForLevels();
+    spawnSpecialOverworld();
+    return result;
+  };
+
+  /* Boss defeat opens the next-floor stair only after ALL bosses on
+     the current floor have been defeated. */
+  const oldKillMonsterForLevels=killMonster;
+  killMonster=function(monster){
+    const wasCurrentDungeonBoss=!!(
+      inDungeon &&
+      monster &&
+      monster.boss &&
+      (monster.dungeonLevel||1)===dungeonLevel
+    );
+
+    oldKillMonsterForLevels(monster);
+
+    if(wasCurrentDungeonBoss && !bossesRemainingOnCurrentLevel()){
+      openDungeonStair();
+    }
+  };
+
+  function advanceDungeonLevel(){
+    if(!inDungeon || !dungeonStairOpen)return;
+
+    if(dungeonLevel>=3){
+      showMessage("🏆 You have reached the deepest known dungeon level.");
+      return;
+    }
+
+    dungeonLevel++;
+    dungeonStairOpen=false;
+
+    player.x=750;
+    player.y=780;
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+    groundDrops=[];
+
+    spawnDungeonLevel(dungeonLevel);
+    setZoneLabel("🕯️ THE LOST CAVE — LEVEL "+dungeonLevel);
+    showMessage("⬇️ You descended to dungeon level "+dungeonLevel+"!");
+    updateCamera();
+  }
+
+  /* Walk onto the staircase or use Interact to descend. */
+  const oldUpdatePlayerForStairs=updatePlayer;
+  updatePlayer=function(){
+    oldUpdatePlayerForStairs();
+
+    if(inDungeon && dungeonStairOpen && dungeonLevel<3 &&
+       Math.hypot(player.x-dungeonStair.x,player.y-dungeonStair.y)<78){
+      advanceDungeonLevel();
+    }
+  };
+
+  const oldInteractForStairs=interact;
+  interact=function(){
+    if(inDungeon && dungeonStairOpen &&
+       Math.hypot(player.x-dungeonStair.x,player.y-dungeonStair.y)<110){
+      advanceDungeonLevel();
+      return;
+    }
+    return oldInteractForStairs();
+  };
+
+  /* Click-to-walk/enter the stair. */
+  canvas.addEventListener("pointerdown",e=>{
+    if(!gameStarted || !inDungeon || !dungeonStairOpen || dungeonLevel>=3)return;
+    const p=getWorldMousePosition(e);
+    if(Math.hypot(p.x-dungeonStair.x,p.y-dungeonStair.y)<105){
+      player.targetX=dungeonStair.x;
+      player.targetY=dungeonStair.y;
+      player.targetMonster=null;
+    }
+  },true);
+
+  /* Draw the stair/door after the normal dungeon artwork. */
+  const oldDrawDungeonForStairs=drawDungeon;
+  drawDungeon=function(){
+    oldDrawDungeonForStairs();
+
+    ctx.save();
+    ctx.translate(dungeonStair.x,dungeonStair.y);
+
+    if(dungeonStairOpen){
+      /* Deep stairwell with visible perspective and individual stone treads. */
+      ctx.shadowColor="rgba(0,0,0,.95)";
+      ctx.shadowBlur=22;
+      ctx.fillStyle="#070604";
+      ctx.beginPath();
+      ctx.ellipse(0,8,78,58,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur=0;
+
+      ctx.strokeStyle="#9b7b58";
+      ctx.lineWidth=5;
+      ctx.beginPath();ctx.ellipse(0,8,78,58,0,0,Math.PI*2);ctx.stroke();
+
+      for(let i=0;i<7;i++){
+        const t=i/6;
+        const w=70-i*8;
+        const y=-30+i*10;
+        ctx.fillStyle="#b08a60";
+        ctx.fillRect(-w/2,y,w,8);
+        ctx.fillStyle="#654a32";
+        ctx.fillRect(-w/2,y+8,w,5);
+        ctx.strokeStyle="rgba(235,198,145,.35)";
+        ctx.lineWidth=1;
+        ctx.strokeRect(-w/2,y,w,8);
+      }
+
+      ctx.fillStyle="#d7b17c";
+      ctx.font="bold 13px Georgia";
+      ctx.textAlign="center";
+      ctx.shadowColor="#000";ctx.shadowBlur=6;
+      ctx.fillText(dungeonLevel<3?"DESCEND":"DEEPEST LEVEL",0,82);
+    }else{
+      /* A faint sealed mark keeps the location visually consistent without
+         revealing the stair until the boss is defeated. */
+      ctx.fillStyle="rgba(0,0,0,.18)";
+      ctx.beginPath();
+      ctx.ellipse(0,0,48,28,0,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.58)";
+    ctx.fillRect(1010,108,165,36);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 13px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("DUNGEON LEVEL "+dungeonLevel,1092,131);
+    ctx.restore();
+  };
+
+  /* Ensure the Troll Reaper/Green Biters don't remain in the dungeon. */
+  const oldDrawMiniMapForLevels=drawMiniMap;
+  /* No visual map changes are made here; all overworld special monsters use
+     the existing monster renderer and map. */
+
+  /* ---------------------------------------------------------
+     Preserve the sparkly Gold Coin artwork explicitly.
+     This restores the same custom coin fallback even if a later
+     renderer has replaced the item's icon.
+  --------------------------------------------------------- */
+  const oldRenderBagForGold=renderBag;
+  renderBag=function(){
+    oldRenderBagForGold();
+    const cards=document.querySelectorAll("#bagItems .itemCard");
+    cards.forEach(card=>{
+      const name=card.querySelector(".itemName");
+      if(name && name.textContent.trim()==="Gold Coin"){
+        const icon=card.querySelector(".itemIcon");
+        if(icon){
+          icon.outerHTML='<div class="goldBagIcon"><span class="goldCoinCore"></span><span class="goldSpark s1"></span><span class="goldSpark s2"></span><span class="goldSpark s3"></span><span class="goldSpark s4"></span></div>';
+        }
+      }
+    });
+  };
+
+  /* Start the controls in the correct state immediately. */
+  if(!gameStarted) gameWrap.classList.remove("pandaniaStarted");
+
+  window.__pandaniaContentFixV2=true;
 })();
+/* ===== END PANDANIA CONTENT FIX / DUNGEON LEVELS v2 ===== */
+
 
 </script>
+
+<script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
 </body>
 </html>

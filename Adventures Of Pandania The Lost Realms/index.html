@@ -8575,5 +8575,135 @@ requestAnimationFrame(
 })();
 </script>
 
+
+<script>
+/* ===== FINAL START SCREEN + EQUIPPED WEAPON FIX ===== */
+(function(){
+  "use strict";
+
+  /* 1) Restore a guaranteed playable Start/Guest button.
+     Some of the later UI patches can run before/after the original listener.
+     This handler is deliberately capture-phase and does not depend on the
+     original listener having succeeded. */
+  function startPandania(e){
+    if(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+    try{ if(typeof ensureAudio==="function") ensureAudio(); }catch(_){}
+    try{ if(typeof startMusic==="function") startMusic(); }catch(_){}
+    window.gameStarted = true;
+    const screen=document.getElementById("startScreen");
+    const wrap=document.getElementById("gameWrap");
+    if(screen){
+      screen.style.setProperty("display","none","important");
+      screen.style.setProperty("pointer-events","none","important");
+      screen.setAttribute("aria-hidden","true");
+    }
+    if(wrap) wrap.classList.add("pandaniaStarted");
+    try{
+      if(typeof showMessage==="function") showMessage("🐼 Welcome to Pandania!");
+    }catch(_){}
+    return false;
+  }
+
+  function wireStart(){
+    const btn=document.getElementById("playButton");
+    if(!btn) return;
+    btn.style.pointerEvents="auto";
+    btn.disabled=false;
+    btn.onclick=startPandania;
+    if(!btn.__finalStartWired){
+      btn.addEventListener("click",startPandania,true);
+      btn.addEventListener("pointerup",function(e){
+        if(e.pointerType==="touch") startPandania(e);
+      },{capture:true,passive:false});
+      btn.__finalStartWired=true;
+    }
+  }
+  wireStart();
+  [50,200,700,1500].forEach(t=>setTimeout(wireStart,t));
+
+  /* 2) Authoritative weapon artwork renderer. */
+  const weaponImageMap={
+    "Bamboo Sword":"weapon1","Iron Sword":"weapon2","Goblin Saber":"weapon3",
+    "Proton Lens":"weapon4","XPR Lens":"weapon4","Spiked Twin Blade":"weapon5",
+    "Purple Ice Blade":"weapon6","Thunderma":"weapon7","Diamond staff":"weapon8",
+    "Golden Beacon Staff":"weapon9","Purplereign":"weapon10"
+  };
+
+  function weaponURL(name){
+    let key=weaponImageMap[name]||"";
+    if(!key && Array.isArray(window.weaponDrops)){
+      const d=window.weaponDrops.find(w=>w&&w.name===name);
+      if(d) key=d.image||"";
+    }
+    if(!key) return "";
+    try{
+      if(typeof imageFiles!=="undefined" && imageFiles[key]) return imageFiles[key];
+    }catch(_){}
+    if(window.imageFiles && window.imageFiles[key]) return window.imageFiles[key];
+    if(window.images && window.images[key] && window.images[key].src) return window.images[key].src;
+    return "./images/"+key+".png";
+  }
+
+  function drawEquippedWeapon(){
+    const el=document.getElementById("equipWeapon");
+    const state=window.__pandaniaEquipment;
+    if(!el || !state) return;
+    const name=state.weapon||"";
+    const url=weaponURL(name);
+
+    el.innerHTML=
+      (url?'<div class="finalPdWeaponArt"><img id="finalPdWeaponImg" alt=""></div>':'')+
+      '<div class="paperDollEquipLabel">⚔️ Weapon</div>'+
+      '<strong>'+(name||"Empty")+'</strong>'+
+      (name?'<br><button class="pdUnequip finalPdUnequip" type="button">Unequip</button>':"");
+
+    const img=document.getElementById("finalPdWeaponImg");
+    if(img && url){
+      img.alt=name;
+      img.src=url;
+      img.onerror=function(){
+        const retry=new Image();
+        retry.onload=()=>{img.src=retry.src};
+        retry.src=url;
+      };
+    }
+
+    const b=el.querySelector(".finalPdUnequip");
+    if(b) b.onclick=function(e){
+      e.preventDefault(); e.stopPropagation();
+      const inv=window.inventory||{};
+      if(name && typeof setInv==="function") setInv(name,(inv[name]?.count||0)+1);
+      state.weapon="";
+      drawEquippedWeapon();
+      try{renderBag()}catch(_){}
+    };
+  }
+
+  window.refreshDoll=drawEquippedWeapon;
+  const style=document.createElement("style");
+  style.textContent=`
+    #startScreen{z-index:99999!important}
+    #playButton{pointer-events:auto!important;position:relative!important;z-index:100000!important}
+    #equipWeapon{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+    .finalPdWeaponArt{height:68px!important;width:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
+    .finalPdWeaponArt img{max-width:58px!important;max-height:58px!important;width:auto!important;height:auto!important;object-fit:contain!important;display:block!important}
+    @media(max-width:700px),(pointer:coarse){
+      .finalPdWeaponArt{height:54px!important;max-height:54px!important}
+      .finalPdWeaponArt img{max-width:46px!important;max-height:46px!important}
+    }
+  `;
+  document.head.appendChild(style);
+
+  function redraw(){
+    try{drawEquippedWeapon()}catch(_){}
+  }
+  [100,400,900,1800].forEach(t=>setTimeout(redraw,t));
+})();
+</script>
+
 </body>
 </html>

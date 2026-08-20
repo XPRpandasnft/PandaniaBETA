@@ -1563,7 +1563,8 @@ canvas.addEventListener("pointerdown",e=>{
       (window.matchMedia && (
         window.matchMedia("(pointer:coarse)").matches ||
         window.matchMedia("(max-width:700px)").matches
-      ))
+      )) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
     ){
       for(let i=groundDrops.length-1;i>=0;i--){
         const d=groundDrops[i];
@@ -8224,6 +8225,156 @@ const css=document.createElement('style'); css.textContent=`@media (max-width:70
   `;
   document.head.appendChild(css);
   build();
+})();
+</script>
+
+
+<script>
+/* ===== EQUIPPED WEAPON ARTWORK — FINAL REFERENCE-BASED FIX ===== */
+(function(){
+  "use strict";
+
+  function getEquipmentState(){
+    try{
+      if(window.__pandaniaEquipment) return window.__pandaniaEquipment;
+    }catch(e){}
+    try{
+      return state;
+    }catch(e){}
+    return null;
+  }
+
+  function getWeaponDefinition(name){
+    if(!name) return null;
+
+    try{
+      if(Array.isArray(weaponDrops)){
+        const direct=weaponDrops.find(w=>w && w.name===name);
+        if(direct) return direct;
+      }
+    }catch(e){}
+
+    try{
+      if(inventory && inventory[name] && inventory[name].image){
+        return {name:name,image:inventory[name].image};
+      }
+    }catch(e){}
+
+    const aliases={"XPR Lens":"Proton Lens","Proton Lens":"XPR Lens"};
+    const alias=aliases[name];
+
+    if(alias){
+      try{
+        if(Array.isArray(weaponDrops)){
+          const a=weaponDrops.find(w=>w && w.name===alias);
+          if(a) return a;
+        }
+      }catch(e){}
+      try{
+        if(inventory && inventory[alias] && inventory[alias].image){
+          return {name:alias,image:inventory[alias].image};
+        }
+      }catch(e){}
+    }
+
+    return null;
+  }
+
+  function getWeaponImage(name){
+    const def=getWeaponDefinition(name);
+    if(!def || !def.image) return "";
+
+    try{
+      if(typeof images!=="undefined" &&
+         images[def.image] &&
+         images[def.image].src){
+        return images[def.image].src;
+      }
+    }catch(e){}
+
+    try{
+      if(typeof imageFiles!=="undefined" &&
+         imageFiles[def.image]){
+        return imageFiles[def.image];
+      }
+    }catch(e){}
+
+    return "";
+  }
+
+  function renderEquippedWeaponImage(){
+    const eq=document.getElementById("equipWeapon");
+    const st=getEquipmentState();
+    if(!eq || !st) return;
+
+    const name=st.weapon || "";
+    const src=getWeaponImage(name);
+
+    const art=src
+      ? '<div class="paperDollWeaponArtFinal"><img src="'+src.replace(/"/g,"&quot;")+
+        '" alt="'+String(name||"Weapon").replace(/"/g,"&quot;")+'"></div>'
+      : "";
+
+    eq.innerHTML=
+      art+
+      '<div class="paperDollEquipLabel">⚔️ Weapon</div>'+
+      '<strong>'+String(name||"Empty").replace(/</g,"&lt;")+'</strong>'+
+      (name?'<br><button class="pdUnequip" type="button">Unequip</button>':"");
+
+    const b=eq.querySelector(".pdUnequip");
+    if(b){
+      b.onclick=function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        try{
+          setInv(name,(inventory[name]?.count||0)+1);
+        }catch(_){}
+
+        st.weapon="";
+        renderEquippedWeaponImage();
+
+        try{ renderBag(); }catch(_){}
+      };
+    }
+  }
+
+  /* Keep the existing game API pointing at the corrected renderer. */
+  try{
+    refreshDoll=renderEquippedWeaponImage;
+  }catch(e){}
+
+  /* Render after the current game's equipment/inventory setup has completed. */
+  [0,100,300,700,1400].forEach(delay=>{
+    setTimeout(renderEquippedWeaponImage,delay);
+  });
+
+  const style=document.createElement("style");
+  style.textContent=`
+    .paperDollWeaponArtFinal{
+      height:92px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin:-2px auto 3px;
+      overflow:hidden;
+    }
+    .paperDollWeaponArtFinal img{
+      width:92px;
+      height:92px;
+      object-fit:contain;
+      display:block;
+      image-rendering:auto;
+    }
+    @media(max-width:700px),(pointer:coarse){
+      .paperDollWeaponArtFinal{height:104px}
+      .paperDollWeaponArtFinal img{
+        width:104px;
+        height:104px;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 })();
 </script>
 

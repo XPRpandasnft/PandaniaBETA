@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Adventures Of Pandania The Lost Realms</title>
 
 <style>
@@ -606,10 +606,6 @@ kbd{
     color:#9fb0c5;
     font-size:11px;
 }
-.bagSectionTitle{margin:18px 0 5px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);color:#b98cff;font-size:16px;font-weight:bold}
-.bagSectionNote{color:#7f8ea2;font-size:11px;margin-bottom:8px}
-.bagEmptySlot{min-height:100px;border:1px dashed #3c4b60;background:rgba(18,27,40,.45);border-radius:8px}
-.blockchainGrid .bagEmptySlot{border-color:#55477a;background:rgba(28,20,45,.35)}
 
 .exchangeListing{
     display:flex;
@@ -660,47 +656,6 @@ kbd{
     border-radius:6px;
     background:#111a27;
 }
-
-/* Gold Coin bag artwork — mirrors the sparkly ground-drop coin. */
-.goldBagIcon{
-    position:relative;
-    width:42px;
-    height:42px;
-    margin:0 auto;
-}
-.goldCoinCore{
-    position:absolute;
-    left:9px;
-    top:9px;
-    width:24px;
-    height:24px;
-    border-radius:50%;
-    background:#ffd43b;
-    border:2px solid #fff2a8;
-    box-shadow:0 0 12px #ffd84d, inset 3px 3px 0 rgba(255,248,199,.65);
-}
-.goldSpark{
-    position:absolute;
-    width:8px;
-    height:2px;
-    background:#fff6a0;
-    border-radius:2px;
-    box-shadow:0 0 5px #fff6a0;
-}
-.goldSpark:after{
-    content:"";
-    position:absolute;
-    left:3px;
-    top:-3px;
-    width:2px;
-    height:8px;
-    background:#fff6a0;
-    border-radius:2px;
-}
-.goldSpark.s1{left:1px;top:7px}
-.goldSpark.s2{right:0;top:15px}
-.goldSpark.s3{left:3px;bottom:4px}
-.goldSpark.s4{right:4px;bottom:1px}
 
 /* =========================================================
    MOBILE
@@ -855,11 +810,6 @@ kbd{
             <span id="manaText">30</span>
             Mana
 
-            &nbsp; • &nbsp;
-
-            <span id="xpText">0 / 100</span>
-            XP
-
         </div>
 
     </div>
@@ -891,13 +841,8 @@ kbd{
         </div>
 
         <div class="invRow">
-            <span>PDA</span>
-            <span id="invPDA">0</span>
-        </div>
-
-        <div class="invRow">
-            <span>Blockchain Items</span>
-            <span id="invBlockchain">0</span>
+            <span>Loot</span>
+            <span id="invLoot">0</span>
         </div>
 
         <div class="invRow">
@@ -1011,12 +956,7 @@ kbd{
         🎒 Pandee's Bag
     </div>
 
-    <div style="color:#d9e2ec;font-size:12px;margin-bottom:7px">Hand Inventory</div>
     <div id="bagItems" class="itemGrid"></div>
-
-    <div class="bagSectionTitle">⛓️ Blockchain Items</div>
-    <div class="bagSectionNote">NFT items will appear here when blockchain items are added.</div>
-    <div id="blockchainItems" class="itemGrid blockchainGrid"></div>
 
 </div>
 
@@ -1163,35 +1103,18 @@ const imageFiles={
     npc1:IMAGE_FOLDER+"npc1.png",
     npc2:IMAGE_FOLDER+"npc2.png",
 
-    monster1:IMAGE_FOLDER+"slime.png",
-    monster2:IMAGE_FOLDER+"goblin.png",
-    monster3:IMAGE_FOLDER+"skeleton.png",
-    monster4:IMAGE_FOLDER+"werewolf.png",
-    monster5:IMAGE_FOLDER+"orc.png",
+    monster1:IMAGE_FOLDER+"monster1.png",
+    monster2:IMAGE_FOLDER+"monster2.png",
+    monster3:IMAGE_FOLDER+"monster3.png",
+    monster4:IMAGE_FOLDER+"monster4.png",
+    monster5:IMAGE_FOLDER+"monster5.png",
 
-    boss1:IMAGE_FOLDER+"Flameozn.png",
+    boss1:IMAGE_FOLDER+"Boss1.png",
 
-    weapon1:IMAGE_FOLDER+"bamboo sword.png",
-    weapon2:IMAGE_FOLDER+"iron sword.png",
-    weapon3:IMAGE_FOLDER+"goblin saber.png",
-    pda:IMAGE_FOLDER+"pda.png",
-
-    /* Environment artwork */
-    bando:IMAGE_FOLDER+"environments/bando.png",
-    house1:IMAGE_FOLDER+"environments/house1.png",
-    house2:IMAGE_FOLDER+"environments/house2.png",
-    bigtree:IMAGE_FOLDER+"environments/bigtree.png",
-    mediumtree:IMAGE_FOLDER+"environments/mediumtree.png",
-    liltree:IMAGE_FOLDER+"environments/liltree.png",
-    dungeonentrance1:IMAGE_FOLDER+"environments/dungeonentrance1.png",
-    dungeonentrance2:IMAGE_FOLDER+"environments/dungeonentrance2.png",
-    pond1:IMAGE_FOLDER+"environments/pond1.png",
-    pond2:IMAGE_FOLDER+"environments/pond2.png",
-    pond3:IMAGE_FOLDER+"environments/pond3.png",
-    purpleflowers:IMAGE_FOLDER+"environments/purpleflowers.png",
-    orangeflowers:IMAGE_FOLDER+"environments/orangeflowers.png",
-    pebbles:IMAGE_FOLDER+"environments/pebbles.png",
-    rock:IMAGE_FOLDER+"environments/rock.png"
+    weapon1:IMAGE_FOLDER+"weapon1.png",
+    weapon2:IMAGE_FOLDER+"weapon2.png",
+    weapon3:IMAGE_FOLDER+"weapon3.png",
+    pda:IMAGE_FOLDER+"pda.png"
 };
 
 const images={};
@@ -1211,25 +1134,6 @@ Object.entries(imageFiles).forEach(([key,src])=>{
         );
     };
 
-    img.src=src;
-});
-
-/* New asset names are preferred; legacy filenames remain a safe fallback
-   while the image files are being renamed in the repository. */
-const legacyImageFiles={
-    monster1:IMAGE_FOLDER+"monster1.png",
-    monster2:IMAGE_FOLDER+"monster2.png",
-    monster3:IMAGE_FOLDER+"monster3.png",
-    monster4:IMAGE_FOLDER+"monster4.png",
-    monster5:IMAGE_FOLDER+"monster5.png",
-    boss1:IMAGE_FOLDER+"Boss1.png",
-    weapon1:IMAGE_FOLDER+"weapon1.png",
-    weapon2:IMAGE_FOLDER+"weapon2.png",
-    weapon3:IMAGE_FOLDER+"weapon3.png"
-};
-Object.entries(legacyImageFiles).forEach(([key,src])=>{
-    const img=new Image();
-    img.onload=()=>{ if(!images[key]) images[key]=img; };
     img.src=src;
 });
 
@@ -1260,27 +1164,10 @@ const dungeon={
 
 let inDungeon=false;
 
-/* Two overworld dungeon entrances.  The first stays in the bottom-right
-   area where the old entrance was; the second is placed at the top-left. */
-const dungeonEntrances=[
-    {
-        id:"lostCave",
-        x:2260,
-        y:1180,
-        image:"dungeonentrance1",
-        name:"The Lost Cave"
-    },
-    {
-        id:"northDungeon",
-        x:260,
-        y:260,
-        image:"dungeonentrance2",
-        name:"The Forgotten Dungeon"
-    }
-];
-
-const dungeonEntrance=dungeonEntrances[0];
-let activeDungeonEntrance=dungeonEntrance;
+const dungeonEntrance={
+    x:2260,
+    y:1180
+};
 
 const dungeonExit={
     x:750,
@@ -1317,8 +1204,6 @@ const player={
     loot:0,
 
     facing:1,
-    facingX:1,
-    facingY:0,
 
     moving:false,
 
@@ -1341,16 +1226,6 @@ const player={
 
     healAmount:0
 };
-
-const BAG_SLOTS=24;
-const VAULT_BAG_SLOTS=36;
-let vaultUnlocked=false;
-const blockchainItems=[];
-let inHouse=false;
-let activeHouse=null;
-let houseReturnX=0;
-let houseReturnY=0;
-const houseInterior={width:900,height:600,exitX:450,exitY:535};
 
 /* =========================================================
    INVENTORY
@@ -1394,19 +1269,19 @@ const inventory={
         count:0
     },
 
-    "Bamboo Sword":{
+    "Weapon 1":{
         icon:"⚔️",
         image:"weapon1",
         count:0
     },
 
-    "Iron Sword":{
+    "Weapon 2":{
         icon:"⚔️",
         image:"weapon2",
         count:0
     },
 
-    "Goblin Saber":{
+    "Weapon 3":{
         icon:"⚔️",
         image:"weapon3",
         count:0
@@ -1420,19 +1295,19 @@ const inventory={
 const weaponDrops=[
 
     {
-        name:"Bamboo Sword",
+        name:"Weapon 1",
         image:"weapon1",
         damage:22
     },
 
     {
-        name:"Iron Sword",
+        name:"Weapon 2",
         image:"weapon2",
         damage:30
     },
 
     {
-        name:"Goblin Saber",
+        name:"Weapon 3",
         image:"weapon3",
         damage:42
     }
@@ -1525,10 +1400,7 @@ canvas.addEventListener("pointerdown",e=>{
 
     /* Dungeon exit */
 
-    if(inHouse){
-        if(Math.hypot(p.x-houseInterior.exitX,p.y-houseInterior.exitY)<85){leaveHouse();return;}
-        player.targetMonster=null; player.targetX=p.x; player.targetY=p.y; return;
-    }else if(inDungeon){
+    if(inDungeon){
 
         if(
             Math.hypot(
@@ -1544,47 +1416,44 @@ canvas.addEventListener("pointerdown",e=>{
 
     }else{
 
-        /* Dungeon entrances */
-
-        for(const entrance of dungeonEntrances){
-
-            if(
-                Math.hypot(
-                    p.x-entrance.x,
-                    p.y-entrance.y
-                )<100
-            ){
-
-                if(
-                    Math.hypot(
-                        player.x-entrance.x,
-                        player.y-entrance.y
-                    )<130
-                ){
-
-                    enterDungeon(entrance);
-
-                }else{
-
-                    player.targetX=entrance.x;
-                    player.targetY=entrance.y;
-
-                    showMessage(
-                        "🕯️ Walking toward the dungeon entrance..."
-                    );
-                }
-
-                return;
-            }
-        }
-
-        /* Grand Exchange is attached to one house1 building. */
+        /* Dungeon entrance */
 
         if(
             Math.hypot(
-                p.x-grandExchangeLocation.x,
-                p.y-grandExchangeLocation.y
-            )<110
+                p.x-dungeonEntrance.x,
+                p.y-dungeonEntrance.y
+            )<85
+        ){
+
+            if(
+                Math.hypot(
+                    player.x-dungeonEntrance.x,
+                    player.y-dungeonEntrance.y
+                )<120
+            ){
+
+                enterDungeon();
+
+            }else{
+
+                player.targetX=dungeonEntrance.x;
+                player.targetY=dungeonEntrance.y;
+
+                showMessage(
+                    "🕯️ Walking toward the dungeon entrance..."
+                );
+            }
+
+            return;
+        }
+
+        /* Grand Exchange */
+
+        if(
+            Math.hypot(
+                p.x-550,
+                p.y-450
+            )<100
         ){
 
             openExchange();
@@ -1640,7 +1509,9 @@ canvas.addEventListener("pointerdown",e=>{
             )<45
         ){
 
-            if(collectDrop(d)){groundDrops.splice(i,1);}
+            collectDrop(d);
+
+            groundDrops.splice(i,1);
 
             return;
         }
@@ -1702,328 +1573,109 @@ canvas.addEventListener("pointerdown",e=>{
    TERRAIN
 ========================================================= */
 
-/* =========================================================
-   ENVIRONMENT / WORLD LAYOUT
-   All overworld scenery now comes from ./images/environments/.
-========================================================= */
+const waterZones=[
 
-const townBounds={
-    x:500,
-    y:300,
-    w:800,
-    h:620
-};
-
-const environment={
-    buildings:[],
-    decorations:[],
-    trees:[],
-    ponds:[]
-};
-
-function overlapsRect(a,b,pad=0){
-    return !(
-        a.x+a.w+pad<=b.x ||
-        b.x+b.w+pad<=a.x ||
-        a.y+a.h+pad<=b.y ||
-        b.y+b.h+pad<=a.y
-    );
-}
-
-function pointInRect(x,y,r,pad=0){
-    return (
-        x>=r.x-pad &&
-        x<=r.x+r.w+pad &&
-        y>=r.y-pad &&
-        y<=r.y+r.h+pad
-    );
-}
-
-function shuffled(array){
-    const a=array.slice();
-    for(let i=a.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [a[i],a[j]]=[a[j],a[i]];
-    }
-    return a;
-}
-
-function addBuilding(type,x,y,w,h,name,extra={}){
-    const building={
-        type,
-        image:type,
-        x,y,w,h,
-        doorX:x+w/2,
-        doorY:y+h+8,
-        name:name||type,
-        ...extra
-    };
-    environment.buildings.push(building);
-    return building;
-}
-
-function placeBuildingsRandomly(){
-    const townPlaced=[];
-
-    const specs=[
-        {type:"house1",w:185,h:150,name:"Panden Town Grand Exchange",grandExchange:true},
-        {type:"house1",w:185,h:150,name:"Panden Town House"},
-        {type:"house1",w:185,h:150,name:"The Vault",vault:true},
-        {type:"house1",w:185,h:150,name:"Your House",playerHouse:true},
-        {type:"house1",w:185,h:150,name:"Panden Town House"},
-        {type:"house1",w:185,h:150,name:"Panden Town House"},
-        {type:"house1",w:185,h:150,name:"Panden Town House"},
-        {type:"house1",w:185,h:150,name:"Panden Town House"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"},
-        {type:"house2",w:140,h:120,name:"Panden Town Home"}
-    ];
-
-    for(const spec of specs){
-        let placed=null;
-        for(let attempt=0;attempt<500 && !placed;attempt++){
-            const candidate={
-                x:townBounds.x+35+Math.random()*(townBounds.w-spec.w-70),
-                y:townBounds.y+40+Math.random()*(townBounds.h-spec.h-65),
-                w:spec.w,
-                h:spec.h
-            };
-
-            const tooClose=townPlaced.some(h=>overlapsRect(candidate,h,28));
-            const nearPond=environment.ponds.some(w=>overlapsRect(candidate,w,60));
-            if(!tooClose && !nearPond){
-                placed=addBuilding(
-                    spec.type,
-                    candidate.x,
-                    candidate.y,
-                    candidate.w,
-                    candidate.h,
-                    spec.name,
-                    {grandExchange:!!spec.grandExchange,vault:!!spec.vault,playerHouse:!!spec.playerHouse}
-                );
-                townPlaced.push(placed);
-            }
-        }
-    }
-
-    /* Three abandoned houses on the outskirts of Panden Town. */
-    /* Three abandoned houses are randomly distributed outside the town. */
-    const placedOutskirts=[];
-    for(let i=0;i<3;i++){
-        let placed=null;
-        for(let attempt=0;attempt<400 && !placed;attempt++){
-            const candidate={
-                x:80+Math.random()*(world.width-245),
-                y:220+Math.random()*(world.height-400),
-                w:165,
-                h:135
-            };
-
-            const farEnoughFromTown=
-                !overlapsRect(candidate,townBounds,100);
-            const farEnoughFromOther=
-                placedOutskirts.every(b=>!overlapsRect(candidate,b,90));
-            const farEnoughFromPonds=
-                environment.ponds.every(w=>!overlapsRect(candidate,w,60));
-            const farEnoughFromDungeons=
-                dungeonEntrances.every(e=>
-                    Math.hypot(
-                        candidate.x+candidate.w/2-e.x,
-                        candidate.y+candidate.h/2-e.y
-                    )>120
-                );
-
-            if(
-                farEnoughFromTown &&
-                farEnoughFromOther &&
-                farEnoughFromPonds &&
-                farEnoughFromDungeons
-            ){
-                placed=addBuilding(
-                    "bando",
-                    candidate.x,
-                    candidate.y,
-                    candidate.w,
-                    candidate.h,
-                    "Abandoned House"
-                );
-                placedOutskirts.push(placed);
-            }
-        }
-    }
-}
-
-/* Exactly one of each pond image.  Their rectangles are also the collision
-   zones, so monsters and the player cannot walk through the water artwork. */
-environment.ponds.push(
-    {x:160,y:1040,w:300,h:205,image:"pond1"},
-    {x:1530,y:760,w:255,h:175,image:"pond2"},
-    {x:1960,y:220,w:220,h:155,image:"pond3"}
-);
-
-const waterZones=environment.ponds;
-
-placeBuildingsRandomly();
-
-/* The Grand Exchange belongs to one of the house1 buildings. */
-const grandExchangeBuilding=
-    environment.buildings.find(b=>b.grandExchange);
-
-const grandExchangeLocation={
-    x:grandExchangeBuilding
-        ?grandExchangeBuilding.doorX
-        :590,
-    y:grandExchangeBuilding
-        ?grandExchangeBuilding.doorY
-        :450
-};
-
-/* Fishing spots now live around the three pond images. */
-const fishingSpots=environment.ponds.map((pond,i)=>({
-    x:pond.x+pond.w*.5,
-    y:pond.y+pond.h*.82,
-    pond:i+1
-}));
-
-/* Trees are image-based and randomly distributed around the world, with a
-   clear exclusion zone around town, buildings, ponds and dungeon entrances. */
-const treeTypes=[
-    {image:"bigtree",w:105,h:125},
-    {image:"mediumtree",w:82,h:100},
-    {image:"liltree",w:58,h:72}
+    {x:0,y:0,w:650,h:140},
+    {x:1350,y:520,w:850,h:270},
+    {x:1950,y:0,w:500,h:390},
+    {x:450,y:1370,w:1000,h:200}
 ];
 
-for(let i=0;i<125;i++){
-    for(let attempt=0;attempt<250;attempt++){
-        const type=treeTypes[Math.floor(Math.random()*treeTypes.length)];
-        const x=45+Math.random()*(world.width-90);
-        const y=150+Math.random()*(world.height-190);
-        const footprint={x:x-type.w/2,y:y-type.h+18,w:type.w,h:type.h*.62};
+const fishingSpots=[
 
-        const nearTown=overlapsRect(footprint,townBounds,75);
-        const nearBuilding=environment.buildings.some(b=>overlapsRect(footprint,b,45));
-        const nearPond=environment.ponds.some(w=>overlapsRect(footprint,w,35));
-        const nearDungeon=dungeonEntrances.some(d=>Math.hypot(x-d.x,y-d.y)<130);
+    {x:580,y:75},
+    {x:1650,y:650},
+    {x:2160,y:280},
+    {x:800,y:1450}
+];
 
-        if(!nearTown&&!nearBuilding&&!nearPond&&!nearDungeon){
-            environment.trees.push({x,y,...type});
-            break;
+const houses=[
+
+    {
+        x:720,
+        y:230,
+        w:190,
+        h:145,
+        doorX:815,
+        doorY:375,
+        name:"Panda Village Cottage"
+    },
+
+    {
+        x:1080,
+        y:760,
+        w:210,
+        h:150,
+        doorX:1185,
+        doorY:910,
+        name:"Old Fisherman's Home"
+    },
+
+    {
+        x:350,
+        y:800,
+        w:200,
+        h:145,
+        doorX:450,
+        doorY:945,
+        name:"Forest Cottage"
+    },
+
+    {
+        x:1770,
+        y:720,
+        w:220,
+        h:155,
+        doorX:1880,
+        doorY:875,
+        name:"Mountain Lodge"
+    },
+
+    {
+        x:1500,
+        y:250,
+        w:220,
+        h:145,
+        doorX:1610,
+        doorY:395,
+        name:"Hunter's Cabin"
+    }
+];
+
+/* =========================================================
+   TREES
+========================================================= */
+
+const trees=[];
+
+for(let x=70;x<2500;x+=95){
+
+    for(let y=170;y<1600;y+=95){
+
+        const noise=Math.sin(x*12.91+y*3.17);
+
+        if(noise>.45){
+
+            const nearHouse=houses.some(h=>
+                x>h.x-50 &&
+                x<h.x+h.w+50 &&
+                y>h.y-50 &&
+                y<h.y+h.h+50
+            );
+
+            const nearWater=waterZones.some(w=>
+                x>w.x-40 &&
+                x<w.x+w.w+40 &&
+                y>w.y-40 &&
+                y<w.y+w.h+40
+            );
+
+            if(!nearHouse&&!nearWater){
+                trees.push({x,y});
+            }
         }
     }
 }
-
-/* Decorative flowers, pebbles and rocks.  They do not block movement. */
-function scatterDecoration(image,count,w,h){
-    for(let i=0;i<count;i++){
-        for(let attempt=0;attempt<150;attempt++){
-            const x=25+Math.random()*(world.width-50);
-            const y=120+Math.random()*(world.height-155);
-            const d={x:x-w/2,y:y-h/2,w,h};
-
-            if(
-                overlapsRect(d,townBounds,20) ||
-                environment.buildings.some(b=>overlapsRect(d,b,15)) ||
-                environment.ponds.some(p=>overlapsRect(d,p,12)) ||
-                dungeonEntrances.some(e=>Math.hypot(x-e.x,y-e.y)<80)
-            ) continue;
-
-            environment.decorations.push({x,y,w,h,image});
-            break;
-        }
-    }
-}
-
-scatterDecoration("purpleflowers",45,28,22);
-scatterDecoration("orangeflowers",45,28,22);
-scatterDecoration("pebbles",85,30,22);
-scatterDecoration("rock",28,38,30);
-
-/* Safe starting position: never spawn inside a house, pond, tree, or dungeon entrance.
-   Prefer an open spot near the center of Panden Town so the player can immediately move. */
-function chooseSafePlayerSpawn(){
-    const candidates=[];
-
-    /* Try the center of town first, then scan a grid outward for a clear spot. */
-    const cx=townBounds.x+townBounds.w/2;
-    const cy=townBounds.y+townBounds.h/2;
-
-    for(let radius=0;radius<=500;radius+=50){
-        if(radius===0){
-            candidates.push({x:cx,y:cy});
-            continue;
-        }
-
-        for(let a=0;a<Math.PI*2;a+=Math.PI/8){
-            candidates.push({
-                x:cx+Math.cos(a)*radius,
-                y:cy+Math.sin(a)*radius
-            });
-        }
-    }
-
-    for(const c of candidates){
-        if(c.x<40||c.y<40||c.x>world.width-40||c.y>world.height-40) continue;
-
-        const hitBuilding=environment.buildings.some(b=>
-            circleRectCollisionForSpawn(c.x,c.y,player.r,b,8)
-        );
-        if(hitBuilding) continue;
-
-        const hitPond=environment.ponds.some(p=>
-            circleRectCollisionForSpawn(c.x,c.y,player.r,p,4)
-        );
-        if(hitPond) continue;
-
-        const hitTree=environment.trees.some(t=>{
-            const footprint={
-                x:t.x-t.w/2,
-                y:t.y-t.h+18,
-                w:t.w,
-                h:t.h*.62
-            };
-            return circleRectCollisionForSpawn(c.x,c.y,player.r,footprint,4);
-        });
-        if(hitTree) continue;
-
-        const hitDungeon=dungeonEntrances.some(e=>
-            Math.hypot(c.x-e.x,c.y-e.y)<90
-        );
-        if(hitDungeon) continue;
-
-        return c;
-    }
-
-    /* Guaranteed open fallback in the wilderness. */
-    return {x:400,y:800};
-}
-
-function circleRectCollisionForSpawn(cx,cy,r,rect,pad=0){
-    const x=rect.x-pad;
-    const y=rect.y-pad;
-    const w=rect.w+pad*2;
-    const h=rect.h+pad*2;
-    const closestX=Math.max(x,Math.min(cx,x+w));
-    const closestY=Math.max(y,Math.min(cy,y+h));
-    const dx=cx-closestX;
-    const dy=cy-closestY;
-    return dx*dx+dy*dy<r*r;
-}
-
-const safePlayerSpawn=chooseSafePlayerSpawn();
-player.x=safePlayerSpawn.x;
-player.y=safePlayerSpawn.y;
-player.targetX=null;
-player.targetY=null;
-player.targetMonster=null;
-
-/* Compatibility aliases used by the existing renderer/gameplay code. */
-const houses=environment.buildings;
-const trees=environment.trees;
 
 /* =========================================================
    NPCS
@@ -2107,7 +1759,7 @@ npcs.forEach(n=>{
 const monsterTypes={
 
     monster1:{
-        name:"Slime",
+        name:"Forest Beast",
         hp:45,
         damage:8,
         xp:30,
@@ -2118,7 +1770,7 @@ const monsterTypes={
     },
 
     monster2:{
-        name:"Goblin",
+        name:"Cave Creature",
         hp:55,
         damage:10,
         xp:38,
@@ -2129,7 +1781,7 @@ const monsterTypes={
     },
 
     monster3:{
-        name:"Skeleton",
+        name:"Goblin Raider",
         hp:65,
         damage:12,
         xp:45,
@@ -2140,7 +1792,7 @@ const monsterTypes={
     },
 
     monster4:{
-        name:"Werewolf",
+        name:"Dark Monster",
         hp:80,
         damage:14,
         xp:55,
@@ -2151,7 +1803,7 @@ const monsterTypes={
     },
 
     monster5:{
-        name:"Orc",
+        name:"Wilderness Horror",
         hp:100,
         damage:18,
         xp:70,
@@ -2162,7 +1814,7 @@ const monsterTypes={
     },
 
     boss1:{
-        name:"Flameozn",
+        name:"Cave Guardian",
         hp:500,
         damage:25,
         xp:300,
@@ -2199,7 +1851,6 @@ function spawnMonster(type,x,y){
         maxHp:data.hp,
 
         attackCooldown:0,
-        bossFireCooldown:data.boss?600:0,
 
         hitFlash:0,
 
@@ -2241,11 +1892,6 @@ function spawnDungeonEnemies(){
         750,
         350
     );
-
-    /* Flameozn's four-way Fire Burst starts its 10-second cooldown
-       when the boss enters the dungeon. */
-    const boss=monsters.find(m=>m.boss);
-    if(boss) boss.bossFireCooldown=600;
 }
 
 /* =========================================================
@@ -2277,19 +1923,19 @@ function createDrop(x,y,forcedType=null){
         },
 
         {
-            name:"Bamboo Sword",
+            name:"Weapon 1",
             icon:"⚔️",
             image:"weapon1"
         },
 
         {
-            name:"Iron Sword",
+            name:"Weapon 2",
             icon:"⚔️",
             image:"weapon2"
         },
 
         {
-            name:"Goblin Saber",
+            name:"Weapon 3",
             icon:"⚔️",
             image:"weapon3"
         }
@@ -2371,8 +2017,15 @@ function circleRectCollision(cx,cy,r,rect){
 
 function blocked(x,y,r=player.r){
 
-    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
-    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
 
     if(
         x<20 ||
@@ -2394,30 +2047,29 @@ function blocked(x,y,r=player.r){
         return false;
     }
 
-    if(inHouse){
-        return false;
-    }
+    for(const w of waterZones){
 
-    /* Pond artwork is the water: no old hard-coded blue water rectangles remain. */
-    for(const pond of environment.ponds){
-
-        if(circleRectCollision(x,y,r,pond))
+        if(circleRectCollision(x,y,r,w))
             return true;
     }
 
-    /* Buildings stay completely solid, but their collision footprint is
-       slightly inset from the artwork so the player can walk close to walls
-       without needing to keep an unnecessarily wide gap. */
-    for(const building of environment.buildings){
-        const inset=building.type==="bando" ? 12 : 16;
-        const footprint={
-            x:building.x+inset,
-            y:building.y+inset,
-            w:Math.max(1,building.w-inset*2),
-            h:Math.max(1,building.h-inset*2)
-        };
-        if(circleRectCollision(x,y,r,footprint))
-            return true;
+    for(const h of houses){
+
+        if(circleRectCollision(
+            x,
+            y,
+            r,
+            h
+        )){
+
+            const d=Math.hypot(
+                x-h.doorX,
+                y-h.doorY
+            );
+
+            if(d>32)
+                return true;
+        }
     }
 
     return false;
@@ -2426,16 +2078,6 @@ function blocked(x,y,r=player.r){
 /* =========================================================
    PLAYER UPDATE
 ========================================================= */
-
-function setPlayerFacing(dx,dy){
-    if(!dx && !dy) return;
-    const len=Math.hypot(dx,dy)||1;
-    player.facingX=dx/len;
-    player.facingY=dy/len;
-    if(Math.abs(dx)>=Math.abs(dy)){
-        player.facing=dx<0?-1:1;
-    }
-}
 
 function updatePlayer(){
 
@@ -2520,8 +2162,6 @@ function updatePlayer(){
             dy/=len;
         }
 
-        setPlayerFacing(dx,dy);
-
         if(dx<0)
             player.facing=-1;
 
@@ -2559,16 +2199,17 @@ function updatePlayer(){
     if(player.healText>0)
         player.healText--;
 
-    /* Auto dungeon entry when walking onto either entrance */
+    /* Auto dungeon entry when walking onto entrance */
 
-    if(!inDungeon && !inHouse){
-        const nearbyEntrance=dungeonEntrances.find(e=>
-            Math.hypot(player.x-e.x,player.y-e.y)<65
-        );
+    if(
+        !inDungeon &&
+        Math.hypot(
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )<55
+    ){
 
-        if(nearbyEntrance){
-            enterDungeon(nearbyEntrance);
-        }
+        enterDungeon();
     }
 
     /* Auto dungeon exit */
@@ -2594,8 +2235,15 @@ function updateCamera(){
     camera.x=player.x-W/2;
     camera.y=player.y-H/2;
 
-    const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
-    const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
+    const currentWidth=
+        inDungeon
+        ?dungeon.width
+        :world.width;
+
+    const currentHeight=
+        inDungeon
+        ?dungeon.height
+        :world.height;
 
     camera.x=Math.max(
         0,
@@ -2694,10 +2342,6 @@ function bossSound(){
    SWORD
 ========================================================= */
 
-function addDamageNumber(x,y,amount,color){damageNumbers.push({x,y,amount,color,life:55,maxLife:55});}
-function updateDamageNumbers(){for(let i=damageNumbers.length-1;i>=0;i--){const d=damageNumbers[i];d.life--;d.y-=0.65;if(d.life<=0)damageNumbers.splice(i,1);}}
-function drawDamageNumbers(){for(const d of damageNumbers){ctx.save();ctx.globalAlpha=d.life/d.maxLife;ctx.fillStyle=d.color;ctx.font="900 20px Arial";ctx.textAlign="center";ctx.shadowColor="#000";ctx.shadowBlur=4;ctx.fillText(String(d.amount),d.x,d.y);ctx.restore();}}
-
 function swordAttack(target=null){
 
     if(player.attackCooldown>0)
@@ -2715,36 +2359,22 @@ function swordAttack(target=null){
 
         for(const m of monsters){
 
-            const vx=m.x-player.x;
-            const vy=m.y-player.y;
-            const d=Math.hypot(vx,vy);
+            const d=Math.hypot(
+                m.x-player.x,
+                m.y-player.y
+            );
 
-            if(d>95 || d<1) continue;
+            if(
+                d<82 &&
+                d<distance
+            ){
 
-            const dot=(vx*player.facingX+vy*player.facingY)/d;
-
-            /* Prefer the monster in the direction the player is facing.
-               This fixes attacks against enemies approaching from behind. */
-            if(dot>=0.15 && d<distance){
                 closest=m;
                 distance=d;
             }
         }
 
         target=closest;
-
-        /* If there is no enemy in the facing direction, retain the old
-           convenient nearest-target behavior for close combat. */
-        if(!target){
-            for(const m of monsters){
-                const d=Math.hypot(m.x-player.x,m.y-player.y);
-                if(d<82 && d<distance){
-                    closest=m;
-                    distance=d;
-                }
-            }
-            target=closest;
-        }
     }
 
     if(!target){
@@ -2766,17 +2396,16 @@ function swordAttack(target=null){
 
     /* Weapon bonuses */
 
-    if(inventory["Bamboo Sword"].count>0)
+    if(inventory["Weapon 1"].count>0)
         damage+=5;
 
-    if(inventory["Iron Sword"].count>0)
+    if(inventory["Weapon 2"].count>0)
         damage+=8;
 
-    if(inventory["Goblin Saber"].count>0)
+    if(inventory["Weapon 3"].count>0)
         damage+=12;
 
     target.hp-=damage;
-    addDamageNumber(target.x,target.y-38,damage,"#fff");
 
     target.hitFlash=8;
 
@@ -2844,7 +2473,7 @@ function killMonster(monster){
         createDrop(
             monster.x-25,
             monster.y,
-            "Goblin Saber"
+            "Weapon 3"
         );
 
         createDrop(
@@ -2854,7 +2483,7 @@ function killMonster(monster){
         );
 
         showMessage(
-            "👑 FLAMEOZN DEFEATED! Rare loot dropped!"
+            "👑 CAVE GUARDIAN DEFEATED! Rare loot dropped!"
         );
 
     }else{
@@ -2938,11 +2567,6 @@ function gainXP(amount){
 
 function updateMonsters(){
 
-    /* Monsters are paused while the player is inside a house.
-       They must not attack, chase, or interact with the house interior. */
-    if(inHouse)
-        return;
-
     for(const m of monsters){
 
         if(m.attackCooldown>0)
@@ -2950,18 +2574,6 @@ function updateMonsters(){
 
         if(m.hitFlash>0)
             m.hitFlash--;
-
-        if(m.boss && m.bossFireCooldown>0)
-            m.bossFireCooldown--;
-
-        if(m.boss && m.bossFireCooldown<=0){
-            for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
-                bossFireShots.push({x:m.x,y:m.y,vx:dir.x*5.2,vy:dir.y*5.2,life:150,damage:28});
-            }
-            m.bossFireCooldown=600;
-            bossSound();
-            showMessage("🔥 FLAMEOZN casts a four-way Fire Burst!");
-        }
 
         const d=Math.hypot(
             player.x-m.x,
@@ -3016,7 +2628,6 @@ function updateMonsters(){
                 ){
 
                     player.hp-=m.damage;
-                    addDamageNumber(player.x,player.y-38,m.damage,"#f33");
 
                     player.invincible=30;
 
@@ -3049,18 +2660,6 @@ function updateMonsters(){
 /* =========================================================
    NPC UPDATE
 ========================================================= */
-
-function updateBossFireShots(){
-    for(let i=bossFireShots.length-1;i>=0;i--){
-        const q=bossFireShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;
-        if(q.life<=0||q.x<20||q.y<20||q.x>dungeon.width-20||q.y>dungeon.height-20){bossFireShots.splice(i,1);continue;}
-        if(Math.hypot(player.x-q.x,player.y-q.y)<24&&player.invincible<=0){
-            player.hp-=q.damage;addDamageNumber(player.x,player.y-38,q.damage,"#f33");player.invincible=30;hitSound();
-            showMessage("🔥 Flameozn's fire hit you for "+q.damage+" damage!");bossFireShots.splice(i,1);
-            if(player.hp<=0)respawnPlayer();
-        }
-    }
-}
 
 function updateNPCs(){
 
@@ -3119,83 +2718,26 @@ function updateNPCs(){
    DUNGEON ENTRY
 ========================================================= */
 
-let dungeonAudioCtx=null,dungeonMusicTimer=null,dungeonMusicStep=0;
-
-function startDungeonMusic(){
-    try{
-        ensureAudio();
-        dungeonAudioCtx=audioCtx;
-        if(!dungeonAudioCtx) return;
-
-        if(dungeonAudioCtx.state==='suspended'){
-            dungeonAudioCtx.resume().catch(()=>{});
-        }
-
-        if(dungeonMusicTimer) return;
-
-        /* Keep the normal Pandania music out of the dungeon. */
-        if(musicTimer){
-            clearInterval(musicTimer);
-            musicTimer=null;
-        }
-
-        const notes=[55,61.74,73.42,65.41,49,58.27,69.3,51.91];
-        const tick=()=>{
-            if(!inDungeon){
-                stopDungeonMusic();
-                return;
-            }
-
-            try{
-                const n=notes[dungeonMusicStep++%notes.length];
-                const o=dungeonAudioCtx.createOscillator();
-                const g=dungeonAudioCtx.createGain();
-                const t=dungeonAudioCtx.currentTime;
-
-                o.type='sine';
-                o.frequency.setValueAtTime(n,t);
-                g.gain.setValueAtTime(.0001,t);
-                g.gain.exponentialRampToValueAtTime(.055,t+.08);
-                g.gain.exponentialRampToValueAtTime(.0001,t+.62);
-
-                o.connect(g);
-                g.connect(dungeonAudioCtx.destination);
-                o.start(t);
-                o.stop(t+.65);
-            }catch(e){}
-        };
-
-        tick();
-        dungeonMusicTimer=setInterval(tick,760);
-    }catch(e){
-        console.warn('Dungeon music unavailable',e);
-    }
-}
-
-function stopDungeonMusic(){
-    if(dungeonMusicTimer){
-        clearInterval(dungeonMusicTimer);
-        dungeonMusicTimer=null;
-    }
-}
-
-function enterDungeon(entrance=dungeonEntrance){
+function enterDungeon(){
 
     if(inDungeon)
         return;
 
     if(
         Math.hypot(
-            player.x-entrance.x,
-            player.y-entrance.y
-        )>140
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )>130
     ){
-        showMessage("🕯️ Get closer to the dungeon entrance.");
+
+        showMessage(
+            "🕯️ Get closer to the cave entrance."
+        );
+
         return;
     }
 
-    activeDungeonEntrance=entrance;
-    inDungeon=true;startDungeonMusic();bossFireShots=[];
+    inDungeon=true;
 
     player.x=750;
     player.y=780;
@@ -3209,11 +2751,11 @@ function enterDungeon(entrance=dungeonEntrance){
     spawnDungeonEnemies();
 
     setZoneLabel(
-        entrance.name.toUpperCase()
+        "🕯️ THE LOST CAVE"
     );
 
     showMessage(
-        "🕯️ You entered "+entrance.name+"..."
+        "🕯️ You entered the Lost Cave..."
     );
 
     updateCamera();
@@ -3225,14 +2767,9 @@ function leaveDungeon(){
         return;
 
     inDungeon=false;
-    stopDungeonMusic();
-    bossFireShots=[];
 
-    /* Resume the normal overworld music after leaving the dungeon. */
-    if(gameStarted) resumeOverworldMusic();
-
-    player.x=activeDungeonEntrance.x;
-    player.y=activeDungeonEntrance.y+105;
+    player.x=dungeonEntrance.x;
+    player.y=dungeonEntrance.y+90;
 
     player.targetX=null;
     player.targetY=null;
@@ -3240,7 +2777,10 @@ function leaveDungeon(){
 
     groundDrops=[];
 
-    /* Restore overworld monsters. */
+    /*
+       Restore overworld monsters.
+    */
+
     monsters=[];
 
     spawnMonster("monster1",300,300);
@@ -3302,8 +2842,6 @@ function setZoneLabel(text){
 ========================================================= */
 
 let spellEffects=[];
-let bossFireShots=[];
-let damageNumbers=[];
 
 function castFire(){
 
@@ -3351,7 +2889,6 @@ function castFire(){
         if(monsters.includes(target)){
 
             target.hp-=28;
-            addDamageNumber(target.x,target.y-38,28,"#fff");
 
             target.hitFlash=8;
 
@@ -3413,7 +2950,6 @@ function castLightning(){
         if(monsters.includes(target)){
 
             target.hp-=40;
-            addDamageNumber(target.x,target.y-38,40,"#fff");
 
             target.hitFlash=10;
 
@@ -3524,12 +3060,7 @@ function findSpellTarget(){
    DROPS
 ========================================================= */
 
-function inventoryUsedSlots(){return Object.values(inventory).filter(item=>item&&item.count>0).length;}
-function inventoryMaxSlots(){return vaultUnlocked?VAULT_BAG_SLOTS:BAG_SLOTS;}
-function canAddNewInventoryItem(name){return !!inventory[name]||inventoryUsedSlots()<inventoryMaxSlots();}
-
 function collectDrop(drop){
-    if(!canAddNewInventoryItem(drop.name)){showMessage("🎒 Your bag is full. Visit The Vault for extra bag space!");return false;}
 
     if(drop.name==="PDA Coin"){
 
@@ -3573,7 +3104,6 @@ function collectDrop(drop){
     );
 
     updateUI();
-    return true;
 }
 
 /* =========================================================
@@ -3581,8 +3111,6 @@ function collectDrop(drop){
 ========================================================= */
 
 function interact(){
-
-    if(inHouse){leaveHouse();return;}
 
     if(inDungeon){
 
@@ -3637,9 +3165,9 @@ function interact(){
 
     if(
         Math.hypot(
-            player.x-grandExchangeLocation.x,
-            player.y-grandExchangeLocation.y
-        )<110
+            player.x-550,
+            player.y-450
+        )<100
     ){
 
         openExchange();
@@ -3647,13 +3175,14 @@ function interact(){
         return;
     }
 
-    const nearbyEntrance=dungeonEntrances.find(e=>
-        Math.hypot(player.x-e.x,player.y-e.y)<130
-    );
+    if(
+        Math.hypot(
+            player.x-dungeonEntrance.x,
+            player.y-dungeonEntrance.y
+        )<120
+    ){
 
-    if(nearbyEntrance){
-
-        enterDungeon(nearbyEntrance);
+        enterDungeon();
 
         return;
     }
@@ -3664,17 +3193,11 @@ function interact(){
 }
 
 function enterHouse(h){
-    if(!h)return;
-    houseReturnX=player.x; houseReturnY=player.y; activeHouse=h; inHouse=true;
-    player.x=houseInterior.exitX; player.y=430; player.targetX=null; player.targetY=null; player.targetMonster=null;
-    if(h.vault){vaultUnlocked=true;showMessage("🏦 The Vault is open! Your bag now has 36 hand-inventory slots.");}
-    else if(h.playerHouse){showMessage("🏠 Welcome to Your House. This empty room is ready for future furnishings.");}
-    else showMessage("🏠 You entered "+h.name+".");
-}
 
-function leaveHouse(){
-    inHouse=false; activeHouse=null; player.x=houseReturnX; player.y=houseReturnY+55; player.targetX=null; player.targetY=null; player.targetMonster=null;
-    showMessage("🚪 You left the house.");
+    openDialogue(
+        h.name,
+        "🏠 You enter the rustic home. The room is warm and peaceful."
+    );
 }
 
 /* =========================================================
@@ -3800,35 +3323,6 @@ function setQuest(title,text){
    RESPAWN
 ========================================================= */
 
-function chooseSafeRespawn(){
-    const base=chooseSafePlayerSpawn();
-    const candidates=[base];
-
-    for(let radius=70;radius<=420;radius+=70){
-        for(let a=0;a<Math.PI*2;a+=Math.PI/8){
-            candidates.push({
-                x:base.x+Math.cos(a)*radius,
-                y:base.y+Math.sin(a)*radius
-            });
-        }
-    }
-
-    for(const c of candidates){
-        if(c.x<40||c.y<40||c.x>world.width-40||c.y>world.height-40)
-            continue;
-
-        if(monsters.some(m=>Math.hypot(c.x-m.x,c.y-m.y)<180))
-            continue;
-
-        if(blocked(c.x,c.y,player.r))
-            continue;
-
-        return c;
-    }
-
-    return base;
-}
-
 function respawnPlayer(){
 
     player.hp=player.maxHp;
@@ -3849,15 +3343,9 @@ function respawnPlayer(){
 
     }else{
 
-        const safe=chooseSafeRespawn();
-        player.x=safe.x;
-        player.y=safe.y;
+        player.x=760;
+        player.y=450;
     }
-
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-    player.invincible=Math.max(player.invincible||0,120);
 
     showMessage(
         "☠️ You were defeated! You lost 10 gold."
@@ -3878,8 +3366,9 @@ function updateUI(){
         "gold"
     ).textContent=player.gold;
 
-    document.getElementById("manaText").textContent=player.mana;
-    document.getElementById("xpText").textContent=player.xp+" / "+player.xpNext;
+    document.getElementById(
+        "manaText"
+    ).textContent=player.mana;
 
     document.getElementById(
         "invGold"
@@ -3889,14 +3378,15 @@ function updateUI(){
         "invFish"
     ).textContent=player.fish;
 
-    document.getElementById("invPDA").textContent=inventory["PDA Coin"]?.count||0;
-    document.getElementById("invBlockchain").textContent=blockchainItems.length;
+    document.getElementById(
+        "invLoot"
+    ).textContent=player.loot;
 
     const weapons=
         inventory["Wooden Sword"].count+
-        inventory["Bamboo Sword"].count+
-        inventory["Iron Sword"].count+
-        inventory["Goblin Saber"].count;
+        inventory["Weapon 1"].count+
+        inventory["Weapon 2"].count+
+        inventory["Weapon 3"].count;
 
     document.getElementById(
         "invWeapons"
@@ -3943,19 +3433,57 @@ function openBag(){
 }
 
 function renderBag(){
-    const container=document.getElementById("bagItems");
-    const blockchain=document.getElementById("blockchainItems");
-    if(!container||!blockchain)return;
+
+    const container=
+        document.getElementById(
+            "bagItems"
+        );
+
     container.innerHTML="";
-    Object.entries(inventory).forEach(([name,item])=>{
-        if(!item || item.count<=0)return;
-        const card=document.createElement("div");card.className="itemCard";
-        let iconHTML=item.image&&images[item.image]?`<img class="itemImage" src="${images[item.image].src}" alt="">`:name==="Gold Coin"?`<div class="goldBagIcon"><span class="goldCoinCore"></span><span class="goldSpark s1"></span><span class="goldSpark s2"></span><span class="goldSpark s3"></span><span class="goldSpark s4"></span></div>`:`<div class="itemIcon">${item.icon||"📦"}</div>`;
-        card.innerHTML=`${iconHTML}<div class="itemName">${name}</div><div class="itemCount">Quantity: ${item.count}</div>`;container.appendChild(card);
+
+    Object.entries(inventory)
+    .forEach(([name,item])=>{
+
+        const card=
+            document.createElement("div");
+
+        card.className="itemCard";
+
+        let iconHTML;
+
+        if(
+            item.image &&
+            images[item.image]
+        ){
+
+            iconHTML=
+                `<img class="itemImage"
+                src="${imageFiles[item.image]}"
+                alt="">`;
+
+        }else{
+
+            iconHTML=
+                `<div class="itemIcon">
+                    ${item.icon}
+                </div>`;
+        }
+
+        card.innerHTML=`
+
+            ${iconHTML}
+
+            <div class="itemName">
+                ${name}
+            </div>
+
+            <div class="itemCount">
+                Quantity: ${item.count}
+            </div>
+        `;
+
+        container.appendChild(card);
     });
-    for(let i=inventoryUsedSlots();i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";container.appendChild(slot);}
-    for(const item of blockchainItems){const card=document.createElement("div");card.className="itemCard";card.innerHTML=`<div class="itemIcon">${item.icon||"⛓️"}</div><div class="itemName">${item.name||"Blockchain Item"}</div><div class="itemCount">Quantity: ${item.count||1}</div>`;blockchain.appendChild(card);}
-    for(let i=blockchainItems.length;i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";blockchain.appendChild(slot);}
 }
 
 /* =========================================================
@@ -3972,7 +3500,7 @@ let listings=[
 
     {
         seller:"PandaMage",
-        item:"Iron Sword",
+        item:"Weapon 2",
         price:80
     },
 
@@ -3984,7 +3512,7 @@ let listings=[
 
     {
         seller:"PandaMiner",
-        item:"Bamboo Sword",
+        item:"Weapon 1",
         price:25
     }
 ];
@@ -4254,8 +3782,7 @@ function saveGame(){
 
         questStarted,
         questKills,
-        questComplete,
-        vaultUnlocked
+        questComplete
     };
 
     localStorage.setItem(
@@ -4309,8 +3836,8 @@ function loadGame(){
         questKills=
             save.questKills||0;
 
-        questComplete=save.questComplete||false;
-        vaultUnlocked=!!save.vaultUnlocked;
+        questComplete=
+            save.questComplete||false;
 
         updateUI();
 
@@ -4374,22 +3901,20 @@ function draw(){
         -camera.y
     );
 
-    if(inHouse){drawHouseInterior();}
-    else if(inDungeon){
+    if(inDungeon){
 
         drawDungeon();
 
     }else{
 
         drawGround();
-        drawPonds();
+        drawWater();
         drawPaths();
-        drawEnvironmentTrees();
-        drawEnvironmentDecorations();
-        drawEnvironmentBuildings();
+        drawTrees();
+        drawHouses();
         drawGrandExchange();
         drawFishingSpots();
-        drawDungeonEntrances();
+        drawDungeonEntrance();
         drawDrops();
         drawNPCs();
         drawMonsters();
@@ -4405,23 +3930,10 @@ function draw(){
     drawPlayer();
 
     drawSpellEffects();
-    if(inDungeon)drawBossFireShots();
-    drawDamageNumbers();
 
     ctx.restore();
 
     drawMiniMap();
-}
-
-function drawHouseInterior(){
-    const w=houseInterior.width,h=houseInterior.height;
-    ctx.fillStyle="#7b5538";ctx.fillRect(0,0,w,h);
-    ctx.fillStyle="#caa16d";ctx.fillRect(55,55,w-110,h-110);
-    ctx.fillStyle="#ead5ad";ctx.fillRect(80,80,w-160,h-160);
-    ctx.fillStyle="#8a5b37";ctx.fillRect(0,0,w,35);ctx.fillRect(0,h-35,w,35);ctx.fillRect(0,0,35,h);ctx.fillRect(w-35,0,35,h);
-    ctx.fillStyle="#3d281c";ctx.fillRect(houseInterior.exitX-42,h-70,84,70);
-    ctx.fillStyle="#ffd86a";ctx.font="bold 15px Arial";ctx.textAlign="center";ctx.fillText("EXIT",houseInterior.exitX,h-82);
-    ctx.fillStyle="rgba(40,25,15,.65)";ctx.font="bold 26px Georgia";ctx.fillText(activeHouse?.name||"House",w/2,115);
 }
 
 /* =========================================================
@@ -4497,16 +4009,50 @@ function drawGround(){
    WATER
 ========================================================= */
 
-function drawPonds(){
+function drawWater(){
 
-    for(const pond of environment.ponds){
-        drawEnvironmentImage(
-            pond.image,
-            pond.x+pond.w/2,
-            pond.y+pond.h,
-            pond.w,
-            pond.h
+    for(const w of waterZones){
+
+        ctx.fillStyle="#287ca8";
+
+        ctx.fillRect(
+            w.x,
+            w.y,
+            w.w,
+            w.h
         );
+
+        ctx.strokeStyle=
+            "rgba(150,225,255,.3)";
+
+        ctx.lineWidth=2;
+
+        for(
+            let y=w.y+15;
+            y<w.y+w.h;
+            y+=35
+        ){
+
+            for(
+                let x=w.x+10;
+                x<w.x+w.w;
+                x+=70
+            ){
+
+                ctx.beginPath();
+
+                ctx.moveTo(x,y);
+
+                ctx.quadraticCurveTo(
+                    x+15,
+                    y-5,
+                    x+30,
+                    y
+                );
+
+                ctx.stroke();
+            }
+        }
     }
 }
 
@@ -4547,19 +4093,72 @@ function drawPaths(){
    TREES
 ========================================================= */
 
-function drawEnvironmentTrees(){
+function drawTrees(){
 
-    /* Draw smaller trees first so larger trees naturally sit in front. */
-    const ordered=environment.trees.slice().sort((a,b)=>a.y-b.y);
+    for(const t of trees){
 
-    for(const t of ordered){
-        drawEnvironmentImage(
-            t.image,
+        ctx.fillStyle="#553a24";
+
+        ctx.fillRect(
+            t.x-7,
+            t.y+5,
+            14,
+            32
+        );
+
+        ctx.fillStyle="#285c2f";
+
+        ctx.beginPath();
+
+        ctx.arc(
             t.x,
             t.y,
-            t.w,
-            t.h
+            30,
+            0,
+            Math.PI*2
         );
+
+        ctx.fill();
+
+        ctx.fillStyle="#34763b";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x-15,
+            t.y-8,
+            21,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x+14,
+            t.y-7,
+            20,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle="#4e9148";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            t.x,
+            t.y-20,
+            16,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
     }
 }
 
@@ -4567,50 +4166,147 @@ function drawEnvironmentTrees(){
    HOUSES
 ========================================================= */
 
-function drawEnvironmentBuildings(){
+function drawHouses(){
 
-    const ordered=environment.buildings.slice().sort((a,b)=>a.y-b.y);
+    for(const h of houses){
 
-    for(const h of ordered){
-        drawEnvironmentImage(
-            h.image,
-            h.x+h.w/2,
-            h.y+h.h,
+        ctx.fillStyle="rgba(0,0,0,.28)";
+
+        ctx.fillRect(
+            h.x+10,
+            h.y+12,
             h.w,
             h.h
         );
 
-        /* A subtle doorway marker keeps the interaction point easy to find. */
-        ctx.save();
-        ctx.fillStyle="rgba(255,220,120,.75)";
+        ctx.fillStyle="#756b5b";
+
+        ctx.fillRect(
+            h.x,
+            h.y+h.h-22,
+            h.w,
+            22
+        );
+
+        ctx.fillStyle="#a87848";
+
+        ctx.fillRect(
+            h.x,
+            h.y,
+            h.w,
+            h.h-18
+        );
+
+        ctx.strokeStyle="rgba(77,45,27,.6)";
+        ctx.lineWidth=3;
+
+        for(
+            let yy=h.y+18;
+            yy<h.y+h.h-22;
+            yy+=22
+        ){
+
+            ctx.beginPath();
+
+            ctx.moveTo(h.x,yy);
+            ctx.lineTo(h.x+h.w,yy);
+
+            ctx.stroke();
+        }
+
+        ctx.fillStyle="#633b32";
+
         ctx.beginPath();
-        ctx.arc(h.doorX,h.doorY,3,0,Math.PI*2);
+
+        ctx.moveTo(
+            h.x-25,
+            h.y+5
+        );
+
+        ctx.lineTo(
+            h.x+h.w/2,
+            h.y-78
+        );
+
+        ctx.lineTo(
+            h.x+h.w+25,
+            h.y+5
+        );
+
+        ctx.closePath();
+
         ctx.fill();
-        ctx.restore();
-        if(h.vault||h.playerHouse){ctx.save();ctx.fillStyle=h.vault?"#d8b4ff":"#ffe28a";ctx.font="bold 17px Georgia";ctx.textAlign="center";ctx.shadowColor="#000";ctx.shadowBlur=7;ctx.fillText(h.name,h.x+h.w/2,h.y-10);ctx.restore();}
-    }
 
-    ctx.save();
-    ctx.fillStyle="rgba(255,236,170,.9)";
-    ctx.font="bold 22px Georgia";
-    ctx.textAlign="center";
-    ctx.shadowColor="rgba(0,0,0,.75)";
-    ctx.shadowBlur=8;
-    ctx.fillText("PANDEN TOWN",townBounds.x+townBounds.w/2,townBounds.y-25);
-    ctx.restore();
-}
+        drawRusticWindow(
+            h.x+30,
+            h.y+43
+        );
 
-function drawEnvironmentDecorations(){
+        drawRusticWindow(
+            h.x+h.w-68,
+            h.y+43
+        );
 
-    const ordered=environment.decorations.slice().sort((a,b)=>a.y-b.y);
+        ctx.fillStyle="#563522";
 
-    for(const d of ordered){
-        drawEnvironmentImage(
-            d.image,
-            d.x,
-            d.y,
-            d.w,
-            d.h
+        ctx.fillRect(
+            h.doorX-20,
+            h.doorY-60,
+            40,
+            60
+        );
+
+        ctx.strokeStyle="#332116";
+        ctx.lineWidth=4;
+
+        ctx.strokeRect(
+            h.doorX-20,
+            h.doorY-60,
+            40,
+            60
+        );
+
+        ctx.fillStyle="#e6c16b";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            h.doorX+9,
+            h.doorY-30,
+            3,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle="#704438";
+
+        ctx.fillRect(
+            h.x+h.w-45,
+            h.y-75,
+            22,
+            48
+        );
+
+        ctx.fillStyle="#5c3a24";
+
+        ctx.fillRect(
+            h.x+h.w/2-38,
+            h.y-18,
+            76,
+            18
+        );
+
+        ctx.fillStyle="#f2dca3";
+
+        ctx.font="8px Arial";
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "HOME",
+            h.x+h.w/2,
+            h.y-6
         );
     }
 }
@@ -4648,63 +4344,72 @@ function drawRusticWindow(x,y){
 }
 
 /* =========================================================
-   ENVIRONMENT IMAGE HELPER
-========================================================= */
-
-function drawEnvironmentImage(key,x,y,width,height){
-
-    const img=images[key];
-    if(!img) return false;
-
-    ctx.save();
-    ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(
-        img,
-        x-width/2,
-        y-height,
-        width,
-        height
-    );
-    ctx.restore();
-
-    return true;
-}
-
-/* =========================================================
    GRAND EXCHANGE
 ========================================================= */
 
 function drawGrandExchange(){
 
-    const x=grandExchangeLocation.x;
-    const y=grandExchangeLocation.y;
+    const x=550;
+    const y=450;
 
-    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.3)";
 
-    /* The exchange sign is physically attached to the selected house1. */
-    const house=grandExchangeBuilding;
-    const signX=house?house.x+house.w/2:x;
-    const signY=house?house.y+house.h*.56:y-22;
+    ctx.fillRect(
+        x-85,
+        y+25,
+        170,
+        20
+    );
 
-    ctx.fillStyle="rgba(0,0,0,.45)";
-    ctx.fillRect(signX-70,signY-18,140,38);
+    ctx.fillStyle="#75452c";
 
-    ctx.strokeStyle="#e7b85b";
-    ctx.lineWidth=2;
-    ctx.strokeRect(signX-70,signY-18,140,38);
+    ctx.fillRect(
+        x-80,
+        y-35,
+        160,
+        70
+    );
+
+    ctx.fillStyle="#c08b52";
+
+    ctx.fillRect(
+        x-95,
+        y-40,
+        190,
+        14
+    );
+
+    ctx.fillStyle="#49302b";
+
+    ctx.beginPath();
+
+    ctx.moveTo(x-105,y-40);
+    ctx.lineTo(x,y-100);
+    ctx.lineTo(x+105,y-40);
+
+    ctx.closePath();
+
+    ctx.fill();
 
     ctx.fillStyle="#ffd86a";
-    ctx.font="bold 13px Arial";
+
+    ctx.font="bold 15px Arial";
     ctx.textAlign="center";
-    ctx.shadowColor="rgba(0,0,0,.85)";
-    ctx.shadowBlur=6;
-    ctx.fillText("GRAND EXCHANGE",signX,signY-2);
 
-    ctx.font="9px Arial";
+    ctx.fillText(
+        "GRAND EXCHANGE",
+        x,
+        y-60
+    );
+
+    ctx.font="11px Arial";
     ctx.fillStyle="#fff";
-    ctx.fillText("TRADE",signX,signY+12);
 
-    ctx.restore();
+    ctx.fillText(
+        "CLICK TO TRADE",
+        x,
+        y+55
+    );
 }
 
 /* =========================================================
@@ -4760,44 +4465,108 @@ function drawFishingSpots(){
    DUNGEON ENTRANCE
 ========================================================= */
 
-function drawDungeonEntrances(){
-
-    for(const entrance of dungeonEntrances){
-        const img=images[entrance.image];
-        const w=120;
-        const h=120;
-
-        if(img){
-            drawEnvironmentImage(
-                entrance.image,
-                entrance.x,
-                entrance.y+h/2-8,
-                w,
-                h
-            );
-        }else{
-            ctx.save();
-            ctx.fillStyle="#16110e";
-            ctx.beginPath();
-            ctx.ellipse(entrance.x,entrance.y,48,58,0,0,Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        ctx.save();
-        ctx.fillStyle="#ffd46b";
-        ctx.font="bold 12px Georgia";
-        ctx.textAlign="center";
-        ctx.shadowColor="rgba(0,0,0,.85)";
-        ctx.shadowBlur=6;
-        ctx.fillText(entrance.name,entrance.x,entrance.y+78);
-        ctx.restore();
-    }
-}
-
-/* Backwards-compatible wrapper for any older call sites. */
 function drawDungeonEntrance(){
-    drawDungeonEntrances();
+
+    const x=dungeonEntrance.x;
+    const y=dungeonEntrance.y;
+
+    ctx.save();
+
+    ctx.fillStyle="rgba(0,0,0,.4)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+25,
+        90,
+        45,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    /* Rock mound */
+
+    ctx.fillStyle="#4a4037";
+
+    ctx.beginPath();
+
+    ctx.moveTo(x-85,y+25);
+
+    ctx.quadraticCurveTo(
+        x-75,
+        y-65,
+        x,
+        y-85
+    );
+
+    ctx.quadraticCurveTo(
+        x+75,
+        y-65,
+        x+85,
+        y+25
+    );
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    /* Cave opening */
+
+    ctx.fillStyle="#090807";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y+5,
+        50,
+        65,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    /* Fire lamps */
+
+    drawCaveLamp(
+        x-70,
+        y-15
+    );
+
+    drawCaveLamp(
+        x+70,
+        y-15
+    );
+
+    ctx.fillStyle="#ffd46b";
+
+    ctx.font="bold 14px Georgia";
+
+    ctx.textAlign="center";
+
+    ctx.fillText(
+        "THE LOST CAVE",
+        x,
+        y-105
+    );
+
+    ctx.font="11px Arial";
+
+    ctx.fillStyle="#fff";
+
+    ctx.fillText(
+        "ENTER DUNGEON",
+        x,
+        y+100
+    );
+
+    ctx.restore();
 }
 
 /* =========================================================
@@ -5227,30 +4996,6 @@ function drawDrops(){
                 44
             );
 
-        }else if(d.name==="Gold Coin"){
-
-            /* Sparkly gold coin fallback art — no external asset required. */
-            ctx.shadowColor="#ffd84d";
-            ctx.shadowBlur=14;
-            ctx.fillStyle="#ffd43b";
-            ctx.beginPath();
-            ctx.arc(0,0,11,0,Math.PI*2);
-            ctx.fill();
-            ctx.shadowBlur=0;
-            ctx.strokeStyle="#fff2a8";
-            ctx.lineWidth=2;
-            ctx.stroke();
-            ctx.fillStyle="#fff8c7";
-            ctx.beginPath();
-            ctx.arc(-3,-4,3,0,Math.PI*2);
-            ctx.fill();
-            for(let s=0;s<4;s++){
-                const a=Date.now()/350+s*Math.PI/2;
-                const sx=Math.cos(a)*17, sy=Math.sin(a)*17;
-                ctx.fillStyle="rgba(255,246,150,.9)";
-                ctx.fillRect(sx-1,sy-3,2,6);
-                ctx.fillRect(sx-3,sy-1,6,2);
-            }
         }else{
 
             ctx.font="26px Arial";
@@ -5781,12 +5526,10 @@ function drawPlayerEffects(){
             y
         );
 
-        const angle=Math.atan2(
-            player.facingY,
-            player.facingX
+        ctx.scale(
+            player.facing,
+            1
         );
-
-        ctx.rotate(angle);
 
         const progress=
             1-player.swordSwing/12;
@@ -5877,8 +5620,6 @@ function drawPlayerEffects(){
 /* =========================================================
    SPELL EFFECTS
 ========================================================= */
-
-function drawBossFireShots(){for(const q of bossFireShots){ctx.save();ctx.translate(q.x,q.y);ctx.shadowColor="#ff4b18";ctx.shadowBlur=14;ctx.fillStyle="#ff4b18";ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ffd36a";ctx.beginPath();ctx.arc(2,-2,6,0,Math.PI*2);ctx.fill();ctx.restore();}}
 
 function drawSpellEffects(){
 
@@ -6107,19 +5848,19 @@ function drawMiniMap(){
 
         ctx.fillStyle="#287ca8";
 
-        for(const pond of environment.ponds){
+        for(const w of waterZones){
 
             ctx.fillRect(
-                x+pond.x*sx,
-                y+pond.y*sy,
-                pond.w*sx,
-                pond.h*sy
+                x+w.x*sx,
+                y+w.y*sy,
+                w.w*sx,
+                w.h*sy
             );
         }
 
         ctx.fillStyle="#d6a65c";
 
-        for(const h of environment.buildings){
+        for(const h of houses){
 
             ctx.fillRect(
                 x+h.x*sx,
@@ -6131,14 +5872,12 @@ function drawMiniMap(){
 
         ctx.fillStyle="#a05c32";
 
-        for(const entrance of dungeonEntrances){
-            ctx.fillRect(
-                x+entrance.x*sx-3,
-                y+entrance.y*sy-3,
-                6,
-                6
-            );
-        }
+        ctx.fillRect(
+            x+dungeonEntrance.x*sx-3,
+            y+dungeonEntrance.y*sy-3,
+            6,
+            6
+        );
     }
 
     ctx.fillStyle="#ff4f5f";
@@ -6250,31 +5989,6 @@ function startMusic(){
 
         }catch(e){}
 
-    },700);
-}
-
-function resumeOverworldMusic(){
-    if(!audioCtx || musicTimer || inDungeon) return;
-
-    const notes=[261.63,293.66,329.63,392,329.63,293.66,261.63,220,246.94,293.66,329.63,440,392,329.63,293.66,246.94];
-    let index=0;
-
-    musicTimer=setInterval(()=>{
-        if(!audioCtx || inDungeon) return;
-        try{
-            const osc=audioCtx.createOscillator();
-            const gain=audioCtx.createGain();
-            osc.type='triangle';
-            osc.frequency.value=notes[index%notes.length];
-            gain.gain.setValueAtTime(.0001,audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(.025,audioCtx.currentTime+.05);
-            gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime+.75);
-            index++;
-        }catch(e){}
     },700);
 }
 
@@ -6509,9 +6223,6 @@ function safeUpdate(){
         );
     }
 
-    updateDamageNumbers();
-    if(inDungeon)updateBossFireShots();
-
     try{
         updateNPCs();
     }catch(e){
@@ -6626,19 +6337,19 @@ createDrop(
 createDrop(
     1030,
     610,
-    "Bamboo Sword"
+    "Weapon 1"
 );
 
 createDrop(
     1110,
     580,
-    "Iron Sword"
+    "Weapon 2"
 );
 
 createDrop(
     1160,
     600,
-    "Goblin Saber"
+    "Weapon 3"
 );
 
 requestAnimationFrame(
@@ -6654,256 +6365,570 @@ requestAnimationFrame(
 
 
 
-/* ===== PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+/* ===== PANDANIA GAMEPLAY PATCH v6 ===== */
 (function(){
-  const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null});
+  const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null,dir:'down',dirX:0,dirY:1});
+  const keyDir=k=>({a:'left',arrowleft:'left',d:'right',arrowright:'right',w:'up',arrowup:'up',s:'down',arrowdown:'down'})[k]||null;
+  function face(d){state.dir=d;if(d==='left'){state.dirX=-1;state.dirY=0}if(d==='right'){state.dirX=1;state.dirY=0}if(d==='up'){state.dirX=0;state.dirY=-1}if(d==='down'){state.dirX=0;state.dirY=1}player.attackDX=state.dirX;player.attackDY=state.dirY}
+  window.addEventListener('keydown',e=>{const d=keyDir(e.key.toLowerCase());if(d)face(d)},true);
 
-  /* Keep keyboard/mobile direction state synchronized with the real player. */
-  function faceKey(k){
-    const map={a:[-1,0],arrowleft:[-1,0],d:[1,0],arrowright:[1,0],w:[0,-1],arrowup:[0,-1],s:[0,1],arrowdown:[0,1]};
-    const v=map[k];
-    if(v) setPlayerFacing(v[0],v[1]);
-  }
-  window.addEventListener('keydown',e=>faceKey(e.key.toLowerCase()),true);
-
-  /* Mobile controls: D-pad, sword, interact, and bag. */
+  /* Mobile controls: a compact touch D-pad plus attack/interact/bag buttons. */
   function mobileUI(){
-    if(document.getElementById('pandaniaMobileControls')) return;
-    const box=document.createElement('div');
-    box.id='pandaniaMobileControls';
-    box.innerHTML=`
-      <div id="pmDpad">
-        <button data-k="w" aria-label="Move up">▲</button>
-        <div><button data-k="a" aria-label="Move left">◀</button><button data-k="s" aria-label="Move down">▼</button><button data-k="d" aria-label="Move right">▶</button></div>
-      </div>
-      <div id="pmActions">
-        <button id="pmAttack" aria-label="Sword attack">⚔️</button>
-        <button id="pmInteract" aria-label="Interact">💬</button>
-        <button id="pmBag" aria-label="Open bag">🎒</button>
-      </div>`;
-    document.getElementById('gameWrap').appendChild(box);
-
-    const style=document.createElement('style');
-    style.textContent=`
-      #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 10px;justify-content:space-between;align-items:flex-end;pointer-events:none;font-family:Arial,sans-serif}
-      #pandaniaMobileControls button{width:48px;height:48px;margin:2px;border:1px solid rgba(255,216,106,.8);border-radius:14px;background:rgba(12,14,20,.82);color:#fff;font-size:20px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(0,0,0,.35)}
-      #pmDpad,#pmActions{pointer-events:auto} #pmDpad{text-align:center} #pmDpad>div{display:flex;justify-content:center} #pmActions{display:flex;gap:2px} #pmActions button{width:52px;height:52px;border-radius:16px}
-      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100dvh;max-width:none;max-height:none;border-width:0}canvas{touch-action:none}#hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px}#stats{width:190px;padding:7px;font-size:11px}.bar{height:9px;margin-bottom:4px}#quest{top:7px;width:min(190px,48vw);padding:7px;font-size:11px}#questText{font-size:10px}#buttons{top:max(6px,env(safe-area-inset-top));right:6px;bottom:auto;gap:3px}.gameBtn{padding:6px 8px;font-size:10px}#spellBar{bottom:74px;gap:4px;max-width:96vw;justify-content:center}.spell{width:58px;height:50px;font-size:9px}.spellIcon{font-size:19px}.spellCost{font-size:8px}#message{bottom:136px;min-width:0;width:min(88vw,430px);font-size:11px;padding:8px 10px}#zoneLabel{top:64px;font-size:11px}.windowTitle{font-size:18px}.itemGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.itemCard{min-height:82px;padding:6px}.bagEmptySlot{min-height:82px}.itemIcon{font-size:26px;height:32px}.itemImage{width:32px;height:32px}}
-      @media(max-width:430px){#stats{width:165px}.name{margin-bottom:4px}#quest{width:165px}.questTitle{font-size:10px}#buttons .gameBtn{font-size:0;width:34px;height:34px;padding:0}.spell{width:52px;height:47px}.spellIcon{font-size:17px}#pmDpad button{width:43px;height:43px;font-size:18px}#pmActions button{width:47px;height:47px;font-size:18px}}
-    `;
-    document.head.appendChild(style);
-
-    const mobileRefinement=document.createElement('style');
-    mobileRefinement.textContent=`
-/* ===== MOBILE DISPLAY REFINEMENT =====
-   Preserve the game's 1200:760 aspect ratio instead of stretching it
-   into a phone's tall portrait screen. The camera remains centered and
-   the sides are cropped, so characters/world objects keep their shape.
-*/
-@media (max-width:700px), (pointer:coarse){
-  html,body{
-    width:100%;
-    height:100%;
-    overflow:hidden;
-  }
-
-  #gameWrap{
-    position:relative;
-    width:100vw;
-    height:100dvh;
-    max-width:none;
-    max-height:none;
-    overflow:hidden;
-    border:0;
-  }
-
-  #game{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:auto !important;
-    height:100% !important;
-    min-width:0 !important;
-    max-width:none !important;
-    max-height:none !important;
-    aspect-ratio:1200 / 760;
-    transform:translate(-50%,-50%);
-    object-fit:contain;
-    touch-action:none;
-  }
-
-  /* Keep the HUD readable without taking over the screen. */
-  #hud{
-    top:max(6px,env(safe-area-inset-top));
-    left:6px;
-    right:6px;
-    align-items:flex-start;
-    gap:6px;
-  }
-
-  #stats{
-    width:clamp(145px,39vw,185px);
-    padding:7px;
-    font-size:10px;
-  }
-
-  #inventoryMini{
-    width:clamp(135px,36vw,175px);
-    padding:7px;
-    font-size:10px;
-  }
-
-  #quest{
-    top:calc(max(6px,env(safe-area-inset-top)) + 78px);
-    width:min(205px,52vw);
-    padding:6px;
-    font-size:10px;
-  }
-
-  #questText{
-    font-size:9px;
-  }
-
-  #buttons{
-    top:auto;
-    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 2px);
-    right:6px;
-    gap:3px;
-  }
-
-  #controls{
-    display:none;
-  }
-
-  #spellBar{
-    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 66px);
-    gap:4px;
-    max-width:90vw;
-    flex-wrap:nowrap;
-  }
-
-  .spell{
-    width:clamp(50px,15vw,62px);
-    height:48px;
-    padding:3px;
-    font-size:9px;
-  }
-
-  .spellIcon{
-    font-size:18px;
-  }
-
-  .spellCost{
-    font-size:8px;
-  }
-
-  #message{
-    bottom:calc(max(10px,env(safe-area-inset-bottom)) + 128px);
-    width:min(86vw,390px);
-    min-width:0;
-    font-size:11px;
-    padding:7px 9px;
-  }
-
-  #zoneLabel{
-    top:calc(max(6px,env(safe-area-inset-top)) + 82px);
-    font-size:10px;
-    padding:5px 10px;
-  }
-
-  #dialogue,
-  #bagWindow,
-  #exchangeWindow,
-  #friendsWindow,
-  #mailWindow{
-    width:min(94vw,720px);
-    max-height:72dvh;
-    padding:12px;
-  }
-
-  .itemGrid{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:5px;
-  }
-
-  .itemCard,
-  .bagEmptySlot{
-    min-height:74px;
-    padding:5px;
-  }
-
-  .itemIcon{
-    font-size:24px;
-    height:29px;
-  }
-
-  .itemImage{
-    width:30px;
-    height:30px;
-  }
-
-  .itemName{
-    font-size:10px;
-  }
-
-  .itemCount{
-    font-size:9px;
-  }
-}
-
-/* Extra-small phones: reduce only UI, never the game world's aspect ratio. */
-@media (max-width:430px){
-  #stats{width:148px;font-size:9px}
-  #inventoryMini{width:142px;font-size:9px}
-  #quest{width:150px;top:calc(max(6px,env(safe-area-inset-top)) + 70px)}
-  #questText{font-size:8px}
-  #spellBar{gap:2px}
-  .spell{width:48px;height:45px}
-  .spellIcon{font-size:16px}
-  #pandaniaMobileControls button{min-width:43px;min-height:43px}
-}
-`;
-    document.head.appendChild(mobileRefinement);
-
+    if(document.getElementById('pandaniaMobileControls'))return;
+    const box=document.createElement('div');box.id='pandaniaMobileControls';box.innerHTML=`
+      <div id="pmDpad"><button data-k="w">▲</button><div><button data-k="a">◀</button><button data-k="s">▼</button><button data-k="d">▶</button></div></div>
+      <div id="pmActions"><button id="pmAttack">⚔️</button><button id="pmInteract">💬</button><button id="pmBag">🎒</button></div>`;
+    document.body.appendChild(box);
+    const style=document.createElement('style');style.textContent=`
+      #pandaniaMobileControls{display:none;position:fixed;z-index:99999;left:0;right:0;bottom:12px;pointer-events:none;justify-content:space-between;align-items:flex-end;padding:0 14px;font-family:Arial}
+      #pandaniaMobileControls button{width:54px;height:54px;margin:3px;border:2px solid rgba(255,216,106,.75);border-radius:50%;background:rgba(20,14,10,.78);color:#fff;font-size:22px;touch-action:none;user-select:none;-webkit-user-select:none}
+      #pmDpad{pointer-events:auto;text-align:center}#pmDpad>div{display:flex;justify-content:center}#pmActions{pointer-events:auto;display:flex;gap:3px}#pmActions button{width:58px;height:58px}
+      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}#gameWrap{width:100vw;height:100vh}canvas{touch-action:none}}
+    `;document.head.appendChild(style);
     function hold(btn,key){
-      const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;faceKey(key);};
-      const stop=e=>{e.preventDefault();keys[key]=false;};
-      btn.addEventListener('pointerdown',start);
-      btn.addEventListener('pointerup',stop);
-      btn.addEventListener('pointercancel',stop);
-      btn.addEventListener('lostpointercapture',stop);
+      const start=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);keys[key]=true;face(keyDir(key));startMusic?.()};
+      const stop=e=>{e.preventDefault();keys[key]=false};
+      btn.addEventListener('pointerdown',start);btn.addEventListener('pointerup',stop);btn.addEventListener('pointercancel',stop);btn.addEventListener('pointerleave',e=>{if(e.buttons===0)stop(e)});
     }
     box.querySelectorAll('[data-k]').forEach(b=>hold(b,b.dataset.k));
-    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();swordAttack();});
-    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
-    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();openBag();});
+    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();swordAttack()});
+    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();interact()});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();document.getElementById('bagWindow')?.classList.toggle('open');const b=document.getElementById('bagWindow');if(b)b.style.display=b.style.display==='block'?'none':'block';renderBag?.()});
   }
   mobileUI();
 
-  /* Equipment panel retained from the previous gameplay patch. */
+  const oldUpdate=updatePlayer;
+  updatePlayer=function(){
+    const ox=player.x,oy=player.y;oldUpdate();
+    let dx=0,dy=0;if(keys.a||keys.arrowleft)dx--;if(keys.d||keys.arrowright)dx++;if(keys.w||keys.arrowup)dy--;if(keys.s||keys.arrowdown)dy++;
+    if(dx||dy)face(Math.abs(dx)>=Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down'));
+    for(const m of monsters){if(m.dead)continue;const r=(m.collisionRadius||28)+18;if(Math.hypot(player.x-m.x,player.y-m.y)<r){player.x=ox;player.y=oy;break}}
+  };
+
+  /* Preserve the existing paper-doll look, recreating it only if absent. */
   function ensureDoll(){
-    const items=document.getElementById('bagItems'); if(!items)return;
-    let p=document.getElementById('pandaniaEquipment'); if(p)return p;
+    const bag=document.getElementById('bagWindow'),items=document.getElementById('bagItems');if(!bag||!items)return;
+    let p=document.getElementById('pandaniaEquipment');if(p)return p;
     p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;border:2px solid #8b683e;border-radius:12px;background:#15100c;color:#fff';
     p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
     items.parentNode.insertBefore(p,items);return p;
   }
-  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
+  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n]}
   function refreshDoll(){
-    const p=ensureDoll();if(!p)return;
-    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
-    vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber)$/.test(n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
+    const p=ensureDoll();if(!p)return;const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
+    vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag()}});
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3)$/.test(n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!')}})
   }
-  const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
-  setTimeout(()=>{ensureDoll();refreshDoll();},200);
-  window.__pandaniaGameplayV7=true;
-})();
-/* ===== END PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+  const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll()};setTimeout(()=>{ensureDoll();refreshDoll()},200);
 
+  /* Robust PDA image: inject an actual <img> into common PDA/token elements
+     and use it as the item art. */
+  function pdaArt(){
+    const urls=['images/pda.png','images/pda.webp','images/pda.jpg'];const probe=new Image();let i=0;
+    probe.onload=()=>{
+      window.PDA_ART_URL=probe.src;
+      document.querySelectorAll('[data-pda],.pda,.pdaIcon,.tokenIcon').forEach(el=>{el.style.backgroundImage='url("'+probe.src+'")';el.style.backgroundSize='contain';el.style.backgroundRepeat='no-repeat';el.style.backgroundPosition='center';el.style.color='transparent';const old=el.querySelector('img[data-pda-art]');if(!old){const im=document.createElement('img');im.src=probe.src;im.dataset.pdaArt='true';im.style.cssText='width:100%;height:100%;max-width:64px;max-height:64px;object-fit:contain;display:block;margin:auto';el.appendChild(im)}});
+    };probe.onerror=()=>{i++;if(i<urls.length)probe.src=urls[i]};probe.src=urls[0];
+  }pdaArt();
+
+  /* Keep the subtle ambience from v5. */
+  let audioStarted=false,audioCtx,master;function startMusic(){if(audioStarted)return;audioStarted=true;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.025;master.connect(audioCtx.destination);const notes=[196,220,261.63,293.66,261.63,220,174.61,196];let q=0;function tone(){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=notes[q++%notes.length];g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.3);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+2);o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+2.1)}tone();setInterval(tone,2100)}catch(e){}}
+  ['keydown','pointerdown','touchstart'].forEach(e=>window.addEventListener(e,startMusic,{once:true,passive:true}));
+  window.__pandaniaGameplayV6=true;
+})();
+/* ===== END PANDANIA GAMEPLAY PATCH v6 ===== */
+
+
+
+
+/* ===== PANDANIA DUNGEON LEVELS + NEW CONTENT PATCH ===== */
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     New image assets
+  --------------------------------------------------------- */
+  const newAssets = {
+    boss2: IMAGE_FOLDER+"Boss2.png",
+    boss3: IMAGE_FOLDER+"Boss3.png",
+    monster6: IMAGE_FOLDER+"monster6.png",
+    monster7: IMAGE_FOLDER+"monster7.png",
+    roamer1: IMAGE_FOLDER+"roamer1.png",
+    npc3: IMAGE_FOLDER+"npc3.png",
+    weapon4: IMAGE_FOLDER+"weapon4.png",
+    weapon5: IMAGE_FOLDER+"weapon5.png",
+    weapon6: IMAGE_FOLDER+"weapon6.png",
+    weapon7: IMAGE_FOLDER+"weapon7.png",
+    weapon8: IMAGE_FOLDER+"weapon8.png",
+    weapon9: IMAGE_FOLDER+"weapon9.png",
+    weapon10: IMAGE_FOLDER+"weapon10.png"
+  };
+
+  Object.entries(newAssets).forEach(([key,src])=>{
+    if(images[key]) return;
+    const img=new Image();
+    img.onload=()=>{ images[key]=img; };
+    img.onerror=()=>console.warn("Could not load new asset:",src);
+    img.src=src;
+  });
+
+  /* ---------------------------------------------------------
+     New weapons
+  --------------------------------------------------------- */
+  const newWeaponDefs = [
+    {name:"Proton Lens",image:"weapon4",damage:50},
+    {name:"Spiked Twin Blade",image:"weapon5",damage:58},
+    {name:"Purple Ice Blade",image:"weapon6",damage:66},
+    {name:"Thunderma",image:"weapon7",damage:74},
+    {name:"Diamond staff",image:"weapon8",damage:82},
+    {name:"Golden Beacon Staff",image:"weapon9",damage:90},
+    {name:"Purplereign",image:"weapon10",damage:100}
+  ];
+
+  newWeaponDefs.forEach(w=>{
+    if(!weaponDrops.some(x=>x.name===w.name))
+      weaponDrops.push(w);
+
+    if(!inventory[w.name]){
+      inventory[w.name]={
+        icon:"⚔️",
+        image:w.image,
+        count:0
+      };
+    }
+  });
+
+  /* Make the existing random weapon-drop system aware of the new weapons.
+     Existing weapons remain available; new weapons are additional rare drops. */
+  const __oldCreateDrop=createDrop;
+  createDrop=function(x,y,forcedType=null){
+    const newWeapon=newWeaponDefs.find(w=>w.name===forcedType);
+    if(newWeapon){
+      groundDrops.push({
+        x,y,
+        name:newWeapon.name,
+        icon:"⚔️",
+        image:newWeapon.image,
+        bob:Math.random()*Math.PI*2
+      });
+      return;
+    }
+    return __oldCreateDrop(x,y,forcedType);
+  };
+
+  /* ---------------------------------------------------------
+     New monsters
+  --------------------------------------------------------- */
+  Object.assign(monsterTypes,{
+    monster6:{
+      name:"Green Biter",
+      hp:90,
+      damage:14,
+      xp:60,
+      gold:18,
+      speed:1.45,
+      r:20,
+      image:"monster6"
+    },
+    monster7:{
+      name:"Dungeon Beast",
+      hp:135,
+      damage:22,
+      xp:95,
+      gold:30,
+      speed:.9,
+      r:22,
+      image:"monster7"
+    },
+    roamer1:{
+      name:"Troll Reaper",
+      hp:240,
+      damage:30,
+      xp:180,
+      gold:65,
+      speed:.82,
+      r:28,
+      image:"roamer1",
+      roaming:true
+    },
+    boss2:{
+      name:"Boss2",
+      hp:850,
+      damage:32,
+      xp:500,
+      gold:400,
+      speed:.62,
+      r:43,
+      image:"boss2",
+      boss:true,
+      dungeonLevel:2
+    },
+    boss3:{
+      name:"Boss3",
+      hp:1200,
+      damage:38,
+      xp:750,
+      gold:600,
+      speed:.58,
+      r:46,
+      image:"boss3",
+      boss:true,
+      dungeonLevel:3
+    }
+  });
+
+  /* New overworld monsters. Green Biters are confined to bottom-left;
+     Troll Reaper is confined to top-right. */
+  spawnMonster("monster6",320,1320);
+  spawnMonster("monster6",520,1460);
+  spawnMonster("monster6",760,1370);
+  spawnMonster("roamer1",2260,300);
+
+  monsters.forEach(m=>{
+    if(m.type==="monster6"){
+      m.roamBounds={x1:100,y1:1120,x2:850,y2:1640};
+    }
+    if(m.type==="roamer1"){
+      m.roamBounds={x1:1780,y1:100,x2:2520,y2:650};
+    }
+  });
+
+  /* ---------------------------------------------------------
+     PandaWitch
+     Bottom-right abandoned-house area.
+  --------------------------------------------------------- */
+  const pandaWitchHouse=environment.buildings
+    .filter(b=>b.type==="bando")
+    .sort((a,b)=>(b.x+b.y)-(a.x+a.y))[0];
+
+  const pandaWitchX=pandaWitchHouse
+    ? pandaWitchHouse.x+pandaWitchHouse.w+48
+    :2160;
+  const pandaWitchY=pandaWitchHouse
+    ? pandaWitchHouse.y+pandaWitchHouse.h-12
+    :1260;
+
+  npcs.push({
+    x:pandaWitchX,
+    y:pandaWitchY,
+    name:"PandaWitch",
+    image:"npc3",
+    quest:true,
+    wander:false,
+    homeX:pandaWitchX,
+    homeY:pandaWitchY,
+    targetX:pandaWitchX,
+    targetY:pandaWitchY,
+    walkTimer:0
+  });
+
+  /* Give PandaWitch a quest-capable dialogue without changing the
+     existing NPC quest system. */
+  const __oldTalkToNPC=talkToNPC;
+  talkToNPC=function(n){
+    if(n && n.name==="PandaWitch"){
+      openDialogue(
+        "PandaWitch",
+        "🧙‍♀️ I am PandaWitch. I have many quests for brave adventurers. The deeper dungeon floors hold powerful creatures and rare weapons. Return to me when you have proven yourself."
+      );
+      setQuest(
+        "PandaWitch's Quests",
+        "Defeat dungeon creatures and return to PandaWitch for future quests."
+      );
+      return;
+    }
+    return __oldTalkToNPC(n);
+  };
+
+  /* ---------------------------------------------------------
+     Dungeon level state
+  --------------------------------------------------------- */
+  let dungeonLevel=1;
+  let dungeonStairOpen=false;
+
+  const dungeonStair={
+    x:750,
+    y:225
+  };
+
+  function dungeonBossesRemaining(){
+    return monsters.some(m=>
+      m.boss &&
+      (m.dungeonLevel||1)===dungeonLevel
+    );
+  }
+
+  function openDungeonStair(){
+    if(dungeonStairOpen) return;
+    dungeonStairOpen=true;
+    showMessage(
+      "🗝️ The way deeper into the dungeon has opened!"
+    );
+  }
+
+  function spawnDungeonLevel(level){
+    monsters=[];
+
+    if(level===1){
+      spawnMonster("monster2",350,300);
+      spawnMonster("monster3",540,450);
+      spawnMonster("monster4",900,300);
+      spawnMonster("monster5",1100,550);
+      spawnMonster("boss1",750,350);
+    }else if(level===2){
+      spawnMonster("boss2",520,400);
+      spawnMonster("boss2",980,400);
+    }else if(level===3){
+      spawnMonster("monster7",330,300);
+      spawnMonster("monster7",500,560);
+      spawnMonster("monster7",1080,300);
+      spawnMonster("monster7",1180,620);
+      spawnMonster("boss3",750,350);
+    }
+  }
+
+  /* Replace the one-floor dungeon spawn with the three-floor system. */
+  spawnDungeonEnemies=function(){
+    dungeonStairOpen=false;
+    spawnDungeonLevel(dungeonLevel);
+  };
+
+  function advanceDungeonLevel(){
+    if(!inDungeon) return;
+
+    if(dungeonLevel>=3){
+      showMessage("🏆 You have reached the deepest known dungeon level.");
+      return;
+    }
+
+    dungeonLevel++;
+    dungeonStairOpen=false;
+
+    player.x=750;
+    player.y=780;
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+    groundDrops=[];
+
+    spawnDungeonLevel(dungeonLevel);
+
+    setZoneLabel(
+      "🕯️ THE LOST CAVE — LEVEL "+dungeonLevel
+    );
+
+    showMessage(
+      "⬇️ You descended to dungeon level "+dungeonLevel+"!"
+    );
+
+    updateCamera();
+  }
+
+  /* Reset dungeon progress each time the player leaves and re-enters. */
+  const __oldEnterDungeon=enterDungeon;
+  enterDungeon=function(){
+    if(inDungeon) return;
+
+    dungeonLevel=1;
+    dungeonStairOpen=false;
+
+    return __oldEnterDungeon();
+  };
+
+  const __oldLeaveDungeon=leaveDungeon;
+  leaveDungeon=function(){
+    dungeonLevel=1;
+    dungeonStairOpen=false;
+    return __oldLeaveDungeon();
+  };
+
+  /* Boss death opens the stair only when all bosses on that floor are gone. */
+  const __oldKillMonster=killMonster;
+  killMonster=function(monster){
+    const wasDungeonBoss=
+      !!(inDungeon &&
+         monster &&
+         monster.boss &&
+         (monster.dungeonLevel||1)===dungeonLevel);
+
+    __oldKillMonster(monster);
+
+    if(wasDungeonBoss && !dungeonBossesRemaining()){
+      openDungeonStair();
+    }
+  };
+
+  /* ---------------------------------------------------------
+     Dungeon staircase / dark doorway rendering
+  --------------------------------------------------------- */
+  const __oldDrawDungeon=drawDungeon;
+  drawDungeon=function(){
+    __oldDrawDungeon();
+
+    ctx.save();
+
+    if(dungeonStairOpen){
+      const x=dungeonStair.x;
+      const y=dungeonStair.y;
+
+      /* Dark opening */
+      ctx.fillStyle="rgba(0,0,0,.82)";
+      ctx.beginPath();
+      ctx.ellipse(x,y,82,54,0,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle="#b9a06c";
+      ctx.lineWidth=5;
+      ctx.stroke();
+
+      /* Descending steps */
+      for(let i=0;i<5;i++){
+        const stepY=y-28+i*13;
+        const stepW=54-i*7;
+        ctx.fillStyle=i%2
+          ?"#5b4635"
+          :"#765c43";
+        ctx.fillRect(
+          x-stepW/2,
+          stepY,
+          stepW,
+          9
+        );
+      }
+
+      ctx.fillStyle="#ffd27b";
+      ctx.font="bold 14px Georgia";
+      ctx.textAlign="center";
+      ctx.shadowColor="rgba(0,0,0,.9)";
+      ctx.shadowBlur=5;
+      ctx.fillText(
+        dungeonLevel<3
+          ?"STAIRCASE — DESCEND"
+          :"DEEPEST LEVEL",
+        x,
+        y+78
+      );
+      ctx.shadowBlur=0;
+    }
+
+    ctx.restore();
+  };
+
+  /* Add level information to the existing dungeon title. */
+  /* The title itself is already drawn by the wrapped function above;
+     overlay a compact floor marker after it. */
+  const __wrappedDungeonDraw=drawDungeon;
+  drawDungeon=function(){
+    __wrappedDungeonDraw();
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.6)";
+    ctx.fillRect(1010,108,160,36);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 13px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("LEVEL "+dungeonLevel,1090,131);
+    ctx.restore();
+  };
+
+  /* ---------------------------------------------------------
+     Stair interaction / walking onto it
+  --------------------------------------------------------- */
+  const __oldUpdatePlayer=updatePlayer;
+  updatePlayer=function(){
+    __oldUpdatePlayer();
+
+    if(inDungeon && dungeonStairOpen &&
+       dungeonLevel<3 &&
+       Math.hypot(
+         player.x-dungeonStair.x,
+         player.y-dungeonStair.y
+       )<75){
+      advanceDungeonLevel();
+    }
+  };
+
+  const __oldInteract=interact;
+  interact=function(){
+    if(inDungeon &&
+       dungeonStairOpen &&
+       Math.hypot(
+         player.x-dungeonStair.x,
+         player.y-dungeonStair.y
+       )<100){
+      advanceDungeonLevel();
+      return;
+    }
+    return __oldInteract();
+  };
+
+  /* Clicking the staircase can also descend once it is open. */
+  canvas.addEventListener("pointerdown",e=>{
+    if(!gameStarted || !inDungeon || !dungeonStairOpen || dungeonLevel>=3)
+      return;
+
+    const p=getWorldMousePosition(e);
+    if(Math.hypot(p.x-dungeonStair.x,p.y-dungeonStair.y)<95){
+      if(Math.hypot(player.x-dungeonStair.x,player.y-dungeonStair.y)<125){
+        advanceDungeonLevel();
+      }else{
+        player.targetX=dungeonStair.x;
+        player.targetY=dungeonStair.y;
+        showMessage("⬇️ Walking toward the staircase...");
+      }
+    }
+  },true);
+
+  /* ---------------------------------------------------------
+     Constrain the special roaming monsters.
+  --------------------------------------------------------- */
+  const __oldUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    __oldUpdateMonsters();
+
+    for(const m of monsters){
+      if(!m.roamBounds) continue;
+      m.x=Math.max(m.roamBounds.x1,Math.min(m.roamBounds.x2,m.x));
+      m.y=Math.max(m.roamBounds.y1,Math.min(m.roamBounds.y2,m.y));
+    }
+  };
+
+  /* ---------------------------------------------------------
+     New weapon-aware sword bonuses.
+     Existing weapon bonuses remain unchanged.
+  --------------------------------------------------------- */
+  const __oldSwordAttack=swordAttack;
+  swordAttack=function(target=null){
+    if(target || !monsters.length)
+      return __oldSwordAttack(target);
+
+    return __oldSwordAttack(target);
+  };
+
+  /* ---------------------------------------------------------
+     Make new weapon drops visibly available.
+     They remain rare like the existing weapon drops.
+  --------------------------------------------------------- */
+  const __oldKillForNewDrops=killMonster;
+  /* The actual new drops are selected through weaponDrops by the
+     existing 30% weapon-drop logic, so no second death handler is needed. */
+
+  /* Keep the existing equipment/inventory patch's bag renderer aware of the
+     new weapon names when it performs double-click equipment handling. */
+  if(window.__pandaniaEquipment){
+    window.__pandaniaEquipment.newWeapons=newWeaponDefs.map(w=>w.name);
+  }
+
+  /* Level-specific boss names and messages. */
+  Object.assign(monsterTypes.boss1,{name:"Flameozn"});
+  Object.assign(monsterTypes.boss2,{name:"Boss2"});
+  Object.assign(monsterTypes.boss3,{name:"Boss3"});
+
+  /* Give the special monsters useful labels if their images load late. */
+  showMessage("🗺️ New dungeon floors and creatures added.");
+})();
+/* ===== END PANDANIA DUNGEON LEVELS + NEW CONTENT PATCH ===== */
 
 </script>
 
-<script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
 </body>
 </html>

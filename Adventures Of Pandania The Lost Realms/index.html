@@ -1507,8 +1507,8 @@ window.addEventListener("keydown",e=>{
         interact();
     }
 
-    if(key==="b"){
-        openBag();
+    if(key==="b" && !e.repeat){
+        toggleBag();
     }
 
     if(key==="1"){
@@ -1529,6 +1529,15 @@ window.addEventListener("keyup",e=>{
     keys[e.key.toLowerCase()]=false;
 });
 
+function clearMovementKeys(){
+    ["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].forEach(k=>keys[k]=false);
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+}
+window.addEventListener("blur",clearMovementKeys);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)clearMovementKeys();});
+
 /* =========================================================
    MOUSE
 ========================================================= */
@@ -1537,17 +1546,14 @@ function getWorldMousePosition(e){
 
     const rect=canvas.getBoundingClientRect();
 
-    const sx=
-        (e.clientX-rect.left)*
-        (W/rect.width);
-
-    const sy=
-        (e.clientY-rect.top)*
-        (H/rect.height);
-
+    const sx=(e.clientX-rect.left)*(W/rect.width);
+    const sy=(e.clientY-rect.top)*(H/rect.height);
+    const z=pandaniaMobileZoom();
+    const viewW=W/z;
+    const viewH=H/z;
     return {
-        x:sx+camera.x,
-        y:sy+camera.y
+        x:camera.x+(sx/W)*viewW,
+        y:camera.y+(sy/H)*viewH
     };
 }
 
@@ -1672,7 +1678,7 @@ canvas.addEventListener("pointerdown",e=>{
             Math.hypot(
                 p.x-d.x,
                 p.y-d.y
-            )<45
+            )<90
         ){
 
             if(collectDrop(d)){groundDrops.splice(i,1);}
@@ -2389,11 +2395,6 @@ function createDrop(x,y,forcedType=null){
             name:"Goblin Saber",
             icon:"⚔️",
             image:"weapon3"
-        },
-        {
-            name:"XPR Lens",
-            icon:"⚔️",
-            image:"weapon4"
         }
     ];
 
@@ -2712,7 +2713,7 @@ function pandaniaMobileZoom(){
     const coarse=window.matchMedia("(pointer:coarse)").matches;
     const narrow=window.matchMedia("(max-width:700px)").matches;
     if(!coarse&&!narrow) return 1;
-    return window.matchMedia("(orientation:landscape)").matches ? .94 : .88;
+    return window.matchMedia("(orientation:landscape)").matches ? 1.12 : 1.22;
 }
 
 function updateCamera(){
@@ -2950,15 +2951,12 @@ function killMonster(monster){
 
     /* Additional weapon chance */
 
-    if(Math.random()<.30){
+    if(Math.random()<.42){
 
-        const weapon=
-            weaponDrops[
-                Math.floor(
-                    Math.random()*
-                    weaponDrops.length
-                )
-            ];
+        /* XPR Lens is intentionally more common than the other weapons. */
+        const xpr=weaponDrops.find(w=>w.name==="XPR Lens");
+        const weapon=(xpr && Math.random()<0.38) ? xpr :
+            weaponDrops[Math.floor(Math.random()*weaponDrops.length)];
 
         createDrop(
             monster.x+20,
@@ -4098,14 +4096,16 @@ function updateUI(){
 ========================================================= */
 
 function openBag(){
-
     closeWindows();
-
     renderBag();
+    document.getElementById("bagWindow").style.display="block";
+}
 
-    document.getElementById(
-        "bagWindow"
-    ).style.display="block";
+function toggleBag(){
+    const bag=document.getElementById("bagWindow");
+    if(!bag) return;
+    if(bag.style.display==="block") closeWindows();
+    else openBag();
 }
 
 function renderBag(){
@@ -6837,6 +6837,20 @@ requestAnimationFrame(
   }
   window.addEventListener('keydown',e=>faceKey(e.key.toLowerCase()),true);
 
+  /* Make nearby drops forgiving on touch screens: tapping the game near a drop
+     picks it up even when the zoomed camera makes the exact sprite small. */
+  canvas.addEventListener('pointerdown',e=>{
+    if(!gameStarted || e.pointerType==='mouse') return;
+    const p=getWorldMousePosition(e);
+    for(let i=groundDrops.length-1;i>=0;i--){
+      const d=groundDrops[i];
+      if(Math.hypot(p.x-d.x,p.y-d.y)<125){
+        if(collectDrop(d)) groundDrops.splice(i,1);
+        return;
+      }
+    }
+  },{passive:false});
+
   /* Mobile controls: D-pad, sword, interact, and bag. */
   function mobileUI(){
     if(document.getElementById('pandaniaMobileControls')) return;
@@ -6894,7 +6908,7 @@ requestAnimationFrame(
     box.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
     document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();swordAttack();},{passive:false});
     document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();interact();},{passive:false});
-    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openBag();},{passive:false});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleBag();},{passive:false});
   }
   mobileUI();
 
@@ -6922,6 +6936,32 @@ requestAnimationFrame(
   `;
   document.head.appendChild(mobileLayoutFix);
 
+  const mobilePolish=document.createElement("style");
+  mobilePolish.textContent=`
+    @media (max-width:700px),(pointer:coarse){
+      #spellBar{bottom:132px;z-index:35;}
+      #message{bottom:192px;}
+      #pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom));z-index:80;}
+      #pandaniaMobileControls button{min-width:54px;min-height:54px;}
+      #pmDpad button{width:54px;height:54px;}
+      #pmActions button{width:58px;height:58px;}
+      #buttons{z-index:90;}
+      #bagWindow,#exchangeWindow,#friendsWindow,#mailWindow{width:min(720px,94vw);max-height:82%;padding:14px;}
+      .closeWindow{min-width:44px;min-height:44px;font-size:18px;padding:7px 11px;touch-action:manipulation;}
+      .itemCard{min-height:94px;cursor:pointer;touch-action:manipulation;}
+      .itemImage{width:42px;height:42px;}
+    }
+    @media (orientation:portrait) and (max-width:700px){
+      #spellBar{bottom:132px;}
+      #message{bottom:194px;}
+    }
+    @media (orientation:landscape) and (max-width:900px){
+      #spellBar{bottom:76px;}
+      #message{bottom:128px;}
+    }
+  `;
+  document.head.appendChild(mobilePolish);
+
   /* Equipment panel retained from the previous gameplay patch. */
   function ensureDoll(){
     const items=document.getElementById('bagItems'); if(!items)return;
@@ -6930,7 +6970,24 @@ requestAnimationFrame(
     p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
     items.parentNode.insertBefore(p,items);return p;
   }
-  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
+  function itemMeta(n){
+    const base=inventory[n];
+    if(base && (base.image||base.icon)) return {image:base.image,icon:base.icon};
+    const w=Array.isArray(weaponDrops)&&weaponDrops.find(x=>x.name===n);
+    if(w) return {image:w.image,icon:"⚔️"};
+    if(n==="Iron Armor") return {icon:"🛡️"};
+    if(n==="Woodcutting Axe") return {icon:"🪓"};
+    if(n==="Fishing Rod") return {icon:"🎣"};
+    if(n==="PDA Coin") return {image:"pda",icon:"🪙"};
+    if(n==="Fish") return {icon:"🐟"};
+    if(n==="Gold Coin") return {icon:"🪙"};
+    return {icon:"📦"};
+  }
+  function setInv(n,c){
+    if(c<=0){ if(inventory[n]) delete inventory[n]; return; }
+    const meta=itemMeta(n);
+    inventory[n]=Object.assign({},inventory[n]||{},meta,{count:c});
+  }
   function refreshDoll(){
     const p=ensureDoll();if(!p)return;
     const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];

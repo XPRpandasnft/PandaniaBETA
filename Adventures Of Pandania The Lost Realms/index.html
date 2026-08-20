@@ -2450,6 +2450,20 @@ function blocked(x,y,r=player.r){
             return true;
     }
 
+    /* Trees are real obstacles: use the lower trunk/footprint portion of
+       each image so players and monsters can walk near the canopy but not
+       through the trunk. */
+    for(const tree of environment.trees){
+        const footprint={
+            x:tree.x-tree.w*.22,
+            y:tree.y-tree.h*.36,
+            w:tree.w*.44,
+            h:tree.h*.42
+        };
+        if(circleRectCollision(x,y,r,footprint))
+            return true;
+    }
+
     return false;
 }
 
@@ -2560,8 +2574,10 @@ function updatePlayer(){
 
         player.walkTime+=.32;
 
-        const nx=player.x+dx*player.speed;
-        const ny=player.y+dy*player.speed;
+        const mobileHorizontalBoost=(Math.abs(dx)>0 && Math.abs(dy)<0.01 && pandaniaMobileZoom()<1) ? 1.18 : 1;
+        const moveSpeed=player.speed*mobileHorizontalBoost;
+        const nx=player.x+dx*moveSpeed;
+        const ny=player.y+dy*moveSpeed;
 
         if(!blocked(nx,player.y))
             player.x=nx;
@@ -2619,10 +2635,22 @@ function updatePlayer(){
    CAMERA
 ========================================================= */
 
+function pandaniaMobileZoom(){
+    if(!window.matchMedia) return 1;
+    const coarse=window.matchMedia("(pointer:coarse)").matches;
+    const narrow=window.matchMedia("(max-width:700px)").matches;
+    if(!coarse&&!narrow) return 1;
+    return window.matchMedia("(orientation:landscape)").matches ? .84 : .70;
+}
+
 function updateCamera(){
 
-    camera.x=player.x-W/2;
-    camera.y=player.y-H/2;
+    const z=pandaniaMobileZoom();
+    const viewW=W/z;
+    const viewH=H/z;
+
+    camera.x=player.x-viewW/2;
+    camera.y=player.y-viewH/2;
 
     const currentWidth=inDungeon?dungeon.width:(inHouse?houseInterior.width:world.width);
     const currentHeight=inDungeon?dungeon.height:(inHouse?houseInterior.height:world.height);
@@ -2631,7 +2659,7 @@ function updateCamera(){
         0,
         Math.min(
             camera.x,
-            currentWidth-W
+            Math.max(0,currentWidth-viewW)
         )
     );
 
@@ -2639,7 +2667,7 @@ function updateCamera(){
         0,
         Math.min(
             camera.y,
-            currentHeight-H
+            Math.max(0,currentHeight-viewH)
         )
     );
 }
@@ -2792,7 +2820,7 @@ function swordAttack(target=null){
     if(d>88)
         return;
 
-    let damage=15+player.level*3;
+    let damage=Math.max(1,(15+player.level*3)-(target.defense||0));
 
     /* Weapon bonuses */
 
@@ -3053,7 +3081,9 @@ function updateMonsters(){
                     m.attackCooldown=
                         m.boss
                         ?80
-                        :70;
+                        :(m.type==="monster6"
+                          ?50
+                          :(m.type==="monster7" ?40 :70));
 
                     hitSound();
 
@@ -3380,8 +3410,9 @@ function castFire(){
 
         if(monsters.includes(target)){
 
-            target.hp-=28;
-            addDamageNumber(target.x,target.y-38,28,"#fff");
+            const fireDamage=Math.max(1,28-(target.defense||0));
+            target.hp-=fireDamage;
+            addDamageNumber(target.x,target.y-38,fireDamage,"#fff");
 
             target.hitFlash=8;
 
@@ -3390,7 +3421,7 @@ function castFire(){
             showMessage(
                 "🔥 Fireball hit "+
                 target.name+
-                " for 28 damage!"
+                " for "+fireDamage+" damage!"
             );
 
             if(target.hp<=0)
@@ -3442,8 +3473,9 @@ function castLightning(){
 
         if(monsters.includes(target)){
 
-            target.hp-=40;
-            addDamageNumber(target.x,target.y-38,40,"#fff");
+            const lightningDamage=Math.max(1,40-(target.defense||0));
+            target.hp-=lightningDamage;
+            addDamageNumber(target.x,target.y-38,lightningDamage,"#fff");
 
             target.hitFlash=10;
 
@@ -3452,7 +3484,7 @@ function castLightning(){
             showMessage(
                 "⚡ Lightning struck "+
                 target.name+
-                " for 40 damage!"
+                " for "+lightningDamage+" damage!"
             );
 
             if(target.hp<=0)
@@ -4399,10 +4431,15 @@ function draw(){
 
     ctx.save();
 
-    ctx.translate(
-        -camera.x,
-        -camera.y
-    );
+    const z=pandaniaMobileZoom();
+    if(z!==1){
+        const viewW=W/z, viewH=H/z;
+        ctx.translate(W/2,H/2);
+        ctx.scale(z,z);
+        ctx.translate(-camera.x-viewW/2,-camera.y-viewH/2);
+    }else{
+        ctx.translate(-camera.x,-camera.y);
+    }
 
     if(inHouse){drawHouseInterior();}
     else if(inDungeon){
@@ -5500,9 +5537,9 @@ function drawMonster(m){
     ctx.fill();
 
     const size=
-        m.boss
-        ?120
-        :65;
+        m.type==="roamer1"
+        ?110
+        :(m.boss ?120 :65);
 
     const drawn=
         drawSprite(
@@ -5540,8 +5577,8 @@ function drawMonster(m){
     /* Health bar */
 
     const width=
-        m.boss
-        ?120
+        (m.boss||m.type==="roamer1")
+        ?110
         :50;
 
     ctx.fillStyle="#191919";
@@ -6738,6 +6775,30 @@ requestAnimationFrame(
   }
   mobileUI();
 
+  const mobileLayoutFix=document.createElement("style");
+  mobileLayoutFix.textContent=`
+    @media (max-width:700px),(pointer:coarse){
+      #gameWrap{overflow:hidden;}
+      #pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom));}
+      #pmDpad{margin-left:4px;}
+      #pmActions{margin-right:4px;}
+    }
+    @media (orientation:landscape) and (max-width:900px){
+      #pandaniaMobileControls{left:0;right:0;bottom:max(5px,env(safe-area-inset-bottom));padding:0 14px;}
+      #pandaniaMobileControls button{width:44px;height:44px;}
+      #pmActions button{width:48px;height:48px;}
+      #spellBar{bottom:8px;right:50%;transform:translateX(50%);max-width:52vw;}
+      #message{bottom:60px;}
+      #quest{top:58px;left:6px;}
+      #zoneLabel{top:58px;}
+    }
+    @media (orientation:portrait) and (max-width:700px){
+      #spellBar{bottom:74px;}
+      #message{bottom:136px;}
+    }
+  `;
+  document.head.appendChild(mobileLayoutFix);
+
   /* Equipment panel retained from the previous gameplay patch. */
   function ensureDoll(){
     const items=document.getElementById('bagItems'); if(!items)return;
@@ -6751,7 +6812,7 @@ requestAnimationFrame(
     const p=ensureDoll();if(!p)return;
     const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
     vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(/^(Wooden Sword|Bamboo Sword|Iron Sword|Goblin Saber)$/.test(n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
   }
   const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
   setTimeout(()=>{ensureDoll();refreshDoll();},200);
@@ -6804,7 +6865,7 @@ requestAnimationFrame(
     monster7:{
       name:"Dungeon Beast",
       hp:135,
-      damage:22,
+      damage:12,
       xp:95,
       gold:30,
       speed:.9,
@@ -6813,12 +6874,13 @@ requestAnimationFrame(
     },
     roamer1:{
       name:"Troll Reaper",
-      hp:260,
+      hp:320,
       damage:30,
+      defense:12,
       xp:180,
       gold:65,
       speed:.9,
-      r:29,
+      r:34,
       image:"roamer1"
     },
     boss2:{
@@ -6855,6 +6917,14 @@ requestAnimationFrame(
   ];
 
   function spawnSpecialOverworld(){
+    /* Troll Reaper is unique. Remove accidental duplicates before ensuring
+       the single intended Reaper exists at his top-right roaming corner. */
+    const reapers=monsters.filter(m=>m.type==="roamer1");
+    for(let i=1;i<reapers.length;i++){
+      const idx=monsters.indexOf(reapers[i]);
+      if(idx!==-1) monsters.splice(idx,1);
+    }
+
     for(const [type,x,y] of specialMonsterDefs){
       const exists=monsters.some(m=>m.type===type && Math.hypot(m.x-x,m.y-y)<160);
       if(!exists) spawnMonster(type,x,y);
@@ -6864,7 +6934,8 @@ requestAnimationFrame(
       if(m.type==="monster6"){
         m.roamBounds={x1:100,y1:1260,x2:900,y2:1660};
       }else if(m.type==="roamer1"){
-        m.roamBounds={x1:1770,y1:100,x2:2530,y2:700};
+        m.roamBounds={x1:2050,y1:260,x2:2530,y2:720};
+        m.defense=12;
       }
     }
   }
@@ -6894,6 +6965,77 @@ requestAnimationFrame(
         );
         if(safe){m.x=safe.x;m.y=safe.y;}
       }
+    }
+  };
+
+  /* ---------------------------------------------------------
+     Boss3 — Electric Strike (every 15 seconds)
+  --------------------------------------------------------- */
+  window.__bossElectricStrikes=window.__bossElectricStrikes||[];
+  function updateBossElectricStrikes(){
+    if(!inDungeon) { window.__bossElectricStrikes.length=0; return; }
+    for(const s of window.__bossElectricStrikes){
+      s.life--;
+    }
+    window.__bossElectricStrikes=window.__bossElectricStrikes.filter(s=>s.life>0);
+  }
+
+  const oldBossUpdateForElectric=updateMonsters;
+  updateMonsters=function(){
+    oldBossUpdateForElectric();
+    if(!inDungeon) return;
+    for(const m of monsters){
+      if(m.type!=="boss3") continue;
+      if(m.bossElectricCooldown==null) m.bossElectricCooldown=900;
+      if(m.bossElectricCooldown>0) m.bossElectricCooldown--;
+      if(m.bossElectricCooldown<=0){
+        const dx=player.x-m.x, dy=player.y-m.y;
+        const len=Math.hypot(dx,dy)||1;
+        window.__bossElectricStrikes.push({
+          x:player.x,y:player.y,sourceX:m.x,sourceY:m.y,life:28,damage:34
+        });
+        if(Math.hypot(player.x-m.x,player.y-m.y)<900 && player.invincible<=0){
+          player.hp-=34;
+          addDamageNumber(player.x,player.y-48,34,"#f33");
+          player.invincible=30;
+          hitSound();
+          showMessage("⚡ BOSS3 unleashes ELECTRIC STRIKE!");
+        }
+        m.bossElectricCooldown=900;
+      }
+    }
+  };
+
+  const oldBossElectricUpdate=updateBossFireShots;
+  updateBossFireShots=function(){
+    oldBossElectricUpdate();
+    updateBossElectricStrikes();
+  };
+
+  const oldDrawForElectric=draw;
+  draw=function(){
+    oldDrawForElectric();
+    if(!inDungeon) return;
+    for(const s of window.__bossElectricStrikes){
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,s.life/8);
+      ctx.strokeStyle="#9ff6ff";
+      ctx.shadowColor="#53e7ff";
+      ctx.shadowBlur=18;
+      ctx.lineWidth=5;
+      ctx.beginPath();
+      ctx.moveTo(s.sourceX,s.sourceY);
+      const segments=7;
+      for(let i=1;i<=segments;i++){
+        const t=i/segments;
+        const x=s.sourceX+(s.x-s.sourceX)*t+(i<segments?(i%2?10:-10):0);
+        const y=s.sourceY+(s.y-s.sourceY)*t+(i<segments?(i%2?-8:8):0);
+        ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      ctx.fillStyle="#e8ffff";
+      ctx.beginPath();ctx.arc(s.x,s.y,22,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     }
   };
 
@@ -7097,29 +7239,37 @@ requestAnimationFrame(
     ctx.translate(dungeonStair.x,dungeonStair.y);
 
     if(dungeonStairOpen){
-      ctx.shadowColor="rgba(0,0,0,.9)";
-      ctx.shadowBlur=18;
-      ctx.fillStyle="#090807";
+      /* Deep stairwell with visible perspective and individual stone treads. */
+      ctx.shadowColor="rgba(0,0,0,.95)";
+      ctx.shadowBlur=22;
+      ctx.fillStyle="#070604";
       ctx.beginPath();
-      ctx.ellipse(0,0,72,48,0,0,Math.PI*2);
+      ctx.ellipse(0,8,78,58,0,0,Math.PI*2);
       ctx.fill();
       ctx.shadowBlur=0;
 
-      ctx.strokeStyle="#8d7657";
+      ctx.strokeStyle="#9b7b58";
       ctx.lineWidth=5;
-      ctx.stroke();
+      ctx.beginPath();ctx.ellipse(0,8,78,58,0,0,Math.PI*2);ctx.stroke();
 
-      for(let i=0;i<5;i++){
-        ctx.fillStyle=i%2?"#6b523a":"#8a6849";
-        ctx.fillRect(-42+i*7,-20+i*12,84-i*14,9);
+      for(let i=0;i<7;i++){
+        const t=i/6;
+        const w=70-i*8;
+        const y=-30+i*10;
+        ctx.fillStyle="#b08a60";
+        ctx.fillRect(-w/2,y,w,8);
+        ctx.fillStyle="#654a32";
+        ctx.fillRect(-w/2,y+8,w,5);
+        ctx.strokeStyle="rgba(235,198,145,.35)";
+        ctx.lineWidth=1;
+        ctx.strokeRect(-w/2,y,w,8);
       }
 
-      ctx.fillStyle="#ffd86a";
+      ctx.fillStyle="#d7b17c";
       ctx.font="bold 13px Georgia";
       ctx.textAlign="center";
-      ctx.shadowColor="#000";
-      ctx.shadowBlur=6;
-      ctx.fillText(dungeonLevel<3?"DESCEND":"DEEPEST LEVEL",0,76);
+      ctx.shadowColor="#000";ctx.shadowBlur=6;
+      ctx.fillText(dungeonLevel<3?"DESCEND":"DEEPEST LEVEL",0,82);
     }else{
       /* A faint sealed mark keeps the location visually consistent without
          revealing the stair until the boss is defeated. */

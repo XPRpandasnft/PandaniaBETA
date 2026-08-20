@@ -7693,5 +7693,215 @@ requestAnimationFrame(
 /* ===== END PANDANIA FINAL MOBILE + PAPER-DOLL FIX v10 ===== */
 </script>
 
+
+<script>
+/* ===== PANDANIA MOBILE ZOOM + PICKUP + PAPER-DOLL FIX v11 ===== */
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     Much stronger mobile camera zoom.
+     Desktop is untouched. Values > 1 make the canvas show a
+     smaller portion of the world, i.e. a true zoom-in.
+  --------------------------------------------------------- */
+  window.pandaniaMobileZoom=function(){
+    if(!window.matchMedia) return 1;
+    const coarse=window.matchMedia("(pointer:coarse)").matches;
+    const narrow=window.matchMedia("(max-width:700px)").matches;
+    if(!coarse&&!narrow) return 1;
+    return window.matchMedia("(orientation:landscape)").matches ? 1.22 : 1.38;
+  };
+
+  /* ---------------------------------------------------------
+     Make mobile dropped-item pickup extremely forgiving.  The
+     handler runs in capture phase, cancels click-to-walk, and
+     always chooses the closest visible ground item.
+  --------------------------------------------------------- */
+  const pickupHandler=e=>{
+    if(!gameStarted || e.pointerType==='mouse') return;
+    const p=getWorldMousePosition(e);
+    let nearest=null,nearestDist=Infinity,nearestIndex=-1;
+    const radius=300;
+    for(let i=groundDrops.length-1;i>=0;i--){
+      const d=groundDrops[i];
+      const dist=Math.hypot(p.x-d.x,p.y-d.y);
+      if(dist<nearestDist && dist<=radius){
+        nearest=d; nearestDist=dist; nearestIndex=i;
+      }
+    }
+    if(!nearest) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    player.targetX=null;
+    player.targetY=null;
+    player.targetMonster=null;
+    if(collectDrop(nearest)) groundDrops.splice(nearestIndex,1);
+  };
+  canvas.addEventListener('pointerdown',pickupHandler,{capture:true,passive:false});
+
+  /* ---------------------------------------------------------
+     Paper-doll weapon artwork: resolve the image from BOTH the
+     weapon definition and inventory metadata.  imageFiles is
+     also used as a fallback so artwork appears even if the Image
+     object has not completed loading yet.
+  --------------------------------------------------------- */
+  if(typeof window.__pandaniaEquipment!=='object') return;
+  const state=window.__pandaniaEquipment;
+  const originalRefresh=refreshDoll;
+
+  function weaponDefinition(name){
+    if(!name) return null;
+    const direct=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===name);
+    if(direct) return direct;
+    const inv=inventory[name];
+    if(inv && inv.image) return {name,image:inv.image};
+    const aliases={"XPR Lens":"Proton Lens","Proton Lens":"XPR Lens"};
+    const alias=aliases[name];
+    if(alias){
+      const a=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===alias);
+      if(a) return a;
+      const ai=inventory[alias];
+      if(ai && ai.image) return {name:alias,image:ai.image};
+    }
+    return null;
+  }
+
+  function weaponSrc(name){
+    const def=weaponDefinition(name);
+    if(!def || !def.image) return '';
+    if(images && images[def.image] && images[def.image].src) return images[def.image].src;
+    if(typeof imageFiles==='object' && imageFiles[def.image]) return imageFiles[def.image];
+    return '';
+  }
+
+  refreshDoll=function(){
+    const p=ensureDoll();
+    if(!p) return;
+    const vals=[
+      ['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],
+      ['equipArmor','🛡️','Armor',state.armor,'armor'],
+      ['equipTool','🛠️','Tool',state.tool,'tool']
+    ];
+    vals.forEach(([id,ic,label,item,kind])=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      const src=kind==='weapon'?weaponSrc(item):'';
+      const art=src?`<div class="paperDollWeaponArt"><img src="${src}" alt="${item||'Weapon'}"></div>`:'';
+      el.innerHTML=art+`<div class="paperDollEquipLabel">${ic} ${label}</div>`+
+        `<strong>${item||'Empty'}</strong>`+
+        (item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+      const b=el.querySelector('.pdUnequip');
+      if(b)b.onclick=e=>{
+        e.stopPropagation();
+        setInv(item,(inventory[item]?.count||0)+1);
+        if(kind==='weapon')state.weapon='';
+        if(kind==='armor')state.armor=null;
+        if(kind==='tool')state.tool=null;
+        refreshDoll();
+        renderBag();
+      };
+    });
+
+    /* Rebind double-tap equipment with alias-safe inventory lookup. */
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const nameEl=card.querySelector('.itemName');
+      if(!nameEl || card.__pandaniaEquipBound) return;
+      const n=nameEl.textContent.trim();
+      const isWeapon=Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n);
+      if(!isWeapon && !/^(Proton Lens|XPR Lens|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)) return;
+      const equipItem=()=>{
+        let invName=n;
+        if(n==='XPR Lens' && !inventory[n] && inventory['Proton Lens']) invName='Proton Lens';
+        if(n==='Proton Lens' && !inventory[n] && inventory['XPR Lens']) invName='XPR Lens';
+        if(!inventory[invName] || inventory[invName].count<=0) return;
+        if(isWeapon || n==='XPR Lens' || n==='Proton Lens'){
+          if(state.weapon) setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);
+          state.weapon=n==='Proton Lens'?'XPR Lens':n;
+        }else if(n==='Iron Armor'){
+          if(state.armor) setInv(state.armor,(inventory[state.armor]?.count||0)+1);
+          state.armor=n;
+        }else{
+          if(state.tool) setInv(state.tool,(inventory[state.tool]?.count||0)+1);
+          state.tool=n;
+        }
+        setInv(invName,(inventory[invName]?.count||1)-1);
+        refreshDoll();
+        renderBag();
+        showMessage('✅ '+state.weapon+' equipped!');
+      };
+      let lastTap=0,lastX=0,lastY=0;
+      card.addEventListener('pointerup',e=>{
+        const now=performance.now();
+        if(now-lastTap<550 && Math.hypot(e.clientX-lastX,e.clientY-lastY)<55){
+          e.preventDefault(); e.stopPropagation(); equipItem(); lastTap=0; return;
+        }
+        lastTap=now; lastX=e.clientX; lastY=e.clientY;
+      },{passive:false});
+      card.__pandaniaEquipBound=true;
+    });
+  };
+
+  /* Keep the image visible after asynchronous asset loading. */
+  const oldRenderBag=renderBag;
+  renderBag=function(){oldRenderBag();ensureDoll();refreshDoll();};
+  const retry=()=>{try{refreshDoll();}catch(e){}};
+  setTimeout(retry,100);
+  setTimeout(retry,500);
+  setTimeout(retry,1200);
+
+  /* ---------------------------------------------------------
+     Mobile HUD/control layout for the stronger zoom.  The game
+     canvas remains the same size/structure; only the viewport
+     and overlay UI are adapted.
+  --------------------------------------------------------- */
+  const css=document.createElement('style');
+  css.textContent=`
+    .paperDollWeaponArt{height:92px;display:flex;align-items:center;justify-content:center;margin:-2px auto 3px;overflow:hidden}
+    .paperDollWeaponArt img{width:92px;height:92px;object-fit:contain;display:block;image-rendering:auto}
+    @media (max-width:700px),(pointer:coarse){
+      #gameWrap{overflow:hidden}
+      #hud{top:max(8px,env(safe-area-inset-top));left:8px;right:8px;z-index:70}
+      #stats{width:205px!important;padding:9px!important;font-size:12px!important;transform:scale(1.08);transform-origin:top left}
+      #quest{top:9px!important;left:auto!important;right:8px!important;width:min(210px,43vw)!important;padding:8px!important;font-size:12px!important;transform:scale(1.06);transform-origin:top right}
+      #questText{font-size:11px!important}
+      #buttons{top:max(8px,env(safe-area-inset-top))!important;right:8px!important;gap:4px!important;z-index:85}
+      .gameBtn{min-width:38px!important;min-height:38px!important;padding:7px 9px!important;font-size:11px!important}
+      #zoneLabel{top:72px!important;font-size:12px!important;z-index:65}
+      #spellBar{bottom:calc(82px + env(safe-area-inset-bottom))!important;gap:6px!important;max-width:92vw!important;z-index:82}
+      .spell{width:62px!important;height:54px!important;font-size:10px!important}
+      .spellIcon{font-size:21px!important}
+      .spellCost{font-size:9px!important}
+      #message{bottom:calc(145px + env(safe-area-inset-bottom))!important;width:min(84vw,440px)!important;font-size:12px!important;z-index:83}
+      #pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom))!important;padding:0 10px!important;transform:none!important;z-index:90}
+      #pmDpad button{width:46px!important;height:46px!important;font-size:18px!important}
+      #pmActions button{width:50px!important;height:50px!important;font-size:19px!important}
+      #pmDpad,#pmActions{filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+      #pandaniaMobileControls button{opacity:.72}
+      #bagWindow{max-height:calc(100dvh - 14px)!important;overflow:auto!important}
+      #bagItems .itemCard{min-height:94px!important;touch-action:manipulation}
+      .paperDollWeaponArt{height:104px}
+      .paperDollWeaponArt img{width:104px;height:104px}
+    }
+    @media (max-width:430px){
+      #stats{width:185px!important;transform:scale(1.02)}
+      #quest{width:178px!important;transform:scale(1.0)}
+      #spellBar{bottom:calc(78px + env(safe-area-inset-bottom))!important}
+      #message{bottom:calc(137px + env(safe-area-inset-bottom))!important}
+      #pmDpad button{width:43px!important;height:43px!important;font-size:17px!important}
+      #pmActions button{width:46px!important;height:46px!important;font-size:18px!important}
+    }
+    @media (orientation:landscape) and (max-width:900px){
+      #stats{transform:scale(.98);transform-origin:top left}
+      #quest{top:8px!important;width:180px!important}
+      #spellBar{bottom:calc(68px + env(safe-area-inset-bottom))!important}
+      #message{bottom:calc(120px + env(safe-area-inset-bottom))!important}
+      #pandaniaMobileControls{padding:0 16px!important}
+    }
+  `;
+  document.head.appendChild(css);
+})();
+/* ===== END PANDANIA MOBILE ZOOM + PICKUP + PAPER-DOLL FIX v11 ===== */
+</script>
+
 </body>
 </html>

@@ -751,6 +751,27 @@ kbd{
     }
 }
 </style>
+
+<style id="pandaniaStartScreenMobileGate">
+  #pandaniaMobileControls{display:none!important}
+  #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
+</style>
+<script>
+(function(){
+  const gw=document.getElementById("gameWrap");
+  const pb=document.getElementById("playButton");
+  if(pb && gw){
+    pb.addEventListener("click",function(){
+      gw.classList.add("pandaniaStarted");
+    },true);
+  }
+  if(gw && typeof gameStarted!=="undefined" && gameStarted){
+    gw.classList.add("pandaniaStarted");
+  }
+})();
+</script>
+
+<style id="pandaniaStartScreenMobileGateFinal">#pandaniaMobileControls{display:none!important}#gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}</style>
 </head>
 
 <body>
@@ -6956,9 +6977,7 @@ requestAnimationFrame(
   const mobileFixStyle=document.createElement("style");
   mobileFixStyle.textContent=`
     #pandaniaMobileControls{display:none!important}
-    #gameWrap.pandaniaStarted #pandaniaMobileControls{
-      display:flex!important;
-    }
+    #gameWrap.pandaniaStarted #pandaniaMobileControls{display:none!important;}
   `;
   document.head.appendChild(mobileFixStyle);
 

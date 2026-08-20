@@ -1464,7 +1464,7 @@ const weaponDrops=[
         image:"weapon3",
         damage:42
     },
-    {name:"Proton Lens",image:"weapon4",damage:48},
+    {name:"XPR Lens",image:"weapon4",damage:48},
     {name:"Spiked Twin Blade",image:"weapon5",damage:55},
     {name:"Purple Ice Blade",image:"weapon6",damage:62},
     {name:"Thunderma",image:"weapon7",damage:70},
@@ -2725,7 +2725,7 @@ function pandaniaMobileZoom(){
     const coarse=window.matchMedia("(pointer:coarse)").matches;
     const narrow=window.matchMedia("(max-width:700px)").matches;
     if(!coarse&&!narrow) return 1;
-    return window.matchMedia("(orientation:landscape)").matches ? .94 : .88;
+    return window.matchMedia("(orientation:landscape)").matches ? .86 : .80;
 }
 
 function updateCamera(){
@@ -4688,7 +4688,7 @@ function drawGround(){
 function drawPonds(){
 
     for(const pond of environment.ponds){
-        const pondWide=pandaniaMobileZoom()<1 ? 1.14 : 1;
+        const pondWide=pandaniaMobileZoom()<1 ? 1.22 : 1;
         drawEnvironmentImage(
             pond.image,
             pond.x+pond.w/2,
@@ -4761,11 +4761,12 @@ function drawEnvironmentBuildings(){
     const ordered=environment.buildings.slice().sort((a,b)=>a.y-b.y);
 
     for(const h of ordered){
+        const buildingWide=pandaniaMobileZoom()<1 ? 1.12 : 1;
         drawEnvironmentImage(
             h.image,
             h.x+h.w/2,
             h.y+h.h,
-            h.w,
+            h.w*buildingWide,
             h.h
         );
 
@@ -4953,7 +4954,7 @@ function drawDungeonEntrances(){
 
     for(const entrance of dungeonEntrances){
         const img=images[entrance.image];
-        const w=120*(pandaniaMobileZoom()<1 ? 1.16 : 1);
+        const w=120*(pandaniaMobileZoom()<1 ? 1.24 : 1);
         const h=120;
 
         if(img){
@@ -5662,7 +5663,7 @@ function drawMonster(m){
         m.type==="roamer1"
         ?110
         :(m.boss ?120 :65);
-    const mobileWide=pandaniaMobileZoom()<1 ? 1.20 : 1;
+    const mobileWide=pandaniaMobileZoom()<1 ? 1.28 : 1;
     const drawWidth=baseSize*mobileWide;
     const drawHeight=baseSize;
 
@@ -7506,5 +7507,191 @@ requestAnimationFrame(
 </script>
 
 <script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
+
+<script>
+/* ===== PANDANIA FINAL MOBILE + PAPER-DOLL FIX v10 ===== */
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     Equipped paper-doll artwork
+     Use the real weapon image from weaponDrops/images instead
+     of displaying only the weapon name/emoji.
+  --------------------------------------------------------- */
+  const previousRefreshDoll = refreshDoll;
+  refreshDoll = function(){
+    const p = ensureDoll();
+    if(!p) return;
+
+    const findWeaponImage = name => {
+      if(!name || !Array.isArray(weaponDrops)) return null;
+      const def = weaponDrops.find(w=>w.name===name);
+      if(!def || !def.image || !images[def.image]) return null;
+      return images[def.image].src;
+    };
+
+    const vals=[
+      ['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],
+      ['equipArmor','🛡️','Armor',state.armor,'armor'],
+      ['equipTool','🛠️','Tool',state.tool,'tool']
+    ];
+
+    vals.forEach(([id,ic,label,item,kind])=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      const weaponSrc=kind==='weapon' ? findWeaponImage(item) : null;
+      const art=weaponSrc
+        ? `<img class="paperDollEquipImage" src="${weaponSrc}" alt="${item||'Weapon'}">`
+        : '';
+      el.innerHTML = art + '<div class="paperDollEquipLabel">'+ic+' '+label+'</div>'
+        + '<strong>'+(item||'Empty')+'</strong>'
+        + (item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+
+      const b=el.querySelector('.pdUnequip');
+      if(b)b.onclick=e=>{
+        e.stopPropagation();
+        setInv(item,(inventory[item]?.count||0)+1);
+        if(kind==='weapon')state.weapon='';
+        if(kind==='armor')state.armor=null;
+        if(kind==='tool')state.tool=null;
+        refreshDoll();
+        renderBag();
+      };
+    });
+
+    /* Reuse the existing equipment interaction, but make sure the
+       current card gets a fresh handler after every bag redraw. */
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const el=card.querySelector('.itemName');
+      if(!el) return;
+      const n=el.textContent.trim();
+      if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n))) return;
+      const equipItem=()=>{
+        if(!inventory[n]) return;
+        if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){
+          if(state.weapon) setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);
+          state.weapon=n;
+        }else if(n==='Iron Armor'){
+          if(state.armor) setInv(state.armor,(inventory[state.armor]?.count||0)+1);
+          state.armor=n;
+        }else{
+          if(state.tool) setInv(state.tool,(inventory[state.tool]?.count||0)+1);
+          state.tool=n;
+        }
+        setInv(n,(inventory[n]?.count||1)-1);
+        refreshDoll();
+        renderBag();
+        showMessage('✅ '+n+' equipped!');
+      };
+      let lastTap=0,lastX=0,lastY=0;
+      card.addEventListener('pointerup',e=>{
+        const now=performance.now(),x=e.clientX,y=e.clientY;
+        if(now-lastTap<500 && Math.hypot(x-lastX,y-lastY)<40){
+          e.preventDefault();
+          e.stopPropagation();
+          equipItem();
+          lastTap=0;
+          return;
+        }
+        lastTap=now;lastX=x;lastY=y;
+      },{passive:false});
+    });
+  };
+
+  const previousRenderBag=renderBag;
+  renderBag=function(){
+    previousRenderBag();
+    ensureDoll();
+    refreshDoll();
+  };
+
+  /* ---------------------------------------------------------
+     Mobile ground-item pickup
+     Run before the original canvas click handler. A generous
+     touch radius collects the nearest dropped item and cancels
+     movement so a tap cannot accidentally make the player walk.
+  --------------------------------------------------------- */
+  canvas.addEventListener('pointerdown',e=>{
+    if(!gameStarted || e.pointerType==='mouse') return;
+    const p=getWorldMousePosition(e);
+    let nearest=null,nearestDist=Infinity,nearestIndex=-1;
+    for(let i=groundDrops.length-1;i>=0;i--){
+      const d=groundDrops[i];
+      const dist=Math.hypot(p.x-d.x,p.y-d.y);
+      if(dist<nearestDist && dist<190){
+        nearest=d;nearestDist=dist;nearestIndex=i;
+      }
+    }
+    if(nearest){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      player.targetX=null;
+      player.targetY=null;
+      player.targetMonster=null;
+      if(collectDrop(nearest)) groundDrops.splice(nearestIndex,1);
+    }
+  },{passive:false,capture:true});
+
+  /* ---------------------------------------------------------
+     Bag button = true toggle on mobile and desktop.
+     The existing X button still uses closeWindows().
+  --------------------------------------------------------- */
+  const originalOpenBag=openBag;
+  openBag=function(){
+    const bag=document.getElementById('bagWindow');
+    if(!bag) return;
+    if(bag.style.display==='block'){
+      closeWindows();
+      return;
+    }
+    originalOpenBag();
+  };
+
+  /* ---------------------------------------------------------
+     Compact mobile controls: keep the corners usable without
+     covering the central play area.
+  --------------------------------------------------------- */
+  const mobilePolish=document.createElement('style');
+  mobilePolish.textContent=`
+    .paperDollEquipImage{
+      display:block;
+      width:72px;
+      height:72px;
+      object-fit:contain;
+      margin:0 auto 3px;
+      image-rendering:auto;
+    }
+    .paperDollEquipLabel{font-size:12px;margin-bottom:2px}
+    @media (max-width:700px),(pointer:coarse){
+      #pandaniaMobileControls{
+        left:4px!important;
+        right:4px!important;
+        bottom:max(6px,env(safe-area-inset-bottom))!important;
+        padding:0 4px!important;
+        transform:scale(.88);
+        transform-origin:bottom center;
+      }
+      #pandaniaMobileControls button{opacity:.78}
+      #pmDpad button{width:39px!important;height:39px!important;font-size:16px!important}
+      #pmActions button{width:43px!important;height:43px!important;font-size:17px!important}
+      #spellBar{bottom:62px!important;opacity:.88}
+      #message{bottom:118px!important}
+      .paperDollEquipImage{width:64px;height:64px}
+      #bagWindow{max-height:calc(100dvh - 18px);overflow:auto}
+      #bagWindow .itemCard{touch-action:manipulation;min-height:86px}
+    }
+    @media (max-width:430px){
+      #pandaniaMobileControls{transform:scale(.80)}
+      #spellBar{bottom:56px!important}
+      #message{bottom:105px!important}
+    }
+  `;
+  document.head.appendChild(mobilePolish);
+
+  setTimeout(()=>{ensureDoll();refreshDoll();},250);
+})();
+/* ===== END PANDANIA FINAL MOBILE + PAPER-DOLL FIX v10 ===== */
+</script>
+
 </body>
 </html>

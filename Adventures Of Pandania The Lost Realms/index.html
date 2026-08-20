@@ -7904,331 +7904,116 @@ requestAnimationFrame(
 </script>
 
 
+
 <script>
-/* ===== PANDANIA GAMEPLAY + MOBILE PERFORMANCE PATCH v12 ===== */
+/* ===== PANDANIA MOBILE UI CLEANUP v12 ===== */
 (function(){
   "use strict";
 
-  /* ---------------------------------------------------------
-     Inline item artwork for the new consumable/tool items.
-     These are self-contained SVG data images, so no extra file
-     is required in the GitHub images folder.
-  --------------------------------------------------------- */
-  const potionSVG='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9d6cff"/><stop offset="1" stop-color="#4a20b8"/></linearGradient></defs>
-      <rect x="36" y="8" width="24" height="17" rx="4" fill="#b9b0a4" stroke="#5d554c" stroke-width="3"/>
-      <path d="M30 22h36v12c0 6 14 13 14 30 0 16-11 25-32 25S16 80 16 64c0-17 14-24 14-30z" fill="url(#g)" stroke="#eadfff" stroke-width="3"/>
-      <path d="M28 53c9-6 27-6 40 0" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="4"/>
-      <circle cx="34" cy="42" r="5" fill="#fff" fill-opacity=".7"/>
-    </svg>`);
-  const rodSVG='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="96" viewBox="0 0 120 96">
-      <path d="M18 80 Q55 50 94 15" fill="none" stroke="#8a542c" stroke-width="8" stroke-linecap="round"/>
-      <path d="M92 16 Q103 8 111 10" fill="none" stroke="#d9c7a5" stroke-width="2"/>
-      <path d="M110 10 Q111 28 105 42" fill="none" stroke="#d9c7a5" stroke-width="2"/>
-      <path d="M105 42 q-8 8 0 14 q8 7 0 13" fill="none" stroke="#ffd45a" stroke-width="3"/>
-      <circle cx="18" cy="80" r="7" fill="#6d3c1e"/>
-    </svg>`);
-  window.__pandaniaPotionImage=potionSVG;
-  window.__pandaniaFishingRodImage=rodSVG;
+  function installMobileCleanup(){
+    const wrap=document.getElementById("gameWrap");
+    const controls=document.getElementById("pandaniaMobileControls");
+    if(!wrap || !controls || controls.dataset.v12Installed) return;
+    controls.dataset.v12Installed="1";
 
-  /* Put the artwork into inventory so the bag uses images instead of emojis. */
-  if(inventory){
-    inventory["Mana Potion"]={icon:"🧪",image:potionSVG,count:inventory["Mana Potion"]?.count||0};
-    inventory["Fishing Rod"]={icon:"🎣",image:rodSVG,count:inventory["Fishing Rod"]?.count||0};
-  }
+    /* Replace the old four-button D-pad with ONE analog joystick. */
+    const oldPad=document.getElementById("pmDpad");
+    if(oldPad){
+      const joy=document.createElement("div");
+      joy.id="pmJoystick";
+      joy.innerHTML='<div id="pmJoystickBase"><div id="pmJoystickKnob"></div></div>';
+      oldPad.replaceWith(joy);
 
-  /* ---------------------------------------------------------
-     Reliable equipped-weapon artwork.
-     Always use the configured image URL as the final fallback;
-     this avoids depending on the Image onload timing.
-  --------------------------------------------------------- */
-  const eqState=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null});
-  function weaponDef(name){
-    if(!name) return null;
-    let d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===name);
-    if(d) return d;
-    const inv=inventory[name];
-    if(inv?.image) return {name,image:inv.image};
-    const aliases={"Proton Lens":"XPR Lens","XPR Lens":"Proton Lens"};
-    const a=aliases[name];
-    if(a){
-      d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===a);
-      if(d) return d;
-      if(inventory[a]?.image) return {name:a,image:inventory[a].image};
-    }
-    return null;
-  }
-  function itemSrc(name){
-    const d=weaponDef(name);
-    if(!d?.image) return '';
-    if(typeof d.image==='string' && d.image.startsWith('data:')) return d.image;
-    if(typeof imageFiles==='object' && imageFiles[d.image]) return imageFiles[d.image];
-    if(typeof images==='object' && images[d.image]?.src) return images[d.image].src;
-    return '';
-  }
-  function forcePaperDoll(){
-    const el=document.getElementById('equipWeapon');
-    if(!el) return;
-    const name=eqState.weapon||'';
-    const src=itemSrc(name);
-    el.innerHTML=(src?`<div class="pdWeaponArtV12"><img src="${src}" alt="${name||'Weapon'}"></div>`:'')+
-      `<div class="paperDollEquipLabel">⚔️ Weapon</div><strong>${name||'Empty'}</strong>`+
-      (name?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
-    const b=el.querySelector('.pdUnequip');
-    if(b)b.onclick=e=>{
-      e.preventDefault();e.stopPropagation();
-      setInv(name,(inventory[name]?.count||0)+1);
-      eqState.weapon='';
-      forcePaperDoll();
-      renderBag();
-    };
-  }
-  try{refreshDoll=forcePaperDoll;}catch(e){}
+      const base=joy.querySelector("#pmJoystickBase");
+      const knob=joy.querySelector("#pmJoystickKnob");
+      const activeKeys=["w","a","s","d"];
+      let pointerId=null;
 
-  /* ---------------------------------------------------------
-     Weapon/consumable information on a single tap.
-     Double-click/tap equipment continues to use the existing
-     equipment behavior. Fish and Mana Potion consume on double.
-  --------------------------------------------------------- */
-  function weaponStats(name){
-    const d=weaponDef(name);
-    return d?d.damage:null;
-  }
-  function addItemInfo(card,name){
-    if(card.__v12InfoBound) return;
-    card.__v12InfoBound=true;
-    card.addEventListener('click',function(){
-      const old=card.querySelector('.v12ItemInfo');
-      if(old){old.remove();return;}
-      const damage=weaponStats(name);
-      const info=document.createElement('div');
-      info.className='v12ItemInfo';
-      if(damage!==null){
-        const tier=damage>=90?'Legendary':damage>=70?'Mythic':damage>=60?'Epic':damage>=45?'Rare':'Common';
-        info.innerHTML=`⚔️ Attack Damage: <b>${damage}</b><br>Tier: <b>${tier}</b><br><span>Double-tap/click to equip</span>`;
-      }else if(name==='Fish'){
-        info.innerHTML='🐟 Restores <b>+5 HP</b><br><span>Double-tap/click to consume</span>';
-      }else if(name==='Mana Potion'){
-        info.innerHTML='🧪 Restores <b>+5 Mana</b><br><span>Double-tap/click to consume</span>';
-      }else if(name==='Fishing Rod'){
-        info.innerHTML='🎣 Used at the yellow fishing spots on ponds.';
-      }else return;
-      card.appendChild(info);
-    },{passive:true});
-
-    card.addEventListener('dblclick',function(e){
-      if(name==='Fish'){
-        e.preventDefault();e.stopPropagation();
-        if((inventory.Fish?.count||0)>0){
-          inventory.Fish.count--; player.fish=Math.max(0,(player.fish||0)-1); player.hp=Math.min(player.maxHp,player.hp+5); updateUI(); renderBag(); showMessage('🐟 Fish consumed: +5 HP!');
-        }
-      }else if(name==='Mana Potion'){
-        e.preventDefault();e.stopPropagation();
-        if((inventory['Mana Potion']?.count||0)>0){
-          inventory['Mana Potion'].count--; player.mana=Math.min(player.maxMana,player.mana+5); updateUI(); renderBag(); showMessage('🧪 Mana Potion consumed: +5 Mana!');
-        }
-      }
-    },{passive:false});
-  }
-  const bindInfo=()=>document.querySelectorAll('#bagWindow .itemCard .itemName').forEach(n=>addItemInfo(n.parentElement,n.textContent.trim()));
-  const baseRenderBagV12=renderBag;
-  renderBag=function(){baseRenderBagV12();forcePaperDoll();bindInfo();};
-
-  /* ---------------------------------------------------------
-     Rare weapon drops: XPR Lens and Thunderma become reliably
-     obtainable in addition to the normal weapon roll.
-  --------------------------------------------------------- */
-  const baseKillMonsterV12=killMonster;
-  killMonster=function(monster){
-    const x=monster.x,y=monster.y;
-    baseKillMonsterV12(monster);
-    if(Math.random()<0.14) createDrop(x+10,y-12,'XPR Lens');
-    if(Math.random()<0.12) createDrop(x-12,y+10,'Thunderma');
-    if(Math.random()<0.05) createDrop(x+16,y+14,'Purplereign');
-    if(Math.random()<0.025) createDrop(x-16,y-14,'Fishing Rod');
-    if(Math.random()<0.045) createDrop(x,y+20,'Mana Potion');
-  };
-
-  /* ---------------------------------------------------------
-     Add fishing rod, potion and all weapons to forced drops.
-     The normal createDrop random table remains intact.
-  --------------------------------------------------------- */
-  const baseCreateDropV12=createDrop;
-  createDrop=function(x,y,forcedType=null){
-    if(forcedType==='Mana Potion'){
-      groundDrops.push({x,y,name:'Mana Potion',icon:'🧪',image:potionSVG,bob:Math.random()*Math.PI*2});
-      return;
-    }
-    if(forcedType==='Fishing Rod'){
-      groundDrops.push({x,y,name:'Fishing Rod',icon:'🎣',image:rodSVG,bob:Math.random()*Math.PI*2});
-      return;
-    }
-    if(forcedType && weaponDrops.some(w=>w.name===forcedType)){
-      const w=weaponDrops.find(w=>w.name===forcedType);
-      groundDrops.push({x,y,name:w.name,icon:'⚔️',image:w.image,bob:Math.random()*Math.PI*2});
-      return;
-    }
-    return baseCreateDropV12(x,y,forcedType);
-  };
-
-  /* ---------------------------------------------------------
-     Fishing interaction: tapping/clicking a yellow pond spot
-     uses the Fishing Rod if one is in the bag. Success is not
-     guaranteed, so an occasional empty reel-in is intentional.
-  --------------------------------------------------------- */
-  function tryFishAt(x,y){
-    if(!gameStarted || inDungeon || inHouse) return false;
-    let spot=null;
-    for(const s of fishingSpots){if(Math.hypot(x-s.x,y-s.y)<58){spot=s;break;}}
-    if(!spot) return false;
-    if((inventory['Fishing Rod']?.count||0)<=0){showMessage('🎣 You need a Fishing Rod to fish here.');return true;}
-    player.targetX=null;player.targetY=null;player.targetMonster=null;
-    if(Math.random()<0.66){
-      if(inventory.Fish) inventory.Fish.count++;
-      player.fish=(player.fish||0)+1;
-      showMessage('🐟 You reeled in a fish!');
-    }else{
-      showMessage('🌊 You reeled in nothing...');
-    }
-    updateUI();renderBag();
-    return true;
-  }
-  canvas.addEventListener('pointerdown',e=>{
-    if(!gameStarted || e.pointerType==='mouse') return;
-    const p=getWorldMousePosition(e);
-    if(tryFishAt(p.x,p.y)){
-      e.preventDefault();e.stopImmediatePropagation();
-    }
-  },{capture:true,passive:false});
-  canvas.addEventListener('mousedown',e=>{
-    if(!gameStarted) return;
-    const p=getWorldMousePosition(e);
-    tryFishAt(p.x,p.y);
-  },{capture:true});
-
-  /* ---------------------------------------------------------
-     Mobile joystick replacement. The old D-pad is hidden on
-     touch devices. Desktop controls remain unchanged.
-  --------------------------------------------------------- */
-  function setupJoystick(){
-    const old=document.getElementById('pandaniaMobileControls');
-    if(!old || document.getElementById('pandaniaJoystickV12')) return;
-    old.style.display='none';
-    old.setAttribute('aria-hidden','true');
-    const box=document.createElement('div');
-    box.id='pandaniaJoystickV12';
-    box.innerHTML=`
-      <div id="v12JoyBase"><div id="v12JoyKnob"></div></div>
-      <div id="v12Actions"><button id="v12Attack">⚔️</button><button id="v12Interact">💬</button><button id="v12Bag">🎒</button></div>`;
-    gameWrap.appendChild(box);
-    const style=document.createElement('style');
-    style.textContent=`
-      #pandaniaJoystickV12{display:none;position:absolute;inset:0;z-index:95;pointer-events:none;font-family:Arial,sans-serif}
-      #v12JoyBase{position:absolute;left:20px;bottom:20px;width:112px;height:112px;border-radius:50%;border:2px solid rgba(255,216,106,.55);background:rgba(10,14,21,.35);box-shadow:0 4px 18px rgba(0,0,0,.4);pointer-events:auto;touch-action:none}
-      #v12JoyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border-radius:50%;background:rgba(255,216,106,.8);border:2px solid #fff2b0;box-shadow:0 3px 12px rgba(0,0,0,.5);transform:translate(0,0)}
-      #v12Actions{position:absolute;right:18px;bottom:20px;display:flex;gap:8px;pointer-events:auto}
-      #v12Actions button{width:56px;height:56px;border-radius:16px;border:1px solid rgba(255,216,106,.7);background:rgba(12,14,20,.72);color:#fff;font-size:21px;touch-action:none;-webkit-user-select:none;user-select:none}
-      @media (max-width:700px),(pointer:coarse){#pandaniaJoystickV12{display:block}#v12JoyBase{left:14px;bottom:max(14px,env(safe-area-inset-bottom))}#v12Actions{right:12px;bottom:max(14px,env(safe-area-inset-bottom))}}
-      @media (max-width:430px){#v12JoyBase{width:100px;height:100px}#v12JoyKnob{width:46px;height:46px;margin:-23px}#v12Actions button{width:50px;height:50px;font-size:19px}}
-    `;
-    document.head.appendChild(style);
-
-    const base=box.querySelector('#v12JoyBase'),knob=box.querySelector('#v12JoyKnob');
-    let pid=null;
-    function clearDir(){['w','a','s','d'].forEach(k=>keys[k]=false);knob.style.transform='translate(0,0)';}
-    function move(e){
-      if(pid!==e.pointerId)return;
-      const r=base.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-      let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.34;const len=Math.hypot(dx,dy)||1;
-      if(len>max){dx=dx/len*max;dy=dy/len*max;}
-      knob.style.transform=`translate(${dx}px,${dy}px)`;
-      const nx=dx/max,ny=dy/max;
-      keys.a=nx<-.22;keys.d=nx>.22;keys.w=ny<-.22;keys.s=ny>.22;
-      if(nx||ny)setPlayerFacing(Math.sign(nx),Math.sign(ny));
-      e.preventDefault();e.stopPropagation();
-    }
-    base.addEventListener('pointerdown',e=>{pid=e.pointerId;base.setPointerCapture?.(pid);move(e);e.preventDefault();e.stopPropagation();},{passive:false});
-    base.addEventListener('pointermove',move,{passive:false});
-    ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>base.addEventListener(ev,e=>{if(pid===e.pointerId){clearDir();pid=null;}e.preventDefault();e.stopPropagation();},{passive:false}));
-    box.querySelector('#v12Attack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();swordAttack();},{passive:false});
-    box.querySelector('#v12Interact').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();interact();},{passive:false});
-    box.querySelector('#v12Bag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openBag();},{passive:false});
-    /* On mobile, touching empty world must never become click-to-walk. */
-    canvas.addEventListener('pointerdown',e=>{
-      if(e.pointerType!=='mouse' && gameStarted){
-        const p=getWorldMousePosition(e);
-        if(fishingSpots.some(s=>Math.hypot(p.x-s.x,p.y-s.y)<58)) return;
-        for(const d of groundDrops) if(Math.hypot(p.x-d.x,p.y-d.y)<300) return;
-        e.preventDefault();e.stopImmediatePropagation();
-        player.targetX=null;player.targetY=null;player.targetMonster=null;
-      }
-    },{capture:true,passive:false});
-  }
-  setupJoystick();
-
-  /* ---------------------------------------------------------
-     Mobile visual polish: a little more width on monsters,
-     ponds and dungeon entrances. Troll Reaper gets a forward-
-     facing presentation by using a wider, slightly shorter
-     sprite instead of the flat/slanted appearance.
-  --------------------------------------------------------- */
-  const origDrawMonster=drawMonster;
-  drawMonster=function(m){
-    if(m.type==='roamer1'){
-      const old=drawSprite;
-      drawSprite=function(imageKey,x,y,w,h,flip=false,alpha=1){
-        if(imageKey===m.image) return old(imageKey,x,y,w*1.22,h*.88,flip,alpha);
-        return old(imageKey,x,y,w,h,flip,alpha);
+      const clearKeys=()=>{
+        activeKeys.forEach(k=>keys[k]=false);
+        knob.style.transform="translate(-50%,-50%)";
       };
-      try{return origDrawMonster(m);}finally{drawSprite=old;}
-    }
-    return origDrawMonster(m);
-  };
-  const origDrawPonds=drawPonds;
-  drawPonds=function(){
-    if(pandaniaMobileZoom()<1){
-      const old=drawEnvironmentImage;
-      drawEnvironmentImage=function(key,x,y,w,h){return old(key,x,y,w*1.07,h);};
-      try{return origDrawPonds();}finally{drawEnvironmentImage=old;}
-    }
-    return origDrawPonds();
-  };
-  const origDrawDungeonEntrances=drawDungeonEntrances;
-  drawDungeonEntrances=function(){
-    if(pandaniaMobileZoom()<1){
-      const old=drawEnvironmentImage;
-      drawEnvironmentImage=function(key,x,y,w,h){return old(key,x,y,w*1.08,h);};
-      try{return origDrawDungeonEntrances();}finally{drawEnvironmentImage=old;}
-    }
-    return origDrawDungeonEntrances();
-  };
+      const updateJoystick=e=>{
+        const r=base.getBoundingClientRect();
+        const cx=r.left+r.width/2, cy=r.top+r.height/2;
+        let dx=e.clientX-cx, dy=e.clientY-cy;
+        const max=r.width*.34;
+        const len=Math.hypot(dx,dy)||1;
+        if(len>max){dx=dx/len*max;dy=dy/len*max;}
+        knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+        const nx=dx/max, ny=dy/max;
+        const dead=.18;
+        keys.w=Math.abs(ny)>dead && ny<0;
+        keys.s=Math.abs(ny)>dead && ny>0;
+        keys.a=Math.abs(nx)>dead && nx<0;
+        keys.d=Math.abs(nx)>dead && nx>0;
+        if(Math.abs(nx)>dead || Math.abs(ny)>dead){
+          setPlayerFacing(Math.abs(nx)>Math.abs(ny)?(nx<0?-1:1):0,Math.abs(ny)>=Math.abs(nx)?(ny<0?-1:1):0);
+          player.targetX=null; player.targetY=null; player.targetMonster=null;
+        }
+      };
 
-  /* ---------------------------------------------------------
-     Reduce mobile frame-time spikes. The game keeps updating at
-     normal speed, but if a frame is already expensive we draw
-     every other frame until the device catches up. This avoids
-     visible stalls without changing desktop behavior.
-  --------------------------------------------------------- */
-  const originalSafeDraw=safeDraw;
-  let lastDrawTime=0;
-  let perfSkip=false;
-  safeDraw=function(){
-    const now=performance.now();
-    const dt=lastDrawTime?now-lastDrawTime:16;
-    lastDrawTime=now;
-    const mobile=window.matchMedia?.('(pointer:coarse)').matches||window.matchMedia?.('(max-width:700px)').matches;
-    if(mobile && dt>24){perfSkip=!perfSkip;if(perfSkip)return;}
-    return originalSafeDraw();
-  };
+      base.addEventListener("pointerdown",e=>{
+        e.preventDefault(); e.stopPropagation();
+        pointerId=e.pointerId;
+        base.setPointerCapture?.(pointerId);
+        updateJoystick(e);
+      },{passive:false});
+      base.addEventListener("pointermove",e=>{
+        if(pointerId!==e.pointerId)return;
+        e.preventDefault(); e.stopPropagation(); updateJoystick(e);
+      },{passive:false});
+      const end=e=>{
+        if(pointerId!==null && e.pointerId!==pointerId)return;
+        e.preventDefault(); e.stopPropagation(); pointerId=null; clearKeys();
+      };
+      ["pointerup","pointercancel","lostpointercapture"].forEach(t=>base.addEventListener(t,end,{passive:false}));
+      base.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();},{passive:false});
+    }
 
-  /* Give the paper-doll another pass after assets finish loading. */
-  setTimeout(forcePaperDoll,100);
-  setTimeout(forcePaperDoll,500);
-  setTimeout(forcePaperDoll,1500);
+    /* Hide the legacy mobile Bag button in the desktop HUD so there is
+       only one mobile bag control. The joystick bag remains functional. */
+    const legacyBag=document.querySelector('#buttons .gameBtn[onclick*="openBag"]');
+    if(legacyBag){
+      legacyBag.classList.add("legacyMobileBagHidden");
+    }
+
+    const css=document.createElement("style");
+    css.textContent=`
+      /* Mobile: only the new joystick is visible; never show the old D-pad. */
+      @media (max-width:700px),(pointer:coarse){
+        #pmDpad{display:none!important}
+        #pmJoystick{display:block!important;width:104px;height:104px;pointer-events:auto;touch-action:none;filter:drop-shadow(0 4px 9px rgba(0,0,0,.5));}
+        #pmJoystickBase{position:relative;width:104px;height:104px;border:2px solid rgba(255,216,106,.78);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.12),rgba(10,13,19,.76) 58%,rgba(0,0,0,.88));box-shadow:inset 0 0 0 8px rgba(255,255,255,.035),0 3px 12px rgba(0,0,0,.4);}
+        #pmJoystickKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,230,145,.88);background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.2),rgba(74,58,31,.95));box-shadow:0 3px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);will-change:transform;}
+        #buttons .legacyMobileBagHidden{display:none!important}
+        /* Keep the equipment artwork inside its panel instead of expanding the page. */
+        #pandaniaEquipment{max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important;}
+        #pandaniaEquipment #equipWeapon{min-width:0!important;overflow:hidden!important;box-sizing:border-box!important;}
+        .paperDollEquipImage{width:58px!important;height:58px!important;max-width:58px!important;max-height:58px!important;object-fit:contain!important;margin:0 auto 3px!important;display:block!important;}
+        .paperDollEquipLabel{font-size:11px!important;line-height:1.1!important;}
+        #bagWindow{max-width:94vw!important;max-height:calc(100dvh - 12px)!important;overflow:auto!important;box-sizing:border-box!important;}
+        #bagItems{min-width:0!important;overflow:hidden!important;}
+      }
+      @media (max-width:430px){
+        #pmJoystick{width:92px;height:92px}
+        #pmJoystickBase{width:92px;height:92px}
+        #pmJoystickKnob{width:40px;height:40px}
+        .paperDollEquipImage{width:50px!important;height:50px!important;max-width:50px!important;max-height:50px!important;}
+        #pandaniaEquipment{padding:8px!important;margin-bottom:10px!important;}
+        #pandaniaEquipment > div:nth-child(2){grid-template-columns:1fr 88px 1fr!important;gap:5px!important;}
+        #pandaniaEquipment > div:nth-child(2) > div:nth-child(2){height:96px!important;font-size:50px!important;}
+        #pandaniaEquipment #equipWeapon,#pandaniaEquipment #equipArmor{padding:6px!important;font-size:11px!important;}
+      }
+    `;
+    document.head.appendChild(css);
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",installMobileCleanup,{once:true});
+  else installMobileCleanup();
+  setTimeout(installMobileCleanup,100);
 })();
-/* ===== END PANDANIA GAMEPLAY + MOBILE PERFORMANCE PATCH v12 ===== */
+/* ===== END PANDANIA MOBILE UI CLEANUP v12 ===== */
 </script>
 
 </body>

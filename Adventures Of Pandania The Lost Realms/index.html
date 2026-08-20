@@ -1432,7 +1432,7 @@ const inventory={
         count:0
     },
 
-    "XPR Lens":{icon:"⚔️",image:"weapon4",count:0},
+    "Proton Lens":{icon:"⚔️",image:"weapon4",count:0},
     "Spiked Twin Blade":{icon:"⚔️",image:"weapon5",count:0},
     "Purple Ice Blade":{icon:"⚔️",image:"weapon6",count:0},
     "Thunderma":{icon:"⚔️",image:"weapon7",count:0},
@@ -1464,7 +1464,7 @@ const weaponDrops=[
         image:"weapon3",
         damage:42
     },
-    {name:"XPR Lens",image:"weapon4",damage:48},
+    {name:"Proton Lens",image:"weapon4",damage:48},
     {name:"Spiked Twin Blade",image:"weapon5",damage:55},
     {name:"Purple Ice Blade",image:"weapon6",damage:62},
     {name:"Thunderma",image:"weapon7",damage:70},
@@ -1507,8 +1507,8 @@ window.addEventListener("keydown",e=>{
         interact();
     }
 
-    if(key==="b" && !e.repeat){
-        toggleBag();
+    if(key==="b"){
+        openBag();
     }
 
     if(key==="1"){
@@ -1529,15 +1529,6 @@ window.addEventListener("keyup",e=>{
     keys[e.key.toLowerCase()]=false;
 });
 
-function clearMovementKeys(){
-    ["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].forEach(k=>keys[k]=false);
-    player.targetX=null;
-    player.targetY=null;
-    player.targetMonster=null;
-}
-window.addEventListener("blur",clearMovementKeys);
-document.addEventListener("visibilitychange",()=>{if(document.hidden)clearMovementKeys();});
-
 /* =========================================================
    MOUSE
 ========================================================= */
@@ -1546,14 +1537,17 @@ function getWorldMousePosition(e){
 
     const rect=canvas.getBoundingClientRect();
 
-    const sx=(e.clientX-rect.left)*(W/rect.width);
-    const sy=(e.clientY-rect.top)*(H/rect.height);
-    const z=pandaniaMobileZoom();
-    const viewW=W/z;
-    const viewH=H/z;
+    const sx=
+        (e.clientX-rect.left)*
+        (W/rect.width);
+
+    const sy=
+        (e.clientY-rect.top)*
+        (H/rect.height);
+
     return {
-        x:camera.x+(sx/W)*viewW,
-        y:camera.y+(sy/H)*viewH
+        x:sx+camera.x,
+        y:sy+camera.y
     };
 }
 
@@ -1678,7 +1672,7 @@ canvas.addEventListener("pointerdown",e=>{
             Math.hypot(
                 p.x-d.x,
                 p.y-d.y
-            )<90
+            )<45
         ){
 
             if(collectDrop(d)){groundDrops.splice(i,1);}
@@ -2540,6 +2534,24 @@ function blocked(x,y,r=player.r){
     return false;
 }
 
+function circleCircleCollision(x1,y1,r1,x2,y2,r2,padding=2){
+    const rr=r1+r2+padding;
+    const dx=x1-x2,dy=y1-y2;
+    return dx*dx+dy*dy<rr*rr;
+}
+
+function blockedByActors(x,y,r,ignore=null){
+    if(ignore!==player && circleCircleCollision(x,y,r,player.x,player.y,player.r,3)) return true;
+    for(const other of monsters){
+        if(other===ignore) continue;
+        if(circleCircleCollision(x,y,r,other.x,other.y,other.r,3)) return true;
+    }
+    return false;
+}
+
+function blockedForPlayer(x,y){ return blocked(x,y,player.r) || blockedByActors(x,y,player.r,player); }
+function blockedForMonster(x,y,r,m){ return blocked(x,y,r) || blockedByActors(x,y,r,m); }
+
 /* =========================================================
    PLAYER UPDATE
 ========================================================= */
@@ -2652,10 +2664,10 @@ function updatePlayer(){
         const nx=player.x+dx*moveSpeed;
         const ny=player.y+dy*moveSpeed;
 
-        if(!blocked(nx,player.y))
+        if(!blockedForPlayer(nx,player.y))
             player.x=nx;
 
-        if(!blocked(player.x,ny))
+        if(!blockedForPlayer(player.x,ny))
             player.y=ny;
 
     }else{
@@ -2713,7 +2725,7 @@ function pandaniaMobileZoom(){
     const coarse=window.matchMedia("(pointer:coarse)").matches;
     const narrow=window.matchMedia("(max-width:700px)").matches;
     if(!coarse&&!narrow) return 1;
-    return window.matchMedia("(orientation:landscape)").matches ? 1.12 : 1.22;
+    return window.matchMedia("(orientation:landscape)").matches ? .94 : .88;
 }
 
 function updateCamera(){
@@ -2951,12 +2963,15 @@ function killMonster(monster){
 
     /* Additional weapon chance */
 
-    if(Math.random()<.42){
+    if(Math.random()<.30){
 
-        /* XPR Lens is intentionally more common than the other weapons. */
-        const xpr=weaponDrops.find(w=>w.name==="XPR Lens");
-        const weapon=(xpr && Math.random()<0.38) ? xpr :
-            weaponDrops[Math.floor(Math.random()*weaponDrops.length)];
+        const weapon=
+            weaponDrops[
+                Math.floor(
+                    Math.random()*
+                    weaponDrops.length
+                )
+            ];
 
         createDrop(
             monster.x+20,
@@ -3125,8 +3140,8 @@ function updateMonsters(){
             const nx=m.x+(tx/targetLen)*m.speed*.7;
             const ny=m.y+(ty/targetLen)*m.speed*.7;
 
-            if(!blocked(nx,m.y,m.r)) m.x=nx;
-            if(!blocked(m.x,ny,m.r)) m.y=ny;
+            if(!blockedForMonster(nx,m.y,m.r,m)) m.x=nx;
+            if(!blockedForMonster(m.x,ny,m.r,m)) m.y=ny;
 
             continue;
         }
@@ -3135,7 +3150,9 @@ function updateMonsters(){
 
         if(d<m.chaseDistance){
 
-            if(d>52){
+            const attackDistance=m.r+player.r+6;
+
+            if(d>attackDistance){
 
                 const dx=(player.x-m.x)/d;
                 const dy=(player.y-m.y)/d;
@@ -3149,20 +3166,22 @@ function updateMonsters(){
                     dy*m.speed;
 
                 if(
-                    !blocked(
+                    !blockedForMonster(
                         nx,
                         m.y,
-                        m.r
+                        m.r,
+                        m
                     )
                 ){
                     m.x=nx;
                 }
 
                 if(
-                    !blocked(
+                    !blockedForMonster(
                         m.x,
                         ny,
-                        m.r
+                        m.r,
+                        m
                     )
                 ){
                     m.y=ny;
@@ -4096,16 +4115,14 @@ function updateUI(){
 ========================================================= */
 
 function openBag(){
-    closeWindows();
-    renderBag();
-    document.getElementById("bagWindow").style.display="block";
-}
 
-function toggleBag(){
-    const bag=document.getElementById("bagWindow");
-    if(!bag) return;
-    if(bag.style.display==="block") closeWindows();
-    else openBag();
+    closeWindows();
+
+    renderBag();
+
+    document.getElementById(
+        "bagWindow"
+    ).style.display="block";
 }
 
 function renderBag(){
@@ -4671,11 +4688,12 @@ function drawGround(){
 function drawPonds(){
 
     for(const pond of environment.ponds){
+        const pondWide=pandaniaMobileZoom()<1 ? 1.14 : 1;
         drawEnvironmentImage(
             pond.image,
             pond.x+pond.w/2,
             pond.y+pond.h,
-            pond.w,
+            pond.w*pondWide,
             pond.h
         );
     }
@@ -4935,7 +4953,7 @@ function drawDungeonEntrances(){
 
     for(const entrance of dungeonEntrances){
         const img=images[entrance.image];
-        const w=120;
+        const w=120*(pandaniaMobileZoom()<1 ? 1.16 : 1);
         const h=120;
 
         if(img){
@@ -5640,18 +5658,21 @@ function drawMonster(m){
 
     ctx.fill();
 
-    const size=
+    const baseSize=
         m.type==="roamer1"
         ?110
         :(m.boss ?120 :65);
+    const mobileWide=pandaniaMobileZoom()<1 ? 1.20 : 1;
+    const drawWidth=baseSize*mobileWide;
+    const drawHeight=baseSize;
 
     const drawn=
         drawSprite(
             m.image,
             m.x,
             m.y,
-            size,
-            size,
+            drawWidth,
+            drawHeight,
             false,
             1
         );
@@ -5689,7 +5710,7 @@ function drawMonster(m){
 
     ctx.fillRect(
         m.x-width/2,
-        m.y-size-8,
+        m.y-drawHeight-8,
         width,
         7
     );
@@ -5701,7 +5722,7 @@ function drawMonster(m){
 
     ctx.fillRect(
         m.x-width/2,
-        m.y-size-8,
+        m.y-drawHeight-8,
         width*
         Math.max(
             0,
@@ -5722,7 +5743,7 @@ function drawMonster(m){
     ctx.fillText(
         m.name,
         m.x,
-        m.y-size-12
+        m.y-drawHeight-12
     );
 
     if(m.boss){
@@ -5734,7 +5755,7 @@ function drawMonster(m){
         ctx.fillText(
             "BOSS",
             m.x,
-            m.y-size-27
+            m.y-drawHeight-27
         );
     }
 
@@ -5748,7 +5769,7 @@ function drawMonster(m){
         ctx.arc(
             m.x,
             m.y-30,
-            size*.45,
+            drawWidth*.45,
             0,
             Math.PI*2
         );
@@ -6825,7 +6846,7 @@ requestAnimationFrame(
 
 
 
-/* ===== PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+/* ===== PANDANIA MOBILE + EQUIPMENT PATCH v8 ===== */
 (function(){
   const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'Wooden Sword',armor:null,tool:null});
 
@@ -6836,20 +6857,6 @@ requestAnimationFrame(
     if(v) setPlayerFacing(v[0],v[1]);
   }
   window.addEventListener('keydown',e=>faceKey(e.key.toLowerCase()),true);
-
-  /* Make nearby drops forgiving on touch screens: tapping the game near a drop
-     picks it up even when the zoomed camera makes the exact sprite small. */
-  canvas.addEventListener('pointerdown',e=>{
-    if(!gameStarted || e.pointerType==='mouse') return;
-    const p=getWorldMousePosition(e);
-    for(let i=groundDrops.length-1;i>=0;i--){
-      const d=groundDrops[i];
-      if(Math.hypot(p.x-d.x,p.y-d.y)<125){
-        if(collectDrop(d)) groundDrops.splice(i,1);
-        return;
-      }
-    }
-  },{passive:false});
 
   /* Mobile controls: D-pad, sword, interact, and bag. */
   function mobileUI(){
@@ -6908,7 +6915,7 @@ requestAnimationFrame(
     box.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
     document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();swordAttack();},{passive:false});
     document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();interact();},{passive:false});
-    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleBag();},{passive:false});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();openBag();},{passive:false});
   }
   mobileUI();
 
@@ -6936,32 +6943,6 @@ requestAnimationFrame(
   `;
   document.head.appendChild(mobileLayoutFix);
 
-  const mobilePolish=document.createElement("style");
-  mobilePolish.textContent=`
-    @media (max-width:700px),(pointer:coarse){
-      #spellBar{bottom:132px;z-index:35;}
-      #message{bottom:192px;}
-      #pandaniaMobileControls{bottom:max(8px,env(safe-area-inset-bottom));z-index:80;}
-      #pandaniaMobileControls button{min-width:54px;min-height:54px;}
-      #pmDpad button{width:54px;height:54px;}
-      #pmActions button{width:58px;height:58px;}
-      #buttons{z-index:90;}
-      #bagWindow,#exchangeWindow,#friendsWindow,#mailWindow{width:min(720px,94vw);max-height:82%;padding:14px;}
-      .closeWindow{min-width:44px;min-height:44px;font-size:18px;padding:7px 11px;touch-action:manipulation;}
-      .itemCard{min-height:94px;cursor:pointer;touch-action:manipulation;}
-      .itemImage{width:42px;height:42px;}
-    }
-    @media (orientation:portrait) and (max-width:700px){
-      #spellBar{bottom:132px;}
-      #message{bottom:194px;}
-    }
-    @media (orientation:landscape) and (max-width:900px){
-      #spellBar{bottom:76px;}
-      #message{bottom:128px;}
-    }
-  `;
-  document.head.appendChild(mobilePolish);
-
   /* Equipment panel retained from the previous gameplay patch. */
   function ensureDoll(){
     const items=document.getElementById('bagItems'); if(!items)return;
@@ -6970,35 +6951,36 @@ requestAnimationFrame(
     p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
     items.parentNode.insertBefore(p,items);return p;
   }
-  function itemMeta(n){
-    const base=inventory[n];
-    if(base && (base.image||base.icon)) return {image:base.image,icon:base.icon};
-    const w=Array.isArray(weaponDrops)&&weaponDrops.find(x=>x.name===n);
-    if(w) return {image:w.image,icon:"⚔️"};
-    if(n==="Iron Armor") return {icon:"🛡️"};
-    if(n==="Woodcutting Axe") return {icon:"🪓"};
-    if(n==="Fishing Rod") return {icon:"🎣"};
-    if(n==="PDA Coin") return {image:"pda",icon:"🪙"};
-    if(n==="Fish") return {icon:"🐟"};
-    if(n==="Gold Coin") return {icon:"🪙"};
-    return {icon:"📦"};
-  }
-  function setInv(n,c){
-    if(c<=0){ if(inventory[n]) delete inventory[n]; return; }
-    const meta=itemMeta(n);
-    inventory[n]=Object.assign({},inventory[n]||{},meta,{count:c});
-  }
+  function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
   function refreshDoll(){
     const p=ensureDoll();if(!p)return;
     const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
     vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const el=card.querySelector('.itemName');
+      if(!el)return;
+      const n=el.textContent.trim();
+      if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;
+      const equipItem=()=>{
+        if(!inventory[n])return;
+        if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}
+        else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}
+        else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}
+        setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');
+      };
+      let lastTap=0,lastX=0,lastY=0;
+      card.addEventListener('pointerup',e=>{
+        const now=performance.now(),x=e.clientX,y=e.clientY;
+        if(now-lastTap<420&&Math.hypot(x-lastX,y-lastY)<32){e.preventDefault();e.stopPropagation();equipItem();lastTap=0;return;}
+        lastTap=now;lastX=x;lastY=y;
+      },{passive:false});
+    });
   }
   const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
   setTimeout(()=>{ensureDoll();refreshDoll();},200);
-  window.__pandaniaGameplayV7=true;
+  window.__pandaniaGameplayV8=true;
 })();
-/* ===== END PANDANIA MOBILE + EQUIPMENT PATCH v7 ===== */
+/* ===== END PANDANIA MOBILE + EQUIPMENT PATCH v8 ===== */
 
 /* ===== PANDANIA CONTENT FIX / DUNGEON LEVELS v2 ===== */
 (function(){
@@ -7263,7 +7245,7 @@ requestAnimationFrame(
      new weapons. A forced new weapon drop is also supported.
   --------------------------------------------------------- */
   const newWeaponNames=new Set([
-    "XPR Lens","Spiked Twin Blade","Purple Ice Blade",
+    "Proton Lens","Spiked Twin Blade","Purple Ice Blade",
     "Thunderma","Diamond staff","Golden Beacon Staff","Purplereign"
   ]);
 

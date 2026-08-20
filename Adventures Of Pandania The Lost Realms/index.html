@@ -7327,5 +7327,117 @@ requestAnimationFrame(
 </script>
 
 <script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
+
+/* MOBILE SPELL DOUBLE-TAP ZOOM FIX */
+(function(){
+  const style = document.createElement("style");
+  style.textContent = `
+    .spell, .spell-skill, [data-spell], #spells, .spells {
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.addEventListener("dblclick", function(e){
+    const el = e.target.closest && e.target.closest(
+      ".spell, .spell-skill, [data-spell], #spells, .spells"
+    );
+    if (el) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, {capture:true, passive:false});
+})();
+
+
+/* GREEN BITER + TROLL REAPER DISENGAGE / RE-AGGRO FIX */
+(function(){
+  const SPECIAL_TYPES = new Set(["monster6", "roamer1"]);
+  const originalUpdateMonsters = window.updateMonsters;
+  if (typeof originalUpdateMonsters !== "function" ||
+      window.__pandaniaLeashPatchApplied) return;
+
+  window.__pandaniaLeashPatchApplied = true;
+
+  window.updateMonsters = function(){
+    if (!Array.isArray(window.monsters)) {
+      return originalUpdateMonsters.apply(this, arguments);
+    }
+
+    const paused = new Set();
+
+    for (const m of window.monsters) {
+      if (!SPECIAL_TYPES.has(m.type)) continue;
+
+      const dx = player.x - m.x;
+      const dy = player.y - m.y;
+      const d = Math.hypot(dx, dy);
+
+      const aggro = (m.type === "roamer1") ? 430 : 300;
+      const leash = (m.type === "roamer1") ? 520 : 390;
+
+      m.__pandaniaLeash = m.__pandaniaLeash || {
+        disengaged:false,
+        vx:0,
+        vy:0
+      };
+
+      // Player has re-entered the monster's sight/range.
+      if (d <= aggro) {
+        m.__pandaniaLeash.disengaged = false;
+        continue;
+      }
+
+      // Once the player is well outside the chase area, disengage.
+      if (d > leash) {
+        m.__pandaniaLeash.disengaged = true;
+        const len = d || 1;
+        m.__pandaniaLeash.vx = -dx / len;
+        m.__pandaniaLeash.vy = -dy / len;
+      }
+
+      if (m.__pandaniaLeash.disengaged) {
+        // Walk away from the player instead of continuing to chase.
+        const speed = Math.max(0.35, (m.speed || 1) * 0.65);
+        const nx = m.x + m.__pandaniaLeash.vx * speed;
+        const ny = m.y + m.__pandaniaLeash.vy * speed;
+
+        // Respect the existing collision system when available.
+        if (typeof blocked !== "function" || !blocked(nx, m.y, m.r || 12))
+          m.x = nx;
+        if (typeof blocked !== "function" || !blocked(m.x, ny, m.r || 12))
+          m.y = ny;
+
+        paused.add(m);
+      }
+    }
+
+    if (!paused.size) {
+      return originalUpdateMonsters.apply(this, arguments);
+    }
+
+    // Temporarily remove disengaged special monsters so the existing AI
+    // cannot immediately re-apply its chase logic this frame.
+    const all = window.monsters.slice();
+    window.monsters = all.filter(m => !paused.has(m));
+
+    try {
+      originalUpdateMonsters.apply(this, arguments);
+    } finally {
+      // Keep the monsters in their normal array and preserve their positions.
+      const active = window.monsters;
+      window.monsters = all;
+      for (const m of paused) {
+        if (!active.includes(m)) continue;
+        // Existing update may have touched it; its disengaged movement above
+        // remains the authoritative position for this frame.
+      }
+    }
+  };
+})();
+
 </body>
 </html>

@@ -8132,5 +8132,181 @@ const css=document.createElement('style'); css.textContent=`@media (max-width:70
 })();
 </script>
 
+
+<script>
+/* ===== FINAL MOBILE INPUT + VIEWPORT + EQUIPPED WEAPON FIX ===== */
+(function(){
+  "use strict";
+
+  /* ---------- Weapon artwork: final renderer ---------- */
+  const weaponImageMap = {
+    "Bamboo Sword":"weapon1",
+    "Iron Sword":"weapon2",
+    "Goblin Saber":"weapon3",
+    "Proton Lens":"weapon4",
+    "XPR Lens":"weapon4",
+    "Spiked Twin Blade":"weapon5",
+    "Purple Ice Blade":"weapon6",
+    "Thunderma":"weapon7",
+    "Diamond staff":"weapon8",
+    "Golden Beacon Staff":"weapon9",
+    "Purplereign":"weapon10"
+  };
+
+  function weaponSrcFinal(name){
+    if(!name) return "";
+    let key = weaponImageMap[name] || "";
+    if(!key && Array.isArray(window.weaponDrops)){
+      const d = window.weaponDrops.find(w=>w && w.name===name);
+      if(d) key=d.image||"";
+    }
+    try{
+      if(typeof imageFiles!=="undefined" && imageFiles[key]) return imageFiles[key];
+    }catch(_){}
+    if(window.imageFiles && window.imageFiles[key]) return window.imageFiles[key];
+    if(window.images && window.images[key] && window.images[key].src) return window.images[key].src;
+    return key ? "./images/"+key+".png" : "";
+  }
+
+  function renderWeaponFinal(){
+    const el=document.getElementById("equipWeapon");
+    const state=window.__pandaniaEquipment;
+    if(!el || !state) return;
+    const name=state.weapon||"";
+    const src=weaponSrcFinal(name);
+
+    el.innerHTML =
+      (src ? '<div class="pdFinalWeaponArt"><img id="pdFinalWeaponImg" alt=""></div>' : '') +
+      '<div class="paperDollEquipLabel">⚔️ Weapon</div>' +
+      '<strong>'+ (name||"Empty") +'</strong>' +
+      (name ? '<br><button class="pdUnequip pdFinalUnequip" type="button">Unequip</button>' : '');
+
+    const img=document.getElementById("pdFinalWeaponImg");
+    if(img && src){
+      img.alt=name;
+      img.src=src;
+      img.onerror=function(){
+        if(this.src.indexOf("./images/")!==0){
+          this.src="./images/"+(weaponImageMap[name]||"")+".png";
+        }
+      };
+    }
+    const b=el.querySelector(".pdFinalUnequip");
+    if(b) b.onclick=function(e){
+      e.preventDefault(); e.stopPropagation();
+      const inv=window.inventory||{};
+      if(typeof setInv==="function") setInv(name,(inv[name]?.count||0)+1);
+      state.weapon="";
+      renderWeaponFinal();
+      try{renderBag()}catch(_){}
+    };
+  }
+
+  window.refreshDoll = renderWeaponFinal;
+
+  /* ---------- Mobile movement: joystick ONLY ---------- */
+  function mobileOnlyJoystick(){
+    const coarse = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
+    const narrow = window.matchMedia && window.matchMedia("(max-width:700px)").matches;
+    if(!(coarse || narrow)) return;
+
+    /* Disable canvas/world click-to-move handlers without removing pickup/fishing UI. */
+    const canvas = document.getElementById("gameCanvas");
+    if(canvas){
+      canvas.style.setProperty("touch-action","none","important");
+      canvas.style.setProperty("cursor","default","important");
+    }
+
+    /* Existing joystick gets priority. */
+    const joy=document.getElementById("pmJoystick");
+    if(joy){
+      joy.style.setProperty("touch-action","none","important");
+      joy.style.setProperty("pointer-events","auto","important");
+      joy.style.setProperty("z-index","2000","important");
+    }
+
+    /* Prevent any legacy canvas pointer/touch movement from setting a target.
+       Do NOT stop propagation: dropped-item/fishing controls use the same canvas. */
+    if(canvas && !canvas.__joystickOnlyBound){
+      const blockMove=function(e){
+        if(e.target===canvas){
+          /* Existing code often reads client coordinates and calls moveTo.
+             Neutralize movement state immediately after the event. */
+          setTimeout(function(){
+            try{
+              if(typeof targetX!=="undefined") targetX=null;
+              if(typeof targetY!=="undefined") targetY=null;
+              if(typeof moveTarget!=="undefined") moveTarget=null;
+              if(typeof mouseTarget!=="undefined") mouseTarget=null;
+            }catch(_){}
+          },0);
+        }
+      };
+      canvas.addEventListener("click",blockMove,true);
+      canvas.addEventListener("pointerup",blockMove,true);
+      canvas.addEventListener("touchend",blockMove,true);
+      canvas.__joystickOnlyBound=true;
+    }
+
+    /* Disable legacy keyboard-direction injection on mobile; joystick remains
+       the sole movement source while attack/interact controls still work. */
+    document.addEventListener("keydown",function(e){
+      if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      const keys=["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","a","s","d"];
+      if(keys.indexOf(e.key)>=0) e.preventDefault();
+    },true);
+  }
+
+  /* ---------- Lock the mobile viewport against browser auto-zoom ---------- */
+  function lockMobileViewport(){
+    let meta=document.querySelector('meta[name="viewport"]');
+    if(!meta){
+      meta=document.createElement("meta");
+      meta.name="viewport";
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content",
+      "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover");
+
+    const style=document.createElement("style");
+    style.textContent=`
+      html,body{
+        width:100%!important;
+        max-width:100%!important;
+        overflow-x:hidden!important;
+        overscroll-behavior-x:none!important;
+      }
+      @media (max-width:700px),(pointer:coarse){
+        html,body{
+          touch-action:pan-y!important;
+          -webkit-text-size-adjust:100%!important;
+        }
+        input,textarea,select,button{
+          -webkit-text-size-adjust:100%!important;
+        }
+        #gameWrap{
+          transform:none!important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    /* iOS Safari can pinch/gesture-zoom even with viewport restrictions. */
+    ["gesturestart","gesturechange","gestureend"].forEach(type=>{
+      document.addEventListener(type,e=>e.preventDefault(),{passive:false});
+    });
+  }
+
+  lockMobileViewport();
+  mobileOnlyJoystick();
+
+  /* Run after the existing game creates its UI and after bag redraws. */
+  [100,400,900,1800].forEach(t=>setTimeout(function(){
+    try{renderWeaponFinal()}catch(_){}
+    try{mobileOnlyJoystick()}catch(_){}
+  },t));
+})();
+</script>
+
 </body>
 </html>

@@ -5,8 +5,17 @@ p=Path('Adventures Of Pandania The Lost Realms/index.html')
 s=p.read_text(encoding='utf-8')
 s=re.sub(r'<!-- ===== PANDANIA V14 FINAL FIXES ===== -->.*?<!-- ===== END PANDANIA V14 FINAL FIXES ===== -->','',s,flags=re.S)
 
+# Keep the existing V11/V7 paper-doll renderer as the ONLY renderer, but restore
+# the original working asset lookup directly through imageFiles. Do not create
+# a second weapon renderer or an overlay.
+s=s.replace(
+    "if(typeof window.imageFiles==='object'&&window.imageFiles[ref])return window.imageFiles[ref];",
+    "if(typeof imageFiles!=='undefined'&&imageFiles&&imageFiles[ref])return imageFiles[ref];"
+)
+
 patch=r'''<!-- ===== PANDANIA V14 FINAL FIXES ===== -->
 <style>
+/* Responsive sizing for the SINGLE existing paper-doll renderer. */
 .paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
 .paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
 @media(max-width:700px),(pointer:coarse){
@@ -21,7 +30,7 @@ patch=r'''<!-- ===== PANDANIA V14 FINAL FIXES ===== -->
 <script>
 (function(){
 'use strict';
-/* SINGLE RENDERER ONLY: the V11 paper-doll renderer owns #equipWeapon. */
+/* SINGLE RENDERER ONLY: the existing V11/V7 paper-doll renderer owns #equipWeapon. */
 function refreshSameRenderer(){
   try{ if(typeof window.renderBag==='function') window.renderBag(); }
   catch(e){ console.warn('Pandania equipment refresh skipped:',e); }

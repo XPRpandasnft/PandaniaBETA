@@ -3079,145 +3079,36 @@ function gainXP(amount){
 ========================================================= */
 
 function updateMonsters(){
-
-    /* Monsters are paused while the player is inside a house.
-       They must not attack, chase, or interact with the house interior. */
-    if(inHouse)
-        return;
-
+    if(inHouse) return;
     for(const m of monsters){
-
-        if(m.attackCooldown>0)
-            m.attackCooldown--;
-
-        if(m.hitFlash>0)
-            m.hitFlash--;
-
-        if(m.type==="boss1" && m.bossFireCooldown>0)
-            m.bossFireCooldown--;
-
-        if(m.type==="boss1" && m.bossFireCooldown<=0){
-            for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
-                bossFireShots.push({x:m.x,y:m.y,vx:dir.x*5.2,vy:dir.y*5.2,life:150,damage:28});
-            }
+        if(m.attackCooldown>0)m.attackCooldown--;
+        if(m.hitFlash>0)m.hitFlash--;
+        if(m.type==="boss1"&&m.bossFireCooldown>0)m.bossFireCooldown--;
+        if(m.type==="boss1"&&m.bossFireCooldown<=0){
+            for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}])bossFireShots.push({x:m.x,y:m.y,vx:dir.x*5.2,vy:dir.y*5.2,life:150,damage:28});
             m.bossFireCooldown=600;
-            bossSound();
-            showMessage("🔥 FLAMEOZN casts a four-way Fire Burst!");
+            if(typeof bossSound==='function')bossSound();
+            if(typeof showMessage==='function')showMessage("🔥 FLAMEOZN casts a four-way Fire Burst!");
         }
-
-        const d=Math.hypot(
-            player.x-m.x,
-            player.y-m.y
-        );
-
-        /*
-           Every monster has a chase radius.
-           Boss has a much larger radius.
-        */
-
-        /*
-           Green Biter and Troll Reaper disengage when the player leaves
-           their chase range, then walk away until the player returns.
-        */
-        if(
-            (m.type==="monster6" || m.type==="roamer1") &&
-            d>=m.chaseDistance
-        ){
-            const awayX=m.x+(m.x-player.x);
-            const awayY=m.y+(m.y-player.y);
-            const awayLen=Math.hypot(awayX-m.x,awayY-m.y)||1;
-
-            if(!m.disengageTarget){
-                m.disengageTarget={
-                    x:m.x+((awayX-m.x)/awayLen)*180,
-                    y:m.y+((awayY-m.y)/awayLen)*180
-                };
-            }
-
-            const tx=m.disengageTarget.x-m.x;
-            const ty=m.disengageTarget.y-m.y;
-            const targetLen=Math.hypot(tx,ty)||1;
-            const nx=m.x+(tx/targetLen)*m.speed*.7;
-            const ny=m.y+(ty/targetLen)*m.speed*.7;
-
-            if(!blocked(nx,m.y,m.r)) m.x=nx;
-            if(!blocked(m.x,ny,m.r)) m.y=ny;
-
-            continue;
-        }
-
-        m.disengageTarget=null;
-
+        const dx=player.x-m.x,dy=player.y-m.y,d=Math.hypot(dx,dy)||.001;
+        const attackRange=m.boss?Math.max(68,(m.r||18)+(player.r||14)+10):Math.max(52,(m.r||18)+(player.r||14)+4);
         if(d<m.chaseDistance){
-
-            if(d>52){
-
-                const dx=(player.x-m.x)/d;
-                const dy=(player.y-m.y)/d;
-
-                const nx=
-                    m.x+
-                    dx*m.speed;
-
-                const ny=
-                    m.y+
-                    dy*m.speed;
-
-                if(
-                    !blocked(
-                        nx,
-                        m.y,
-                        m.r
-                    )
-                ){
-                    m.x=nx;
-                }
-
-                if(
-                    !blocked(
-                        m.x,
-                        ny,
-                        m.r
-                    )
-                ){
-                    m.y=ny;
-                }
-
-            }else{
-
-                if(
-                    m.attackCooldown<=0 &&
-                    player.invincible<=0
-                ){
-
-                    player.hp-=m.damage;
-                    addDamageNumber(player.x,player.y-38,m.damage,"#f33");
-
-                    player.invincible=30;
-
-                    m.attackCooldown=
-                        m.boss
-                        ?80
-                        :(m.type==="monster6"
-                          ?50
-                          :(m.type==="monster7" ?40 :70));
-
-                    hitSound();
-
-                    if(m.boss)
-                        bossSound();
-
-                    showMessage(
-                        "💥 "+
-                        m.name+
-                        " hit you for "+
-                        m.damage+
-                        " damage!"
-                    );
-
-                    if(player.hp<=0)
-                        respawnPlayer();
-                }
+            /* Never let a boss physically overlap/push the player. Once inside
+               attack range it stops and performs a real timed melee hit. */
+            if(d>attackRange){
+                const nx=m.x+(dx/d)*m.speed,ny=m.y+(dy/d)*m.speed;
+                if(!blocked(nx,m.y,m.r))m.x=nx;
+                if(!blocked(m.x,ny,m.r))m.y=ny;
+            }else if(m.attackCooldown<=0&&player.invincible<=0){
+                const dmg=Math.max(1,Number(m.damage)||1);
+                player.hp-=dmg;
+                addDamageNumber(player.x,player.y-38,dmg,"#f33");
+                player.invincible=30;
+                m.attackCooldown=m.boss?80:(m.type==="monster6"?50:(m.type==="monster7"?40:70));
+                if(typeof hitSound==='function')hitSound();
+                if(m.boss&&typeof bossSound==='function')bossSound();
+                if(typeof showMessage==='function')showMessage("💥 "+m.name+" hit you for "+dmg+" damage!");
+                if(player.hp<=0&&typeof respawnPlayer==='function')respawnPlayer();
             }
         }
     }
@@ -7669,6 +7560,8 @@ requestAnimationFrame(
 
 
 
+
+
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -8306,6 +8199,8 @@ requestAnimationFrame(
 
 
 
+
+
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
 (function(){
@@ -8631,5 +8526,67 @@ window.__pandaniaPickupFixV13=true;
 })();
 </script>
 <!-- ===== END PANDANIA V13 COMBAT/INPUT PATCH ===== -->
+<!-- ===== PANDANIA V14 POLISH PATCH ===== -->
+<style>
+/* Paper-doll: reserve a real weapon slot so the panda avatar cannot crush it. */
+#paperDoll,#paperDollWindow,.paperDoll,.paper-doll{position:relative}
+#paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,
+#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,
+.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:72px!important;min-height:72px!important;width:72px!important;height:72px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;position:relative!important;z-index:4!important}
+#paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:62px!important;max-height:62px!important;object-fit:contain!important;position:relative!important;z-index:6!important}
+@media(max-width:700px),(pointer:coarse){
+ #paperDoll,#paperDollWindow,.paperDoll,.paper-doll{min-width:300px!important}
+ #paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:82px!important;min-height:82px!important;width:82px!important;height:82px!important}
+ #paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:72px!important;max-height:72px!important}
+ #mapCanvas,#miniMap,#minimap,.miniMap,.mini-map{top:10px!important;right:10px!important;bottom:auto!important;left:auto!important;width:110px!important;height:82px!important;opacity:.42!important;transform:none!important}
+ #hud,#statusBar,#playerStats,.playerStats,.statusBar{opacity:.68!important}
+}
+/* Never show the placeholder weapon emoji after unequip. */
+.weaponSlot.unequipped,.equippedWeapon.unequipped{font-size:0!important}
+.weaponSlot.unequipped::before,.equippedWeapon.unequipped::before{content:''!important}
+</style>
+<script>
+(function(){
+'use strict';
+
+/* Remove common weapon-placeholder emoji text without touching the panda avatar. */
+function cleanUnequippedWeaponSlots(){
+ document.querySelectorAll('.weaponSlot,.equippedWeapon').forEach(el=>{
+  const t=(el.textContent||'').trim();
+  if(!el.querySelector('img') && /^(⚔️|🗡️|🪓|🔪|🛡️|🗡|⚔)$/.test(t)){el.textContent='';el.classList.add('unequipped')}
+ });
+}
+window.__pandaniaCleanWeaponSlots=cleanUnequippedWeaponSlots;
+
+/* Safe fish double-click: any visible ground fish restores at least 5 HP. */
+function fishDoubleClick(e){
+ if(!Array.isArray(groundDrops)||!groundDrops.length)return;
+ const rect=canvas.getBoundingClientRect();
+ const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);
+ const z=(typeof pandaniaMobileZoom==='function'&&((matchMedia('(pointer:coarse)').matches)||matchMedia('(max-width:700px)').matches))?pandaniaMobileZoom():1;
+ const vw=W/z,vh=H/z;
+ const p=z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
+ for(let i=groundDrops.length-1;i>=0;i--){
+  const d=groundDrops[i];if(!d)continue;
+  const name=String(d.name||d.item||d.type||'').toLowerCase();
+  if(!name.includes('fish'))continue;
+  if(Math.hypot(p.x-d.x,p.y-d.y)>125)continue;
+  player.hp=Math.min(player.maxHp,player.hp+5);
+  if(typeof showMessage==='function')showMessage('🐟 Fish restored +5 HP!');
+  if(typeof updateUI==='function')updateUI();
+  groundDrops.splice(i,1);
+  e.preventDefault();e.stopImmediatePropagation();
+  return;
+ }
+}
+canvas.addEventListener('dblclick',fishDoubleClick,true);
+
+/* Refresh after inventory/paper-doll changes, but never use a MutationObserver. */
+setTimeout(cleanUnequippedWeaponSlots,200);
+setInterval(cleanUnequippedWeaponSlots,1000);
+window.__pandaniaV14=true;
+})();
+</script>
+<!-- ===== END PANDANIA V14 POLISH PATCH ===== -->
 </body>
 </html>

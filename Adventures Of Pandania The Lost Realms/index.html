@@ -751,6 +751,22 @@ kbd{
     }
 }
 </style>
+
+<style id="pdWeaponArtFixedStyle">
+.pdWeaponArtFixed{height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
+.pdWeaponArtFixed img{width:64px;height:64px;object-fit:contain;display:block;image-rendering:auto}
+@media(pointer:coarse),(max-width:700px){
+  .pdWeaponArtFixed{height:72px}
+  .pdWeaponArtFixed img{width:72px;height:72px}
+}
+</style>
+
+<style id="finalMobileControlCleanup">
+@media(pointer:coarse),(max-width:700px){
+  #pmDpad{display:none!important}
+  #pmActions{display:none!important}
+}
+</style>
 </head>
 
 <body>
@@ -5788,7 +5804,7 @@ function drawPlayer(){
 
     const drawn=
         drawSprite(
-            (keys.w ? "player1up" : keys.a ? "player1left" : keys.d ? "player1right" : "player1"),
+            ((keys.w || keys.arrowup) ? "player1up" : (keys.a || keys.arrowleft) ? "player1left" : (keys.d || keys.arrowright) ? "player1right" : "player1"),
             player.x,
             player.y+bob,
             76,
@@ -6931,10 +6947,99 @@ requestAnimationFrame(
   function setInv(n,c){if(!inventory[n]&&c>0)inventory[n]={count:0};if(inventory[n])inventory[n].count=Math.max(0,c);if(inventory[n]?.count===0)delete inventory[n];}
   function refreshDoll(){
     const p=ensureDoll();if(!p)return;
-    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
-    vals.forEach(([id,ic,label,item,kind])=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();setInv(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();renderBag();};});
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{const el=card.querySelector('.itemName');if(!el)return;const n=el.textContent.trim();if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;card.ondblclick=e=>{e.preventDefault();e.stopPropagation();if(!inventory[n])return;if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=n}else if(n==='Iron Armor'){if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=n}else{if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=n}setInv(n,(inventory[n]?.count||1)-1);refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');};});
-  }
+
+    function weaponSrc(name){
+        if(!name)return "";
+        let d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===name);
+        if(!d && inventory[name]?.image)d={name:name,image:inventory[name].image};
+        const aliases={"Proton Lens":"XPR Lens","XPR Lens":"Proton Lens"};
+        if(!d && aliases[name]){
+            const a=aliases[name];
+            d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===a);
+            if(!d && inventory[a]?.image)d={name:a,image:inventory[a].image};
+        }
+        if(!d?.image)return "";
+        if(typeof d.image==="string"&&d.image.startsWith("data:"))return d.image;
+        if(typeof imageFiles==="object"&&imageFiles[d.image])return imageFiles[d.image];
+        if(typeof images==="object"&&images[d.image]?.src)return images[d.image].src;
+        return "";
+    }
+
+    const vals=[
+      ['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],
+      ['equipArmor','🛡️','Armor',state.armor,'armor'],
+      ['equipTool','🛠️','Tool',state.tool,'tool']
+    ];
+
+    vals.forEach(([id,ic,label,item,kind])=>{
+        const el=document.getElementById(id);if(!el)return;
+
+        let artwork="";
+        if(kind==="weapon"&&item){
+            const src=weaponSrc(item);
+            if(src){
+                artwork='<div class="pdWeaponArtFixed"><img src="'+src.replace(/"/g,'&quot;')+
+                        '" alt="'+item.replace(/"/g,'&quot;')+'"></div>';
+            }
+        }
+
+        el.innerHTML=
+          artwork+
+          ic+' '+label+'<br><strong>'+(item||'Empty')+
+          '</strong>'+
+          (item?'<br><button class="pdUnequip" type="button">Unequip</button>':'')+
+          '';
+
+        const b=el.querySelector('.pdUnequip');
+        if(b)b.onclick=e=>{
+            e.preventDefault();e.stopPropagation();
+            setInv(item,(inventory[item]?.count||0)+1);
+            if(kind==='weapon')state.weapon='';
+            if(kind==='armor')state.armor=null;
+            if(kind==='tool')state.tool=null;
+            refreshDoll();renderBag();
+        };
+    });
+
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+        const el=card.querySelector('.itemName');if(!el)return;
+        const n=el.textContent.trim();
+        if(!((Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n))||
+             /^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(n)))return;
+
+        if(card.__equipFixed)return;
+        card.__equipFixed=true;
+
+        const equip=()=>{
+            if(!inventory[n])return;
+            if(Array.isArray(weaponDrops)&&weaponDrops.some(w=>w.name===n)){
+                if(state.weapon)setInv(state.weapon,(inventory[state.weapon]?.count||0)+1);
+                state.weapon=n;
+            }else if(n==='Iron Armor'){
+                if(state.armor)setInv(state.armor,(inventory[state.armor]?.count||0)+1);
+                state.armor=n;
+            }else{
+                if(state.tool)setInv(state.tool,(inventory[state.tool]?.count||0)+1);
+                state.tool=n;
+            }
+            setInv(n,(inventory[n]?.count||1)-1);
+            refreshDoll();renderBag();showMessage('✅ '+n+' equipped!');
+        };
+
+        card.addEventListener('dblclick',e=>{
+            e.preventDefault();e.stopPropagation();equip();
+        },{passive:false});
+
+        let last=0,lx=0,ly=0;
+        card.addEventListener('pointerup',e=>{
+            const now=performance.now();
+            if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){
+                e.preventDefault();e.stopPropagation();equip();last=0;return;
+            }
+            last=now;lx=e.clientX;ly=e.clientY;
+        },{passive:false});
+    });
+}
   const oldBag=renderBag;renderBag=function(){oldBag();ensureDoll();refreshDoll();};
   setTimeout(()=>{ensureDoll();refreshDoll();},200);
   window.__pandaniaGameplayV7=true;
@@ -7532,6 +7637,49 @@ requestAnimationFrame(
   base.addEventListener('pointermove',e=>{if(e.pointerId!==pid)return;e.preventDefault();e.stopPropagation();move(e)},{passive:false});
   ['pointerup','pointercancel','lostpointercapture'].forEach(x=>base.addEventListener(x,e=>{e.preventDefault();e.stopPropagation();stop()},{passive:false}));
   const sync=()=>{const started=typeof gameStarted!=='undefined'&&gameStarted;root.style.display=started&&isMob()?'block':'none';};
+  setInterval(sync,100);sync();
+})();
+</script>
+
+<style id="mobileAttackRestore">
+@media(pointer:coarse),(max-width:700px){
+  #pandaniaAttackRestore{
+    display:flex!important;
+    position:absolute!important;
+    right:12px!important;
+    bottom:max(78px,calc(env(safe-area-inset-bottom) + 70px))!important;
+    z-index:10001!important;
+    width:52px!important;height:52px!important;
+    align-items:center!important;justify-content:center!important;
+    border:1px solid rgba(255,216,106,.85)!important;
+    border-radius:16px!important;
+    background:rgba(12,14,20,.84)!important;
+    color:#fff!important;
+    font-size:22px!important;
+    touch-action:none!important;
+  }
+}
+</style>
+<script>
+(function(){
+  const wrap=document.getElementById("gameWrap");
+  if(!wrap||document.getElementById("pandaniaAttackRestore"))return;
+  const b=document.createElement("button");
+  b.id="pandaniaAttackRestore";
+  b.type="button";
+  b.setAttribute("aria-label","Sword attack");
+  b.textContent="⚔️";
+  b.style.display="none";
+  wrap.appendChild(b);
+  b.addEventListener("pointerdown",e=>{
+    e.preventDefault();e.stopPropagation();
+    swordAttack();
+  },{passive:false});
+  function sync(){
+    const mob=matchMedia("(pointer:coarse)").matches||matchMedia("(max-width:700px)").matches;
+    const started=typeof gameStarted!=="undefined"&&gameStarted;
+    b.style.display=(mob&&started)?"flex":"none";
+  }
   setInterval(sync,100);sync();
 })();
 </script>

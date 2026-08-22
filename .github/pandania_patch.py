@@ -3,12 +3,13 @@ import re
 
 path = Path('Adventures Of Pandania The Lost Realms/index.html')
 text = path.read_text(encoding='utf-8')
-# Remove every experimental layer so the final layer is installed exactly once.
-for version in ('v2','v3','v4','v5','v6','v7','v8'):
-    text = re.sub(rf'/\* ===== PANDANIA GAMEPLAY PATCH {version} ===== \*/.*?/\* ===== END PANDANIA GAMEPLAY PATCH {version} ===== \*/', '', text, flags=re.S)
+
+# Remove previous experimental/final gameplay layers so the stable layer is installed once.
+for version in ('v2','v3','v4','v5','v6','v7','v8','v10','v11'):
+    text = re.sub(rf'/\* ===== PANDANIA (?:GAMEPLAY PATCH|FINAL STABLE PATCH) {version} ===== \*/.*?/\* ===== END PANDANIA (?:GAMEPLAY PATCH|FINAL STABLE PATCH) {version} ===== \*/', '', text, flags=re.S)
 text = re.sub(r'/\* ===== PANDANIA PDA FIX v9 ===== \*/.*?/\* ===== END PANDANIA PDA FIX v9 ===== \*/', '', text, flags=re.S)
 
-patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v10 ===== */
+patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
 
@@ -22,23 +23,30 @@ patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v10 ===== */
     if(d==='down'){state.dirX=0;state.dirY=1}
     if(window.player){player.attackDX=state.dirX;player.attackDY=state.dirY}
   }
-  window.addEventListener('keydown',e=>{const d=dirFor(e.key.toLowerCase());if(d){face(d)}},true);
+  window.addEventListener('keydown',e=>{const d=dirFor(e.key.toLowerCase());if(d)face(d)},true);
 
-  /* ---------- MOBILE CONTROLS ---------- */
+  /* ---------- MOBILE CONTROLS: HIDDEN ON START SCREEN ---------- */
   function addMobileControls(){
     if(document.getElementById('pandaniaMobileControls'))return;
     const box=document.createElement('div');box.id='pandaniaMobileControls';
     box.innerHTML='<div id="pmDpad"><button data-k="w">▲</button><div><button data-k="a">◀</button><button data-k="s">▼</button><button data-k="d">▶</button></div></div><div id="pmActions"><button id="pmAttack">⚔️</button><button id="pmInteract">💬</button><button id="pmBag">🎒</button></div>';
-    document.body.appendChild(box);
+    document.getElementById('gameWrap').appendChild(box);
     const style=document.createElement('style');style.textContent=`
-      #pandaniaMobileControls{display:none;position:fixed;z-index:99999;left:0;right:0;bottom:10px;width:100%;padding:0 12px;box-sizing:border-box;pointer-events:none;justify-content:space-between;align-items:flex-end;font-family:Arial,sans-serif}
+      #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 12px;box-sizing:border-box;pointer-events:none;justify-content:space-between;align-items:flex-end;font-family:Arial,sans-serif}
+      #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex}
       #pandaniaMobileControls button{width:52px;height:52px;margin:3px;border:2px solid rgba(255,216,106,.78);border-radius:50%;background:rgba(20,14,10,.82);color:#fff;font-size:21px;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
       #pmDpad{pointer-events:auto;display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
       #pmDpad>div{display:flex;justify-content:center}
       #pmActions{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto}
       #pmActions button{width:54px;height:54px;margin:2px}
-      @media(max-width:700px),(pointer:coarse){#pandaniaMobileControls{display:flex}canvas{touch-action:none}}
+      @media(max-width:700px),(pointer:coarse){canvas{touch-action:none}}
     `;document.head.appendChild(style);
+
+    const gameWrap=document.getElementById('gameWrap');
+    const playButton=document.getElementById('playButton');
+    if(playButton)playButton.addEventListener('click',()=>gameWrap.classList.add('pandaniaStarted'),true);
+    if(window.gameStarted)gameWrap.classList.add('pandaniaStarted');
+
     const setKey=(key,on)=>{if(window.keys)keys[key]=on;face(dirFor(key));if(typeof window.startMusic==='function')window.startMusic()};
     box.querySelectorAll('[data-k]').forEach(btn=>{
       const key=btn.dataset.k;
@@ -46,9 +54,9 @@ patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v10 ===== */
       const stop=e=>{e.preventDefault();setKey(key,false)};
       btn.addEventListener('pointerup',stop,{passive:false});btn.addEventListener('pointercancel',stop,{passive:false});btn.addEventListener('lostpointercapture',()=>setKey(key,false));
     });
-    const attack=document.getElementById('pmAttack');attack.addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.swordAttack==='function')window.swordAttack();},{passive:false});
-    const interact=document.getElementById('pmInteract');interact.addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.interact==='function')window.interact();},{passive:false});
-    const bagBtn=document.getElementById('pmBag');bagBtn.addEventListener('pointerdown',e=>{e.preventDefault();const b=document.getElementById('bagWindow');if(b){b.style.display=b.style.display==='none'?'block':'none';try{renderBag()}catch(err){console.warn('Bag render prevented:',err)}}},{passive:false});
+    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.swordAttack==='function')window.swordAttack()},{passive:false});
+    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.interact==='function')window.interact()},{passive:false});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();const b=document.getElementById('bagWindow');if(b){b.style.display=b.style.display==='none'?'block':'none';try{renderBag()}catch(err){console.warn('Bag render prevented:',err)}}},{passive:false});
   }
   addMobileControls();
 
@@ -76,40 +84,83 @@ patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v10 ===== */
     if(inventory[name])inventory[name].count=Math.max(0,count);
     if(inventory[name]&&inventory[name].count===0)delete inventory[name];
   }
+
+  /* Resolve the same image sources used by the working older build. */
+  function equipmentImageSrc(name){
+    if(!name)return '';
+    let d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===name);
+    if(!d && inventory[name]?.image)d={name:name,image:inventory[name].image};
+    const aliases={'Proton Lens':'XPR Lens','XPR Lens':'Proton Lens'};
+    if(!d&&aliases[name]){
+      const a=aliases[name];
+      d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===a);
+      if(!d&&inventory[a]?.image)d={name:a,image:inventory[a].image};
+    }
+    if(!d?.image)return '';
+    const ref=d.image;
+    if(typeof ref==='string'&&ref.startsWith('data:'))return ref;
+    if(typeof window.imageFiles==='object'&&window.imageFiles[ref])return window.imageFiles[ref];
+    if(typeof window.images==='object'&&window.images[ref]?.src)return window.images[ref].src;
+    if(typeof ref==='string'&&/^https?:|^data:|^blob:|^\//.test(ref))return ref;
+    if(typeof ref==='string')return 'images/'+ref.replace(/^images[\\/]/,'');
+    return '';
+  }
+
   function refreshDoll(){
     ensureDoll();
     const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
     vals.forEach(([id,ic,label,item,kind])=>{
       const el=document.getElementById(id);if(!el)return;
-      el.innerHTML=ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+      let artwork='';
+      if(kind==='weapon'&&item){
+        const src=equipmentImageSrc(item);
+        if(src)artwork='<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>';
+      }
+      el.innerHTML=artwork+ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
       const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();invSet(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();safeRenderBag()};
     });
   }
+
+  function isWeapon(name){
+    return Array.isArray(window.weaponDrops)&&window.weaponDrops.some(w=>w.name===name);
+  }
   function equipItem(name){
     if(typeof inventory!=='object'||!inventory[name]||inventory[name].count<1)return;
-    if(/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3)$/.test(name)){if(state.weapon)invSet(state.weapon,(inventory[state.weapon]?.count||0)+1);state.weapon=name}
-    else if(name==='Iron Armor'){if(state.armor)invSet(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=name}
-    else if(/^(Woodcutting Axe|Fishing Rod)$/.test(name)){if(state.tool)invSet(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=name}
-    else return;
+    if(isWeapon(name)){
+      if(state.weapon)invSet(state.weapon,(inventory[state.weapon]?.count||0)+1);
+      state.weapon=name;
+    }else if(name==='Iron Armor'){
+      if(state.armor)invSet(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=name;
+    }else if(/^(Woodcutting Axe|Fishing Rod)$/.test(name)){
+      if(state.tool)invSet(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=name;
+    }else return;
     invSet(name,(inventory[name]?.count||1)-1);refreshDoll();safeRenderBag();if(typeof showMessage==='function')showMessage('✅ '+name+' equipped!');
   }
   function wireEquipment(){
     document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
       if(card.dataset.pandaniaEquipWired==='1')return;
       const el=card.querySelector('.itemName');if(!el)return;const name=el.textContent.trim();
-      if(!/^(Wooden Sword|Weapon 1|Weapon 2|Weapon 3|Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name))return;
-      card.dataset.pandaniaEquipWired='1';card.addEventListener('dblclick',e=>{e.preventDefault();equipItem(name)});
-      card.addEventListener('touchend',e=>{if(e.detail>=2){e.preventDefault();equipItem(name)}},{passive:false});
+      if(!(isWeapon(name)||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)))return;
+      card.dataset.pandaniaEquipWired='1';
+      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equipItem(name)});
+      let last=0,lx=0,ly=0;
+      card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equipItem(name);last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
     });
   }
-  let rendering=false;
-  function safeRenderBag(){if(rendering||typeof window.renderBag!=='function')return;rendering=true;try{window.renderBag()}catch(e){console.error('Pandania bag render error:',e)}finally{rendering=false}setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},0)}
 
-  /* Do NOT replace/wrap renderBag. The previous patch caused recursive
-     renderBag -> refreshDoll -> renderBag calls and crashed the bag. */
+  let rendering=false;
+  function safeRenderBag(){
+    if(rendering||typeof window.renderBag!=='function')return;
+    rendering=true;
+    try{window.renderBag()}catch(e){console.error('Pandania bag render error:',e)}
+    finally{rendering=false}
+    setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},0);
+  }
+
+  /* Never wrap renderBag recursively. Observe the bag after normal renders. */
   const bagObserver=new MutationObserver(()=>{if(!rendering){ensureDoll();wireEquipment();forcePdaCard()}});
   bagObserver.observe(document.body,{childList:true,subtree:true});
-  setTimeout(()=>{ensureDoll();wireEquipment();forcePdaCard()},300);
+  setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},300);
 
   /* ---------- PDA COIN ---------- */
   const PDA_SRC='images/pda.png',PDA_NAME='PDA Coin';
@@ -123,13 +174,25 @@ patch = r'''/* ===== PANDANIA FINAL STABLE PATCH v10 ===== */
   }
   const pdaPreload=new Image();pdaPreload.onload=forcePdaCard;pdaPreload.src=PDA_SRC;
 
+  /* ---------- PAPER DOLL IMAGE SIZING ---------- */
+  const dollStyle=document.createElement('style');dollStyle.textContent=`
+    .paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
+    .paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
+    @media(max-width:700px),(pointer:coarse){
+      #pandaniaEquipment{max-width:94vw!important;overflow:hidden!important;box-sizing:border-box!important}
+      #pandaniaEquipment #equipWeapon{min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+      .paperDollWeaponArt{height:58px}
+      .paperDollEquipImage{width:58px!important;height:58px!important;max-width:58px!important;max-height:58px!important}
+    }
+  `;document.head.appendChild(dollStyle);
+
   /* ---------- SUBTLE AMBIENCE ---------- */
   let audioStarted=false,audioCtx,master;
   function startMusic(){if(audioStarted)return;audioStarted=true;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.025;master.connect(audioCtx.destination);const notes=[196,220,261.63,293.66,261.63,220,174.61,196];let q=0;function tone(){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=notes[q++%notes.length];g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.3);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+2);o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+2.1)}tone();setInterval(tone,2100)}catch(e){}}
   window.startMusic=startMusic;['keydown','pointerdown','touchstart'].forEach(e=>window.addEventListener(e,startMusic,{once:true,passive:true}));
-  window.__pandaniaGameplayV10=true;
+  window.__pandaniaGameplayV11=true;
 })();
-/* ===== END PANDANIA FINAL STABLE PATCH v10 ===== */'''
+/* ===== END PANDANIA FINAL STABLE PATCH v11 ===== */'''
 
 text=text.replace('</script>','\n'+patch+'\n</script>',1)
 path.write_text(text,encoding='utf-8')

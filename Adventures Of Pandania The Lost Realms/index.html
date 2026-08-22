@@ -751,6 +751,15 @@ kbd{
     }
 }
 </style>
+
+<style id="finalEquipmentImageSizing">
+.paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
+@media (max-width:700px),(pointer:coarse){
+  #pandaniaEquipment{max-width:94vw!important;overflow:hidden!important;box-sizing:border-box!important}
+  #pandaniaEquipment #equipWeapon{min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+  .paperDollEquipImage{width:58px!important;height:58px!important;max-width:58px!important;max-height:58px!important}
+}
+</style>
 </head>
 
 <body>
@@ -1163,7 +1172,9 @@ const IMAGE_FOLDER="./images/";
 
 const imageFiles={
     player1:IMAGE_FOLDER+"player1.png",
+    player1up:IMAGE_FOLDER+"player1up.png",
     player1left:IMAGE_FOLDER+"player1left.png",
+    player1right:IMAGE_FOLDER+"player1right.png",
     player2:IMAGE_FOLDER+"player2.png",
 
     npc1:IMAGE_FOLDER+"npc1.png",
@@ -7470,39 +7481,133 @@ requestAnimationFrame(
 
 <script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
 
-<script id="player1leftExactGithubFallback">
+<script id="finalJoystickRestore">
 (function(){
-  const primary="./images/player1left.png";
-  const exact="Adventures Of Pandania The Lost Realms/images/player1left.png";
+  "use strict";
 
-  function load(src, next){
-    const img=new Image();
-    img.onload=function(){
-      if(typeof images==="object") images.player1left=img;
+  const css=document.createElement("style");
+  css.textContent=`
+    /* Desktop: never show the mobile control bar. */
+    @media (min-width:701px) and (pointer:fine){
+      #pandaniaMobileControls{display:none!important;visibility:hidden!important;pointer-events:none!important}
+    }
+
+    /* Mobile: joystick replaces the old four-button D-pad. */
+    @media (max-width:700px),(pointer:coarse){
+      #pandaniaMobileControls{display:flex!important;visibility:visible!important}
+      #pmDpad{display:none!important;visibility:hidden!important;pointer-events:none!important;width:0!important;height:0!important;overflow:hidden!important}
+      #pmJoystick{display:block!important;width:104px;height:104px;pointer-events:auto;touch-action:none}
+      #pmJoystickBase{position:relative;width:104px;height:104px;border:2px solid rgba(255,216,106,.78);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.12),rgba(10,13,19,.76) 58%,rgba(0,0,0,.88));box-shadow:inset 0 0 0 8px rgba(255,255,255,.035),0 3px 12px rgba(0,0,0,.4)}
+      #pmJoystickKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,230,145,.88);background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.2),rgba(74,58,31,.95));box-shadow:0 3px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);will-change:transform}
+      #pandaniaMobileControls{z-index:120!important}
+    }
+    @media (max-width:430px){
+      #pmJoystick,#pmJoystickBase{width:92px;height:92px}
+      #pmJoystickKnob{width:40px;height:40px}
+    }
+  `;
+  document.head.appendChild(css);
+
+  function install(){
+    const controls=document.getElementById("pandaniaMobileControls");
+    const old=document.getElementById("pmDpad");
+    if(!controls || !old || document.getElementById("pmJoystick")) return;
+
+    const joy=document.createElement("div");
+    joy.id="pmJoystick";
+    joy.innerHTML='<div id="pmJoystickBase"><div id="pmJoystickKnob"></div></div>';
+    old.replaceWith(joy);
+
+    const base=joy.querySelector("#pmJoystickBase");
+    const knob=joy.querySelector("#pmJoystickKnob");
+    let pointerId=null;
+    const clear=()=>{
+      ["w","a","s","d"].forEach(k=>keys[k]=false);
+      knob.style.transform="translate(-50%,-50%)";
     };
-    img.onerror=function(){
-      if(next) next();
+    const move=e=>{
+      const r=base.getBoundingClientRect();
+      const cx=r.left+r.width/2,cy=r.top+r.height/2;
+      let dx=e.clientX-cx,dy=e.clientY-cy;
+      const max=r.width*.34;
+      const len=Math.hypot(dx,dy)||1;
+      if(len>max){dx=dx/len*max;dy=dy/len*max;}
+      knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+      const nx=dx/max,ny=dy/max,dead=.18;
+      keys.w=Math.abs(ny)>dead&&ny<0;
+      keys.s=Math.abs(ny)>dead&&ny>0;
+      keys.a=Math.abs(nx)>dead&&nx<0;
+      keys.d=Math.abs(nx)>dead&&nx>0;
+
+      if(Math.abs(nx)>dead||Math.abs(ny)>dead){
+        const horizontal=Math.abs(nx)>Math.abs(ny);
+        const fx=horizontal?(nx<0?-1:1):0;
+        const fy=horizontal?0:(ny<0?-1:1);
+        if(typeof setPlayerFacing==="function") setPlayerFacing(fx,fy);
+        player.targetX=null; player.targetY=null; player.targetMonster=null;
+      }
     };
-    img.src=src;
+    base.addEventListener("pointerdown",e=>{
+      e.preventDefault();e.stopPropagation();
+      pointerId=e.pointerId;
+      base.setPointerCapture?.(pointerId);
+      move(e);
+    },{passive:false});
+    base.addEventListener("pointermove",e=>{
+      if(e.pointerId!==pointerId)return;
+      e.preventDefault();e.stopPropagation();move(e);
+    },{passive:false});
+    const end=e=>{
+      if(pointerId!==null&&e.pointerId!==pointerId)return;
+      e.preventDefault();e.stopPropagation();
+      pointerId=null;clear();
+    };
+    ["pointerup","pointercancel","lostpointercapture"].forEach(n=>base.addEventListener(n,end,{passive:false}));
+    base.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();},{passive:false});
   }
 
-  load(primary,function(){ load(exact); });
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+  [50,150,400,900].forEach(t=>setTimeout(install,t));
 })();
 </script>
 
-<script id="player1leftDirectionSync">
+<script id="finalEquippedWeaponArtworkRestore">
 (function(){
-  function syncLeft(){
-    if(typeof player==="undefined") return;
-    if(keys["a"] || keys["arrowleft"]){
-      player.facingX=-1;
-      player.facingY=0;
-      player.facing=-1;
-    }
+  "use strict";
+  function install(){
+    if(typeof refreshDoll!=="function" || window.__weaponArtRestoreInstalled) return;
+    window.__weaponArtRestoreInstalled=true;
+
+    const baseRefresh=refreshDoll;
+    window.refreshDoll=function(){
+      baseRefresh();
+      const el=document.getElementById("equipWeapon");
+      if(!el || !window.state || !state.weapon || !Array.isArray(window.weaponDrops)) return;
+
+      const def=weaponDrops.find(w=>w.name===state.weapon);
+      if(!def || !def.image) return;
+
+      const img=window.images && images[def.image];
+      if(!img) return;
+
+      const old=el.querySelector(".paperDollEquipImage");
+      if(old) old.remove();
+
+      const art=document.createElement("img");
+      art.className="paperDollEquipImage";
+      art.src=img.src;
+      art.alt=state.weapon;
+      art.style.cssText="display:block;width:58px;height:58px;max-width:58px;max-height:58px;object-fit:contain;margin:0 auto 3px;image-rendering:auto;";
+      el.insertBefore(art,el.firstChild);
+    };
+
+    window.refreshDoll();
   }
-  window.addEventListener("keydown",function(e){
-    if(e.key==="a" || e.key==="A" || e.key==="ArrowLeft") syncLeft();
-  },true);
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+  [100,300,700,1200].forEach(t=>setTimeout(install,t));
 })();
 </script>
 </body>

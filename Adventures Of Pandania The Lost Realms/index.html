@@ -1425,7 +1425,12 @@ const inventory={
 
     "Fishing Rod":{
         icon:"🎣",
-        count:0
+        count:1
+    },
+
+    "Mana Potion":{
+        icon:"🧪",
+        count:1
     },
 
     "Iron Armor":{
@@ -1451,7 +1456,7 @@ const inventory={
         count:0
     },
 
-    "Proton Lens":{icon:"⚔️",image:"weapon4",count:0},
+    "XPR Lens":{icon:"⚔️",image:"weapon4",count:0},
     "Spiked Twin Blade":{icon:"⚔️",image:"weapon5",count:0},
     "Purple Ice Blade":{icon:"⚔️",image:"weapon6",count:0},
     "Thunderma":{icon:"⚔️",image:"weapon7",count:0},
@@ -1469,7 +1474,7 @@ const weaponDrops=[
     {
         name:"Bamboo Sword",
         image:"weapon1",
-        damage:22
+        damage:10
     },
 
     {
@@ -1481,15 +1486,15 @@ const weaponDrops=[
     {
         name:"Goblin Saber",
         image:"weapon3",
-        damage:42
+        damage:10
     },
-    {name:"Proton Lens",image:"weapon4",damage:48},
-    {name:"Spiked Twin Blade",image:"weapon5",damage:55},
-    {name:"Purple Ice Blade",image:"weapon6",damage:62},
-    {name:"Thunderma",image:"weapon7",damage:70},
-    {name:"Diamond staff",image:"weapon8",damage:78},
-    {name:"Golden Beacon Staff",image:"weapon9",damage:86},
-    {name:"Purplereign",image:"weapon10",damage:95}
+    {name:"XPR Lens",image:"weapon4",damage:180},
+    {name:"Spiked Twin Blade",image:"weapon5",damage:85},
+    {name:"Purple Ice Blade",image:"weapon6",damage:60},
+    {name:"Thunderma",image:"weapon7",damage:250},
+    {name:"Diamond staff",image:"weapon8",damage:120},
+    {name:"Golden Beacon Staff",image:"weapon9",damage:150},
+    {name:"Purplereign",image:"weapon10",damage:230}
 ];
 
 /* =========================================================
@@ -6965,7 +6970,7 @@ requestAnimationFrame(
         if(!name)return "";
         let d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===name);
         if(!d && inventory[name]?.image)d={name:name,image:inventory[name].image};
-        const aliases={"Proton Lens":"XPR Lens","XPR Lens":"Proton Lens"};
+        const aliases={"XPR Lens":"XPR Lens"};
         if(!d && aliases[name]){
             const a=aliases[name];
             d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===a);
@@ -7322,7 +7327,7 @@ requestAnimationFrame(
      new weapons. A forced new weapon drop is also supported.
   --------------------------------------------------------- */
   const newWeaponNames=new Set([
-    "Proton Lens","Spiked Twin Blade","Purple Ice Blade",
+    "XPR Lens","Spiked Twin Blade","Purple Ice Blade",
     "Thunderma","Diamond staff","Golden Beacon Staff","Purplereign"
   ]);
 
@@ -7616,7 +7621,7 @@ requestAnimationFrame(
     if(!name)return '';
     let d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===name);
     if(!d && inventory && inventory[name]?.image)d={name:name,image:inventory[name].image};
-    const aliases={'Proton Lens':'XPR Lens','XPR Lens':'Proton Lens'};
+    const aliases={'XPR Lens':'XPR Lens'};
     if(!d&&aliases[name]){
       const a=aliases[name];
       d=Array.isArray(weaponDrops)&&weaponDrops.find(w=>w.name===a);
@@ -7783,5 +7788,338 @@ requestAnimationFrame(
   setInterval(sync,100);sync();
 })();
 </script>
+
+<!-- ===== PANDANIA GAMEPLAY EXPANSION v12 ===== -->
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     Weapon damage: the equipped weapon is the ONLY weapon used
+     for normal attacks. This replaces the old inventory-count
+     bonuses, so carrying several swords no longer changes damage.
+  --------------------------------------------------------- */
+  const weaponStats={
+    "Wooden Sword":10,
+    "Bamboo Sword":10,
+    "Iron Sword":30,
+    "Goblin Saber":10,
+    "XPR Lens":180,
+    "Spiked Twin Blade":85,
+    "Purple Ice Blade":60,
+    "Thunderma":250,
+    "Diamond staff":120,
+    "Golden Beacon Staff":150,
+    "Purplereign":230
+  };
+  function equippedWeapon(){
+    const state=window.__pandaniaEquipment;
+    const name=state&&state.weapon ? state.weapon : "Wooden Sword";
+    return {name, damage:weaponStats[name]||10};
+  }
+  window.__pandaniaWeaponStats=weaponStats;
+
+  window.swordAttack=function(target=null){
+    if(player.attackCooldown>0) return;
+    player.attackCooldown=22;
+    player.swordSwing=12;
+    swordSound();
+
+    if(!target){
+      let closest=null, distance=Infinity;
+      for(const m of monsters){
+        const vx=m.x-player.x, vy=m.y-player.y, d=Math.hypot(vx,vy);
+        if(d>105 || d<1) continue;
+        const dot=(vx*player.facingX+vy*player.facingY)/d;
+        if(dot>=0.15 && d<distance){ closest=m; distance=d; }
+      }
+      target=closest;
+      if(!target){
+        for(const m of monsters){
+          const d=Math.hypot(m.x-player.x,m.y-player.y);
+          if(d<95 && d<distance){ closest=m; distance=d; }
+        }
+        target=closest;
+      }
+    }
+    const weapon=equippedWeapon();
+    if(!target){ showMessage("⚔️ "+weapon.name+" swing!"); return; }
+    const d=Math.hypot(target.x-player.x,target.y-player.y);
+    if(d>92) return;
+    const damage=Math.max(1,weapon.damage-(target.defense||0));
+    target.hp-=damage;
+    addDamageNumber(target.x,target.y-38,damage,"#fff");
+    target.hitFlash=8;
+    hitSound();
+    showMessage("⚔️ "+weapon.name+" hit "+target.name+" for "+damage+" damage!");
+    if(target.hp<=0) killMonster(target);
+  };
+
+  /* ---------------------------------------------------------
+     True player/monster body collision. The existing environment
+     collision remains intact; this adds entity-to-entity collision.
+  --------------------------------------------------------- */
+  function resolveEntityOverlap(){
+    if(inHouse || !Array.isArray(monsters)) return;
+    for(const m of monsters){
+      const minDist=(player.r||18)+(m.r||18)+1;
+      let dx=player.x-m.x, dy=player.y-m.y;
+      let d=Math.hypot(dx,dy);
+      if(d<minDist){
+        if(d<0.001){ dx=1; dy=0; d=1; }
+        const push=(minDist-d)+0.5;
+        const nx=dx/d, ny=dy/d;
+        const px=player.x+nx*push, py=player.y+ny*push;
+        if(!blocked(px,player.y,player.r)) player.x=px;
+        if(!blocked(player.x,py,player.r)) player.y=py;
+        /* If the player is wedged against an obstacle, push the monster
+           back instead of allowing the two bodies to overlap. */
+        dx=player.x-m.x; dy=player.y-m.y; d=Math.hypot(dx,dy)||1;
+        if(d<minDist){
+          const mx=m.x-dx/d*(minDist-d+0.5);
+          const my=m.y-dy/d*(minDist-d+0.5);
+          if(!blocked(mx,m.y,m.r)) m.x=mx;
+          if(!blocked(m.x,my,m.r)) m.y=my;
+        }
+      }
+    }
+  }
+  const _updatePlayer=updatePlayer;
+  updatePlayer=function(){ _updatePlayer(); resolveEntityOverlap(); };
+  const _updateMonsters=updateMonsters;
+  updateMonsters=function(){ _updateMonsters(); resolveEntityOverlap(); };
+
+  /* ---------------------------------------------------------
+     Weapon damage labels: faint green translucent box with white
+     Dmg value on weapon cards and on the equipped paper doll.
+  --------------------------------------------------------- */
+  const statStyle='display:inline-block;margin-top:5px;padding:3px 7px;border:1px solid rgba(110,255,145,.48);border-radius:5px;background:rgba(45,190,80,.16);color:#fff;font-size:11px;font-weight:bold;';
+  function weaponDamage(name){ return weaponStats[name]||10; }
+  function addWeaponStatBoxes(){
+    document.querySelectorAll('#bagItems .itemCard').forEach(card=>{
+      const nameEl=card.querySelector('.itemName'); if(!nameEl) return;
+      const name=nameEl.textContent.trim();
+      if(!(name in weaponStats)) return;
+      let box=card.querySelector('.weaponDamageStat');
+      if(!box){ box=document.createElement('div'); box.className='weaponDamageStat'; card.appendChild(box); }
+      box.setAttribute('style',statStyle);
+      box.textContent='Dmg - '+weaponDamage(name);
+    });
+    const el=document.getElementById('equipWeapon');
+    if(el){
+      const item=window.__pandaniaEquipment&&window.__pandaniaEquipment.weapon;
+      let box=el.querySelector('.equippedWeaponDamage');
+      if(item){
+        if(!box){ box=document.createElement('div'); box.className='equippedWeaponDamage'; el.appendChild(box); }
+        box.setAttribute('style',statStyle+'margin-bottom:5px;');
+        box.textContent='Dmg - '+weaponDamage(item);
+      }else if(box) box.remove();
+    }
+  }
+  const _renderBag=renderBag;
+  renderBag=function(){ _renderBag(); setTimeout(addWeaponStatBoxes,0); };
+  setInterval(addWeaponStatBoxes,500);
+
+  /* ---------------------------------------------------------
+     Fish: double-click heals +5 HP. Mana Potion: double-click
+     restores +5 mana. Both work on desktop and touch devices.
+  --------------------------------------------------------- */
+  function useConsumable(name){
+    if(!inventory[name] || inventory[name].count<=0) return false;
+    if(name==='Fish'){
+      if(player.hp>=player.maxHp){ showMessage('❤️ HP is already full.'); return true; }
+      inventory[name].count--; player.fish=Math.max(0,(player.fish||0)-1);
+      player.hp=Math.min(player.maxHp,player.hp+5);
+      player.healText=25; player.healAmount=5; player.healEffect=35;
+      showMessage('🐟 Fish eaten: +5 HP');
+    }else if(name==='Mana Potion'){
+      if(player.mana>=player.maxMana){ showMessage('💧 Mana is already full.'); return true; }
+      inventory[name].count--;
+      player.mana=Math.min(player.maxMana,player.mana+5);
+      showMessage('🧪 Mana Potion used: +5 Mana');
+    }else return false;
+    updateUI(); renderBag();
+    return true;
+  }
+  function bindConsumables(){
+    document.querySelectorAll('#bagItems .itemCard').forEach(card=>{
+      const nameEl=card.querySelector('.itemName'); if(!nameEl) return;
+      const name=nameEl.textContent.trim();
+      if(name!=='Fish' && name!=='Mana Potion') return;
+      if(card.__consumableBound) return;
+      card.__consumableBound=true;
+      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();useConsumable(name);},{passive:false});
+      let last=0,lx=0,ly=0;
+      card.addEventListener('pointerup',e=>{
+        const now=performance.now();
+        if(now-last<550 && Math.hypot(e.clientX-lx,e.clientY-ly)<55){
+          e.preventDefault();e.stopPropagation();useConsumable(name);last=0;return;
+        }
+        last=now; lx=e.clientX; ly=e.clientY;
+      },{passive:false});
+    });
+  }
+  const _renderBag2=renderBag;
+  renderBag=function(){ _renderBag2(); setTimeout(bindConsumables,0); };
+
+  /* ---------------------------------------------------------
+     Fishing: click the yellow circle while the Fishing Rod is
+     equipped. A white speech box appears above the player with ...
+     and resolves a moment later to No bites or a caught fish.
+  --------------------------------------------------------- */
+  let fishingBusy=false;
+  function fishingRodEquipped(){
+    return !!(window.__pandaniaEquipment && window.__pandaniaEquipment.tool==='Fishing Rod');
+  }
+  function showFishingBubble(text){
+    const id='pandaniaFishingBubble';
+    let el=document.getElementById(id);
+    if(!el){
+      el=document.createElement('div'); el.id=id;
+      el.style.cssText='position:absolute;z-index:12000;transform:translate(-50%,-100%);padding:7px 12px;background:rgba(255,255,255,.96);color:#111;border:2px solid #333;border-radius:9px;font:bold 14px Arial;pointer-events:none;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.35);';
+      document.getElementById('gameWrap').appendChild(el);
+    }
+    el.textContent=text;
+    el.style.display='block';
+    const sync=()=>{
+      if(!el.isConnected) return;
+      const sx=player.x-camera.x, sy=player.y-camera.y-125;
+      el.style.left=(sx*getCanvasScaleX())+'px';
+      el.style.top=(sy*getCanvasScaleY())+'px';
+    };
+    sync(); return el;
+  }
+  function getCanvasScaleX(){ const c=document.getElementById('game'); return c&&c.clientWidth?c.clientWidth/W:1; }
+  function getCanvasScaleY(){ const c=document.getElementById('game'); return c&&c.clientHeight?c.clientHeight/H:1; }
+  function fishAtSpot(spot){
+    if(fishingBusy) return;
+    if(!gameStarted || inDungeon || inHouse) return;
+    if(!fishingRodEquipped()){
+      showMessage('🎣 Equip the Fishing Rod first.'); return;
+    }
+    if(Math.hypot(player.x-spot.x,player.y-spot.y)>70){
+      player.targetX=spot.x; player.targetY=spot.y; player.targetMonster=null;
+      showMessage('🎣 Move closer to the fishing spot.'); return;
+    }
+    fishingBusy=true;
+    const bubble=showFishingBubble('...');
+    setTimeout(()=>{
+      const caught=Math.random()<0.62;
+      if(caught){
+        if(!inventory.Fish) inventory.Fish={icon:'🐟',count:0};
+        inventory.Fish.count++;
+        player.fish=(player.fish||0)+1;
+        bubble.textContent='🐟 You caught a fish!';
+        if(window.__witchQuest && window.__witchQuest.type==='fish') window.__witchQuest.progress++;
+        showMessage('🎣 You caught a fish!');
+      }else{
+        bubble.textContent='No bites.';
+        showMessage('🎣 No bites this time.');
+      }
+      updateUI(); renderBag();
+      setTimeout(()=>{ if(bubble&&bubble.isConnected) bubble.remove(); fishingBusy=false; },1300);
+    },1200+Math.random()*1000);
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    if(!gameStarted || inDungeon || inHouse) return;
+    const p=getWorldMousePosition(e);
+    const spot=fishingSpots.find(s=>Math.hypot(p.x-s.x,p.y-s.y)<38);
+    if(spot){ e.preventDefault(); e.stopPropagation(); fishAtSpot(spot); }
+  },true);
+
+  /* ---------------------------------------------------------
+     Panda Witch: 10 rotating/random quests with gold + PDA rewards.
+  --------------------------------------------------------- */
+  const witchQuests=[
+    {type:'fish',goal:3,text:'Catch 3 fish for the cauldron.',gold:40,pda:250},
+    {type:'fish',goal:5,text:'Catch 5 fish for my potion brew.',gold:65,pda:400},
+    {type:'kill',goal:3,text:'Defeat 3 monsters troubling the forest.',gold:50,pda:300},
+    {type:'kill',goal:5,text:'Defeat 5 monsters and bring me their essence.',gold:80,pda:450},
+    {type:'kill',goal:8,text:'Defeat 8 monsters before sunset.',gold:120,pda:650},
+    {type:'collectGold',goal:5,text:'Collect 5 Gold Coins from the wilds.',gold:75,pda:350},
+    {type:'collectPDA',goal:3,text:'Collect 3 PDA Coins for my spell circle.',gold:90,pda:500},
+    {type:'fish',goal:8,text:'Catch 8 fish. The cauldron needs a lot this time.',gold:140,pda:800},
+    {type:'kill',goal:10,text:'Defeat 10 monsters to prove your strength.',gold:175,pda:900},
+    {type:'kill',goal:4,text:'Defeat 4 monsters and return to me.',gold:60,pda:375}
+  ];
+  window.__witchQuest=null;
+  function newWitchQuest(){
+    const q=witchQuests[Math.floor(Math.random()*witchQuests.length)];
+    window.__witchQuest={...q,progress:0,completed:false};
+    return window.__witchQuest;
+  }
+  function witchProgress(q){
+    if(q.type==='fish') return q.progress;
+    if(q.type==='kill') return q.progress;
+    if(q.type==='collectGold') return Math.min(q.goal, inventory['Gold Coin']?.count||0);
+    if(q.type==='collectPDA') return Math.min(q.goal, inventory['PDA Coin']?.count||0);
+    return q.progress;
+  }
+  function talkToWitch(){
+    let q=window.__witchQuest;
+    if(!q) q=newWitchQuest();
+    const p=witchProgress(q);
+    if(p>=q.goal && !q.completed){
+      q.completed=true;
+      player.gold+=q.gold;
+      if(!inventory['PDA Coin']) inventory['PDA Coin']={icon:'🪙',image:'pda',count:0};
+      inventory['PDA Coin'].count+=q.pda;
+      openDialogue('Panda Witch','✨ Quest complete! Here is '+q.gold+' Gold and '+q.pda+' PDA.');
+      showMessage('🧙 Panda Witch rewarded you!');
+      updateUI(); renderBag();
+      return;
+    }
+    if(q.completed){
+      q=newWitchQuest();
+      openDialogue('Panda Witch','I have another task for you: '+q.text+' Reward: '+q.gold+' Gold + '+q.pda+' PDA.');
+      setQuest('Witch Quest',q.text+' ('+witchProgress(q)+' / '+q.goal+')');
+      return;
+    }
+    openDialogue('Panda Witch',q.text+' Reward: '+q.gold+' Gold + '+q.pda+' PDA. Progress: '+p+' / '+q.goal+'.');
+    setQuest('Witch Quest',q.text+' ('+p+' / '+q.goal+')');
+  }
+  const _talkToNPC=talkToNPC;
+  talkToNPC=function(n){
+    if(n && n.name==='PandaWitch') return talkToWitch();
+    return _talkToNPC(n);
+  };
+  const _killMonster=killMonster;
+  killMonster=function(monster){
+    _killMonster(monster);
+    if(window.__witchQuest && window.__witchQuest.type==='kill' && !window.__witchQuest.completed){
+      window.__witchQuest.progress++;
+      const q=window.__witchQuest;
+      setQuest('Witch Quest',q.text+' ('+witchProgress(q)+' / '+q.goal+')');
+    }
+  };
+
+  /* Ensure the rod is actually obtainable/usable from the start. */
+  if(inventory['Fishing Rod']) inventory['Fishing Rod'].count=Math.max(1,inventory['Fishing Rod'].count||0);
+  if(inventory['Mana Potion']) inventory['Mana Potion'].count=Math.max(1,inventory['Mana Potion'].count||0);
+
+  /* ---------------------------------------------------------
+     Attack button visibility: never show on the start screen;
+     show it only after the actual game has started.
+  --------------------------------------------------------- */
+  const attackStyle=document.createElement('style');
+  attackStyle.textContent=`
+    #pandaniaAttackRestore,#pmAttack{display:none!important}
+    #gameWrap.pandaniaStarted #pandaniaAttackRestore{display:flex!important}
+    #gameWrap.pandaniaStarted #pmAttack{display:block!important}
+  `;
+  document.head.appendChild(attackStyle);
+  function syncAttackVisibility(){
+    const started=!!gameStarted;
+    const wrap=document.getElementById('gameWrap');
+    if(wrap) wrap.classList.toggle('pandaniaStarted',started);
+    const b=document.getElementById('pandaniaAttackRestore');
+    if(b) b.style.display=started?'flex':'none';
+  }
+  setInterval(syncAttackVisibility,100); syncAttackVisibility();
+
+  window.__pandaniaGameplayExpansionV12=true;
+})();
+</script>
+
 </body>
 </html>

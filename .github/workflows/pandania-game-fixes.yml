@@ -12,28 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore full game source before applying stable patch
+        run: git checkout 03571d54735fa8b744ac1257cf176b3a104b4037 -- "Adventures Of Pandania The Lost Realms/index.html"
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
-      - name: Validate v6 HTML
+      - name: Validate final HTML
         run: |
           python3 - <<'PY'
           from pathlib import Path
           s=Path('Adventures Of Pandania The Lost Realms/index.html').read_text(encoding='utf-8')
           checks = [
-            'PANDANIA GAMEPLAY PATCH v6',
-            "a:'left'", "arrowleft:'left'", "d:'right'", "arrowright:'right'",
-            "w:'up'", "arrowup:'up'", "s:'down'", "arrowdown:'down'",
-            'pandaniaMobileControls', 'pandaniaEquipment', 'card.ondblclick',
-            'images/pda.png', 'AudioContext'
+            'PANDANIA FINAL STABLE PATCH v11',
+            'pandaniaMobileControls',
+            'pandaniaStarted',
+            'paperDollEquipImage',
+            'equipmentImageSrc',
+            'images/pda.png'
           ]
           for check in checks:
               assert check in s, f'Missing validation target: {check}'
-          print('Pandania v6 validation passed')
+          assert len(s) > 150000, 'Game source unexpectedly truncated'
+          print('Pandania final validation passed')
           PY
       - name: Commit final game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Deploy Pandania v6 mobile equipment update [skip ci]"
+          git diff --cached --quiet || git commit -m "Fix Pandania paper doll images and mobile start controls [skip ci]"
           git push

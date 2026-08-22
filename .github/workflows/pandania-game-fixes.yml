@@ -14,8 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Restore full game source before applying stable patches
-        run: git checkout 03571d54735fa8b744ac1257cf176b3a104b4037 -- "Adventures Of Pandania The Lost Realms/index.html"
+      - name: Use current full game source
+        run: |
+          test -s "Adventures Of Pandania The Lost Realms/index.html"
+          echo "Using current repository index.html as the source; no stale commit restore."
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
       - name: Apply mobile zoom, crit, pickup, and joystick-only layer
@@ -50,5 +52,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Add per-weapon crit stats and disable tap movement [skip ci]"
+          git diff --cached --quiet || git commit -m "Fix Pandania V13 rebuild and apply gameplay updates [skip ci]"
           git push

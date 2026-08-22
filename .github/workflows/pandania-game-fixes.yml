@@ -8,6 +8,7 @@ on:
       - '.github/pandania_mobile_crit_zoom_patch.py'
       - '.github/pandania_v13_combat_input_patch.py'
       - '.github/pandania_v14_polish_patch.py'
+      - '.github/pandania_v14_fixes.py'
 permissions:
   contents: write
 jobs:
@@ -18,7 +19,6 @@ jobs:
       - name: Use current full game source
         run: |
           test -s "Adventures Of Pandania The Lost Realms/index.html"
-          echo "Using current repository index.html as the source; no stale commit restore."
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
       - name: Apply mobile zoom, crit, pickup, and joystick-only layer
@@ -27,35 +27,27 @@ jobs:
         run: python3 .github/pandania_v13_combat_input_patch.py
       - name: Apply V14 paper-doll, boss, HUD/map, fish, and safe interaction fixes
         run: python3 .github/pandania_v14_polish_patch.py
+      - name: Apply final V14 mana, paper-doll, and minimap fixes
+        run: python3 .github/pandania_v14_fixes.py
       - name: Validate final HTML
         run: |
           python3 - <<'PY'
           from pathlib import Path
           s=Path('Adventures Of Pandania The Lost Realms/index.html').read_text(encoding='utf-8')
-          checks = [
-            'PANDANIA FINAL STABLE PATCH v11',
-            'PANDANIA MOBILE CRIT/ZOOM PATCH v12',
-            'PANDANIA V13 COMBAT/INPUT PATCH',
-            'PANDANIA V14 POLISH PATCH',
-            '__pandaniaWeaponCritStatsV13',
-            'pandaniaWeaponGreenStats',
-            'critChance',
-            'critDamage',
-            'CRITICAL!',
-            'safePickupAt',
-            'fishDoubleClick',
-            'attackRange=m.boss',
-            'cleanUnequippedWeaponSlots'
+          checks=[
+            'PANDANIA FINAL STABLE PATCH v11','PANDANIA MOBILE CRIT/ZOOM PATCH v12','PANDANIA V13 COMBAT/INPUT PATCH',
+            'PANDANIA V14 POLISH PATCH','PANDANIA V14 FINAL FIXES','__pandaniaWeaponCritStatsV13',
+            'pandaniaWeaponGreenStats','critChance','critDamage','CRITICAL!','safePickupAt','fishDoubleClick',
+            'attackRange=m.boss','cleanUnequippedWeaponSlots','tryManaPotion','pandaniaFixEquippedWeaponV14','pandaniaFixMiniMapV14'
           ]
-          for check in checks:
-              assert check in s, f'Missing validation target: {check}'
-          assert len(s) > 150000, 'Game source unexpectedly truncated'
-          print('Pandania V14 validation passed')
+          for check in checks: assert check in s, f'Missing validation target: {check}'
+          assert len(s)>150000,'Game source unexpectedly truncated'
+          print('Pandania final V14 validation passed')
           PY
       - name: Commit final game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Apply Pandania V14 gameplay polish [skip ci]"
+          git diff --cached --quiet || git commit -m "Apply final Pandania V14 fixes [skip ci]"
           git push

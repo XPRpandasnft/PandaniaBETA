@@ -2726,13 +2726,7 @@ function updatePlayer(){
    CAMERA
 ========================================================= */
 
-function pandaniaMobileZoom(){
-    if(!window.matchMedia) return 1;
-    const coarse=window.matchMedia("(pointer:coarse)").matches;
-    const narrow=window.matchMedia("(max-width:700px)").matches;
-    if(!coarse&&!narrow) return 1;
-    return window.matchMedia("(orientation:landscape)").matches ? .94 : .88;
-}
+function pandaniaMobileZoom(){if(!((window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)||(window.matchMedia&&window.matchMedia('(max-width:700px)').matches)))return 1;return window.matchMedia('(orientation:landscape)').matches ? 1.08 : 1.12;}
 
 function updateCamera(){
 
@@ -7672,6 +7666,191 @@ requestAnimationFrame(
 })();
 /* ===== END PANDANIA FINAL EQUIPMENT/MOBILE FIX v11 ===== */
 
+
+/* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
+(function(){
+  'use strict';
+
+  const state=window.__pandaniaEquipment||(window.__pandaniaEquipment={weapon:'',armor:null,tool:null,dir:'down',dirX:0,dirY:1});
+  const dirFor=k=>({a:'left',arrowleft:'left',d:'right',arrowright:'right',w:'up',arrowup:'up',s:'down',arrowdown:'down'})[k]||null;
+  function face(d){
+    if(!d)return; state.dir=d;
+    if(d==='left'){state.dirX=-1;state.dirY=0}
+    if(d==='right'){state.dirX=1;state.dirY=0}
+    if(d==='up'){state.dirX=0;state.dirY=-1}
+    if(d==='down'){state.dirX=0;state.dirY=1}
+    if(window.player){player.attackDX=state.dirX;player.attackDY=state.dirY}
+  }
+  window.addEventListener('keydown',e=>{const d=dirFor(e.key.toLowerCase());if(d)face(d)},true);
+
+  /* ---------- MOBILE CONTROLS: HIDDEN ON START SCREEN ---------- */
+  function addMobileControls(){
+    if(document.getElementById('pandaniaMobileControls'))return;
+    const box=document.createElement('div');box.id='pandaniaMobileControls';
+    box.innerHTML='<div id="pmDpad"><button data-k="w">▲</button><div><button data-k="a">◀</button><button data-k="s">▼</button><button data-k="d">▶</button></div></div><div id="pmActions"><button id="pmAttack">⚔️</button><button id="pmInteract">💬</button><button id="pmBag">🎒</button></div>';
+    document.getElementById('gameWrap').appendChild(box);
+    const style=document.createElement('style');style.textContent=`
+      #pandaniaMobileControls{display:none;position:absolute;z-index:80;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));padding:0 12px;box-sizing:border-box;pointer-events:none;justify-content:space-between;align-items:flex-end;font-family:Arial,sans-serif}
+      #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex}
+      #pandaniaMobileControls button{width:52px;height:52px;margin:3px;border:2px solid rgba(255,216,106,.78);border-radius:50%;background:rgba(20,14,10,.82);color:#fff;font-size:21px;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+      #pmDpad{pointer-events:auto;display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
+      #pmDpad>div{display:flex;justify-content:center}
+      #pmActions{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto}
+      #pmActions button{width:54px;height:54px;margin:2px}
+      @media(max-width:700px),(pointer:coarse){canvas{touch-action:none}}
+    `;document.head.appendChild(style);
+
+    const gameWrap=document.getElementById('gameWrap');
+    const playButton=document.getElementById('playButton');
+    if(playButton)playButton.addEventListener('click',()=>gameWrap.classList.add('pandaniaStarted'),true);
+    if(window.gameStarted)gameWrap.classList.add('pandaniaStarted');
+
+    const setKey=(key,on)=>{if(window.keys)keys[key]=on;face(dirFor(key));if(typeof window.startMusic==='function')window.startMusic()};
+    box.querySelectorAll('[data-k]').forEach(btn=>{
+      const key=btn.dataset.k;
+      btn.addEventListener('pointerdown',e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);setKey(key,true)},{passive:false});
+      const stop=e=>{e.preventDefault();setKey(key,false)};
+      btn.addEventListener('pointerup',stop,{passive:false});btn.addEventListener('pointercancel',stop,{passive:false});btn.addEventListener('lostpointercapture',()=>setKey(key,false));
+    });
+    document.getElementById('pmAttack').addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.swordAttack==='function')window.swordAttack()},{passive:false});
+    document.getElementById('pmInteract').addEventListener('pointerdown',e=>{e.preventDefault();if(typeof window.interact==='function')window.interact()},{passive:false});
+    document.getElementById('pmBag').addEventListener('pointerdown',e=>{e.preventDefault();const b=document.getElementById('bagWindow');if(b){b.style.display=b.style.display==='none'?'block':'none';try{renderBag()}catch(err){console.warn('Bag render prevented:',err)}}},{passive:false});
+  }
+  addMobileControls();
+
+  /* ---------- MOVEMENT + MONSTER COLLISION ---------- */
+  if(typeof window.updatePlayer==='function'){
+    const baseUpdate=window.updatePlayer;
+    window.updatePlayer=function(){
+      const ox=player.x,oy=player.y;baseUpdate();
+      let dx=0,dy=0;if(keys.a||keys.arrowleft)dx--;if(keys.d||keys.arrowright)dx++;if(keys.w||keys.arrowup)dy--;if(keys.s||keys.arrowdown)dy++;
+      if(dx||dy)face(Math.abs(dx)>=Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down'));
+      if(Array.isArray(window.monsters))for(const m of monsters){if(m.dead)continue;const r=(m.collisionRadius||28)+18;if(Math.hypot(player.x-m.x,player.y-m.y)<r){player.x=ox;player.y=oy;break}}
+    };
+  }
+
+  /* ---------- PAPER DOLL / EQUIPMENT ---------- */
+  function ensureDoll(){
+    const bag=document.getElementById('bagWindow'),items=document.getElementById('bagItems');if(!bag||!items||document.getElementById('pandaniaEquipment'))return;
+    const p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;border:2px solid #8b683e;border-radius:12px;background:#15100c;color:#fff';
+    p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
+    items.parentNode.insertBefore(p,items);
+  }
+  function invSet(name,count){
+    if(typeof inventory!=='object')return;
+    if(!inventory[name]&&count>0)inventory[name]={count:0};
+    if(inventory[name])inventory[name].count=Math.max(0,count);
+    if(inventory[name]&&inventory[name].count===0)delete inventory[name];
+  }
+
+  /* Resolve the same image sources used by the working older build. */
+  function equipmentImageSrc(name){
+    if(!name)return '';
+    let d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===name);
+    if(!d && inventory[name]?.image)d={name:name,image:inventory[name].image};
+    const aliases={'Proton Lens':'XPR Lens','XPR Lens':'Proton Lens'};
+    if(!d&&aliases[name]){
+      const a=aliases[name];
+      d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===a);
+      if(!d&&inventory[a]?.image)d={name:a,image:inventory[a].image};
+    }
+    if(!d?.image)return '';
+    const ref=d.image;
+    if(typeof ref==='string'&&ref.startsWith('data:'))return ref;
+    if(typeof window.imageFiles==='object'&&window.imageFiles[ref])return window.imageFiles[ref];
+    if(typeof window.images==='object'&&window.images[ref]?.src)return window.images[ref].src;
+    if(typeof ref==='string'&&/^https?:|^data:|^blob:|^\//.test(ref))return ref;
+    if(typeof ref==='string')return 'images/'+ref.replace(/^images[\\/]/,'');
+    return '';
+  }
+
+  function refreshDoll(){
+    ensureDoll();
+    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
+    vals.forEach(([id,ic,label,item,kind])=>{
+      const el=document.getElementById(id);if(!el)return;
+      let artwork='';
+      if(kind==='weapon'&&item){
+        const src=equipmentImageSrc(item);
+        if(src)artwork='<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>';
+      }
+      el.innerHTML=artwork+ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+      const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();invSet(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();safeRenderBag()};
+    });
+  }
+
+  function isWeapon(name){
+    return Array.isArray(window.weaponDrops)&&window.weaponDrops.some(w=>w.name===name);
+  }
+  function equipItem(name){
+    if(typeof inventory!=='object'||!inventory[name]||inventory[name].count<1)return;
+    if(isWeapon(name)){
+      if(state.weapon)invSet(state.weapon,(inventory[state.weapon]?.count||0)+1);
+      state.weapon=name;
+    }else if(name==='Iron Armor'){
+      if(state.armor)invSet(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=name;
+    }else if(/^(Woodcutting Axe|Fishing Rod)$/.test(name)){
+      if(state.tool)invSet(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=name;
+    }else return;
+    invSet(name,(inventory[name]?.count||1)-1);refreshDoll();safeRenderBag();if(typeof showMessage==='function')showMessage('✅ '+name+' equipped!');
+  }
+  function wireEquipment(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      if(card.dataset.pandaniaEquipWired==='1')return;
+      const el=card.querySelector('.itemName');if(!el)return;const name=el.textContent.trim();
+      if(!(isWeapon(name)||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)))return;
+      card.dataset.pandaniaEquipWired='1';
+      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equipItem(name)});
+      let last=0,lx=0,ly=0;
+      card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equipItem(name);last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
+    });
+  }
+
+  let rendering=false;
+  function safeRenderBag(){
+    if(rendering||typeof window.renderBag!=='function')return;
+    rendering=true;
+    try{window.renderBag()}catch(e){console.error('Pandania bag render error:',e)}
+    finally{rendering=false}
+    setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},0);
+  }
+
+  /* Never wrap renderBag recursively. Observe the bag after normal renders. */
+  const bagObserver=new MutationObserver(()=>{if(!rendering){ensureDoll();wireEquipment();forcePdaCard()}});
+  bagObserver.observe(document.body,{childList:true,subtree:true});
+  setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},300);
+
+  /* ---------- PDA COIN ---------- */
+  const PDA_SRC='images/pda.png',PDA_NAME='PDA Coin';
+  function forcePdaCard(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const name=card.querySelector('.itemName');if(!name||name.textContent.trim()!==PDA_NAME)return;
+      let img=card.querySelector('img[data-pandania-pda]');
+      if(!img){img=document.createElement('img');img.dataset.pandaniaPda='1';img.alt=PDA_NAME;img.src=PDA_SRC;img.style.cssText='width:42px;height:42px;object-fit:contain;display:block;margin:0 auto';const existing=card.querySelector('.itemIcon');if(existing){existing.innerHTML='';existing.appendChild(img)}else card.insertBefore(img,name)}
+      else if(img.src.indexOf('/images/pda.png')<0)img.src=PDA_SRC;
+    });
+  }
+  const pdaPreload=new Image();pdaPreload.onload=forcePdaCard;pdaPreload.src=PDA_SRC;
+
+  /* ---------- PAPER DOLL IMAGE SIZING ---------- */
+  const dollStyle=document.createElement('style');dollStyle.textContent=`
+    .paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
+    .paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
+    @media(max-width:700px),(pointer:coarse){
+      #pandaniaEquipment{max-width:94vw!important;overflow:hidden!important;box-sizing:border-box!important}
+      #pandaniaEquipment #equipWeapon{min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+      .paperDollWeaponArt{height:58px}
+      .paperDollEquipImage{width:58px!important;height:58px!important;max-width:58px!important;max-height:58px!important}
+    }
+  `;document.head.appendChild(dollStyle);
+
+  /* ---------- SUBTLE AMBIENCE ---------- */
+  let audioStarted=false,audioCtx,master;
+  function startMusic(){if(audioStarted)return;audioStarted=true;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.025;master.connect(audioCtx.destination);const notes=[196,220,261.63,293.66,261.63,220,174.61,196];let q=0;function tone(){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=notes[q++%notes.length];g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.3);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+2);o.connect(g);g.connect(master);o.start();o.stop(audioCtx.currentTime+2.1)}tone();setInterval(tone,2100)}catch(e){}}
+  window.startMusic=startMusic;['keydown','pointerdown','touchstart'].forEach(e=>window.addEventListener(e,startMusic,{once:true,passive:true}));
+  window.__pandaniaGameplayV11=true;
+})();
+/* ===== END PANDANIA FINAL STABLE PATCH v11 ===== */
 </script>
 
 <script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
@@ -8123,5 +8302,173 @@ requestAnimationFrame(
 })();
 </script>
 
+<!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
+<script>
+(function(){
+  'use strict';
+
+  /* MOBILE CAMERA + UI ZOOM: 8% landscape / 12% portrait. */
+  const mobileZoomStyle=document.createElement('style');
+  mobileZoomStyle.textContent=`
+    @media (max-width:700px),(pointer:coarse){
+      #hud,#zoneLabel,#message,#controls,#buttons,#spellBar,#dialogue,
+      #bagWindow,#exchangeWindow,#friendsWindow,#mailWindow,
+      #pandaniaMobileControls{zoom:1.08;}
+      #pandaniaMobileControls{transform-origin:center bottom;}
+    }
+  `;
+  document.head.appendChild(mobileZoomStyle);
+
+  const isMobileDevice=()=>{
+    try{return matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches;}
+    catch(e){return false;}
+  };
+
+  /* Mobile world taps are pickup-only; they can never create movement. */
+  function zoomAwareWorldPoint(e){
+    const rect=canvas.getBoundingClientRect();
+    const sx=(e.clientX-rect.left)*(W/rect.width);
+    const sy=(e.clientY-rect.top)*(H/rect.height);
+    const z=(typeof pandaniaMobileZoom==='function'&&isMobileDevice()) ? pandaniaMobileZoom() : 1;
+    if(z!==1){
+      const viewW=W/z, viewH=H/z;
+      return {x:camera.x+viewW/2+(sx-W/2)/z,y:camera.y+viewH/2+(sy-H/2)/z};
+    }
+    return {x:sx+camera.x,y:sy+camera.y};
+  }
+
+  function pickupGroundItemAt(p){
+    if(!Array.isArray(groundDrops)||!groundDrops.length)return false;
+    let bestIndex=-1,bestDistance=Infinity;
+    for(let i=groundDrops.length-1;i>=0;i--){
+      const d=groundDrops[i],dist=Math.hypot(p.x-d.x,p.y-d.y);
+      if(dist<110&&dist<bestDistance){bestDistance=dist;bestIndex=i;}
+    }
+    if(bestIndex<0)return false;
+    const drop=groundDrops[bestIndex];
+    if(typeof collectDrop!=='function')return false;
+    if(!collectDrop(drop))return true;
+    groundDrops.splice(bestIndex,1);
+    try{updateUI();}catch(e){}
+    try{renderBag();}catch(e){}
+    return true;
+  }
+
+  if(typeof canvas!=='undefined')canvas.addEventListener('pointerdown',function(e){
+    if(!isMobileDevice()||!gameStarted)return;
+    const p=zoomAwareWorldPoint(e);
+    if(pickupGroundItemAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
+    e.preventDefault();e.stopImmediatePropagation();
+  },true);
+
+  const weaponCritStats={
+    'Wooden Sword':{critChance:.20,critBonus:.05},'Bamboo Sword':{critChance:.20,critBonus:.05},
+    'Iron Sword':{critChance:.20,critBonus:.05},'Goblin Saber':{critChance:.20,critBonus:.05},
+    'XPR Lens':{critChance:.20,critBonus:.05},'Spiked Twin Blade':{critChance:.20,critBonus:.05},
+    'Purple Ice Blade':{critChance:.20,critBonus:.05},'Thunderma':{critChance:.20,critBonus:.05},
+    'Diamond staff':{critChance:.20,critBonus:.05},'Golden Beacon Staff':{critChance:.20,critBonus:.05},
+    'Purplereign':{critChance:.20,critBonus:.05}
+  };
+  window.__pandaniaWeaponCritStats=weaponCritStats;
+
+  /* Critical visual: white number, larger size, neon-red glow. */
+  window.addDamageNumber=function(x,y,amount,color,crit){
+    damageNumbers.push({x,y,amount,color:color||'#fff',crit:!!crit,life:55,maxLife:55});
+  };
+
+  const weaponRanges=window.__pandaniaWeaponStats||{
+    'Wooden Sword':{min:8,max:12},'Bamboo Sword':{min:8,max:12},'Iron Sword':{min:25,max:35},
+    'Goblin Saber':{min:8,max:12},'XPR Lens':{min:165,max:180},'Spiked Twin Blade':{min:75,max:90},
+    'Purple Ice Blade':{min:50,max:65},'Thunderma':{min:200,max:250},'Diamond staff':{min:105,max:125},
+    'Golden Beacon Staff':{min:130,max:155},'Purplereign':{min:190,max:230}
+  };
+
+  function equippedWeaponName(){const s=window.__pandaniaEquipment;return s&&s.weapon?s.weapon:'Wooden Sword';}
+
+  window.swordAttack=function(target=null){
+    if(player.attackCooldown>0)return;
+    player.attackCooldown=22;player.swordSwing=12;
+    if(typeof swordSound==='function')swordSound();
+    if(!target){
+      let closest=null,distance=Infinity;
+      for(const m of monsters){
+        const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
+        if(d>95||d<1)continue;
+        const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
+        if(dot>=.15&&d<distance){closest=m;distance=d;}
+      }
+      if(!closest)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<distance){closest=m;distance=d;}}
+      target=closest;
+    }
+    if(!target){if(typeof showMessage==='function')showMessage('⚔️ Sword swing!');return;}
+    if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
+    const name=equippedWeaponName(),range=weaponRanges[name]||weaponRanges['Wooden Sword'];
+    const rolled=Math.floor(Math.random()*(range.max-range.min+1))+range.min;
+    let damage=Math.max(1,rolled-(target.defense||0));
+    const info=weaponCritStats[name]||{critChance:.20,critBonus:.05};
+    const critical=Math.random()<info.critChance;
+    if(critical)damage=Math.max(1,Math.round(damage*(1+info.critBonus)));
+    target.hp-=damage;addDamageNumber(target.x,target.y-38,damage,'#fff',critical);target.hitFlash=8;
+    if(typeof hitSound==='function')hitSound();
+    if(typeof showMessage==='function')showMessage(critical?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');
+    if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
+  };
+
+  /* Make CRIT 20% visible on weapon cards without touching existing cards twice. */
+  function decorateWeaponCards(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
+      const name=nameEl.textContent.trim();if(!weaponCritStats[name]||card.querySelector('.pandaniaCritStat'))return;
+      const range=weaponRanges[name]||{};const stat=document.createElement('div');stat.className='pandaniaCritStat';
+      stat.innerHTML='ATK '+(range.min??'?')+'–'+(range.max??'?')+' · CRIT 20% <span>(+5%)</span>';card.appendChild(stat);
+    });
+  }
+  const critCardStyle=document.createElement('style');critCardStyle.textContent=`.pandaniaCritStat{margin-top:5px;color:#ffdc70;font-size:10px;font-weight:bold;line-height:1.25;text-align:center;text-shadow:0 0 5px rgba(255,216,80,.2)}.pandaniaCritStat span{color:#ff6878}`;document.head.appendChild(critCardStyle);
+  new MutationObserver(decorateWeaponCards).observe(document.body,{childList:true,subtree:true});
+  setTimeout(decorateWeaponCards,250);
+  window.__pandaniaMobileCritZoomV12=true;
+})();
+</script>
+<!-- ===== END PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
+<!-- ===== PANDANIA V13 COMBAT/INPUT PATCH ===== -->
+<style>
+.pandaniaWeaponGreenStats{margin-top:6px;padding:5px 4px;border-radius:5px;background:#0d4120;border:1px solid #25e86e;color:#69ff9a;font-size:10px;font-weight:800;line-height:1.45;text-align:center;box-shadow:0 0 6px rgba(37,232,110,.22)}
+.pandaniaWeaponGreenStats .critChance{color:#7dffad}.pandaniaWeaponGreenStats .critDamage{color:#ffe66b}
+@media(max-width:700px),(pointer:coarse){.pandaniaWeaponGreenStats{font-size:9px;padding:4px 2px}}
+</style>
+<script>
+(function(){'use strict';
+const critStats={
+ 'Wooden Sword':{chance:.05,bonus:.05},'Bamboo Sword':{chance:.08,bonus:.06},'Iron Sword':{chance:.12,bonus:.08},
+ 'Goblin Saber':{chance:.15,bonus:.10},'XPR Lens':{chance:.18,bonus:.12},'Spiked Twin Blade':{chance:.22,bonus:.14},
+ 'Purple Ice Blade':{chance:.27,bonus:.15},'Diamond staff':{chance:.32,bonus:.16},'Golden Beacon Staff':{chance:.40,bonus:.18},
+ 'Thunderma':{chance:.45,bonus:.19},'Purplereign':{chance:.50,bonus:.20}
+};
+window.__pandaniaWeaponCritStatsV13=critStats;
+const isMobile=()=>matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches;
+/* Screen taps are never movement on desktop or mobile. */
+function blockMove(e){if(e.target!==canvas)return;if(!gameStarted&&!gameWrap.classList.contains('pandaniaStarted'))return;e.preventDefault();e.stopImmediatePropagation()}
+['pointerdown','pointerup','mousedown','mouseup','click','dblclick','contextmenu'].forEach(t=>canvas.addEventListener(t,blockMove,true));
+function weaponName(){return(window.__pandaniaEquipment&&window.__pandaniaEquipment.weapon)||'Wooden Sword'}
+function weaponRange(n){const r=window.__pandaniaWeaponStats||{};return r[n]||r['Wooden Sword']||{min:8,max:12}}
+/* One authoritative attack function: individual chance + individual bonus. */
+window.swordAttack=function(target){
+ if(player.attackCooldown>0)return;player.attackCooldown=22;player.swordSwing=12;
+ if(!target){let c=null,d0=Infinity;for(const m of monsters){const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);if(d>95||d<1)continue;const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;if(dot>=.15&&d<d0){c=m;d0=d}}if(!c)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<d0){c=m;d0=d}}target=c}
+ if(!target){showMessage('⚔️ Sword swing!');return}if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
+ const n=weaponName(),r=weaponRange(n),s=critStats[n]||critStats['Wooden Sword'];let damage=Math.floor(Math.random()*(r.max-r.min+1))+r.min;damage=Math.max(1,damage-(target.defense||0));const crit=Math.random()<s.chance;if(crit)damage=Math.max(1,Math.round(damage*(1+s.bonus)));target.hp-=damage;addDamageNumber(target.x,target.y-38,damage,'#fff',crit);target.hitFlash=8;showMessage(crit?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');if(target.hp<=0)killMonster(target)
+};
+/* Damage text: normal white; critical large yellow + neon-red glow. */
+window.drawDamageNumbers=function(){for(const d of damageNumbers){ctx.save();ctx.globalAlpha=Math.max(0,d.life/d.maxLife);ctx.textAlign='center';if(d.crit){ctx.font='900 36px Arial';ctx.fillStyle='#ffe94a';ctx.shadowColor='#ff102b';ctx.shadowBlur=26;ctx.lineWidth=3;ctx.strokeStyle='#ff1835';ctx.strokeText(String(d.amount),d.x,d.y);ctx.fillText(String(d.amount),d.x,d.y)}else{ctx.font='900 20px Arial';ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(String(d.amount),d.x,d.y)}ctx.restore()}};
+/* Inventory green box: ATK range + per-weapon crit chance + crit damage. */
+function refreshWeaponStats(){document.querySelectorAll('#bagItems .itemCard').forEach(card=>{const e=card.querySelector('.itemName');if(!e)return;const n=e.textContent.trim(),s=critStats[n];if(!s)return;card.querySelectorAll('.pandaniaCritStat').forEach(x=>x.remove());let b=card.querySelector('.pandaniaWeaponGreenStats');if(!b){b=document.createElement('div');b.className='pandaniaWeaponGreenStats';card.appendChild(b)}const r=weaponRange(n);b.innerHTML='ATK '+r.min+'–'+r.max+' · CRIT <span class="critChance">'+Math.round(s.chance*100)+'%</span> · CRIT DMG <span class="critDamage">+'+Math.round(s.bonus*100)+'%</span>'})}
+window.__pandaniaRefreshWeaponStats=refreshWeaponStats;
+new MutationObserver(refreshWeaponStats).observe(document.body,{childList:true,subtree:true});setInterval(refreshWeaponStats,500);setTimeout(refreshWeaponStats,50);
+/* Mobile-only monster width: overlay the monster icon 15% wider; hitboxes unchanged. */
+const baseDraw=window.draw;if(typeof baseDraw==='function'&&!window.__pandaniaWideDraw){window.draw=function(){baseDraw();if(isMobile()){const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,vw=W/z,vh=H/z;for(const m of monsters){const sx=(m.x-camera.x-vw/2)*z+W/2,sy=(m.y-camera.y-vh/2)*z+H/2;ctx.save();ctx.translate(sx,sy);ctx.scale(1.15,1);ctx.font='40px Arial';ctx.textAlign='center';ctx.fillText(m.icon||'👹',0,0);ctx.restore()}}};window.__pandaniaWideDraw=true}
+window.__pandaniaV13=true;
+})();
+</script>
+<!-- ===== END PANDANIA V13 COMBAT/INPUT PATCH ===== -->
 </body>
 </html>

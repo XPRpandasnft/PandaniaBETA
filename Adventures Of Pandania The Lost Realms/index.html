@@ -1488,13 +1488,13 @@ const weaponDrops=[
         image:"weapon3",
         damage:10
     },
-    {name:"XPR Lens",image:"weapon4",damage:180},
-    {name:"Spiked Twin Blade",image:"weapon5",damage:85},
-    {name:"Purple Ice Blade",image:"weapon6",damage:60},
-    {name:"Thunderma",image:"weapon7",damage:250},
-    {name:"Diamond staff",image:"weapon8",damage:120},
-    {name:"Golden Beacon Staff",image:"weapon9",damage:150},
-    {name:"Purplereign",image:"weapon10",damage:230}
+    {name:"XPR Lens",image:"weapon4",damage:180,minDamage:165,maxDamage:180},
+    {name:"Spiked Twin Blade",image:"weapon5",damage:85,minDamage:75,maxDamage:90},
+    {name:"Purple Ice Blade",image:"weapon6",damage:60,minDamage:50,maxDamage:65},
+    {name:"Thunderma",image:"weapon7",damage:250,minDamage:200,maxDamage:250},
+    {name:"Diamond staff",image:"weapon8",damage:120,minDamage:105,maxDamage:125},
+    {name:"Golden Beacon Staff",image:"weapon9",damage:150,minDamage:130,maxDamage:155},
+    {name:"Purplereign",image:"weapon10",damage:230,minDamage:190,maxDamage:230}
 ];
 
 /* =========================================================
@@ -2222,8 +2222,8 @@ const monsterTypes={
 
     boss1:{
         name:"Flameozn",
-        hp:500,
-        damage:25,
+        hp:650,
+        damage:30,
         xp:300,
         gold:250,
         speed:.65,
@@ -7118,8 +7118,8 @@ requestAnimationFrame(
     },
     roamer1:{
       name:"Troll Reaper",
-      hp:320,
-      damage:30,
+      hp:1800,
+      damage:55,
       defense:12,
       xp:180,
       gold:65,
@@ -7129,8 +7129,8 @@ requestAnimationFrame(
     },
     boss2:{
       name:"Boss2",
-      hp:850,
-      damage:32,
+      hp:1050,
+      damage:40,
       xp:500,
       gold:400,
       speed:.62,
@@ -7141,8 +7141,8 @@ requestAnimationFrame(
     },
     boss3:{
       name:"Boss3",
-      hp:1200,
-      damage:38,
+      hp:1450,
+      damage:46,
       xp:750,
       gold:600,
       speed:.58,
@@ -7800,22 +7800,23 @@ requestAnimationFrame(
      bonuses, so carrying several swords no longer changes damage.
   --------------------------------------------------------- */
   const weaponStats={
-    "Wooden Sword":10,
-    "Bamboo Sword":10,
-    "Iron Sword":30,
-    "Goblin Saber":10,
-    "XPR Lens":180,
-    "Spiked Twin Blade":85,
-    "Purple Ice Blade":60,
-    "Thunderma":250,
-    "Diamond staff":120,
-    "Golden Beacon Staff":150,
-    "Purplereign":230
+    "Wooden Sword":{min:8,max:12},
+    "Bamboo Sword":{min:8,max:12},
+    "Iron Sword":{min:25,max:35},
+    "Goblin Saber":{min:8,max:12},
+    "XPR Lens":{min:165,max:180},
+    "Spiked Twin Blade":{min:75,max:90},
+    "Purple Ice Blade":{min:50,max:65},
+    "Thunderma":{min:200,max:250},
+    "Diamond staff":{min:105,max:125},
+    "Golden Beacon Staff":{min:130,max:155},
+    "Purplereign":{min:190,max:230}
   };
   function equippedWeapon(){
     const state=window.__pandaniaEquipment;
     const name=state&&state.weapon ? state.weapon : "Wooden Sword";
-    return {name, damage:weaponStats[name]||10};
+    const range=weaponStats[name]||weaponStats["Wooden Sword"];
+    return {name,minDamage:range.min,maxDamage:range.max};
   }
   window.__pandaniaWeaponStats=weaponStats;
 
@@ -7846,7 +7847,8 @@ requestAnimationFrame(
     if(!target){ showMessage("⚔️ "+weapon.name+" swing!"); return; }
     const d=Math.hypot(target.x-player.x,target.y-player.y);
     if(d>92) return;
-    const damage=Math.max(1,weapon.damage-(target.defense||0));
+    const rolledDamage=Math.floor(Math.random()*(weapon.maxDamage-weapon.minDamage+1))+weapon.minDamage;
+    const damage=Math.max(1,rolledDamage-(target.defense||0));
     target.hp-=damage;
     addDamageNumber(target.x,target.y-38,damage,"#fff");
     target.hitFlash=8;
@@ -7891,10 +7893,10 @@ requestAnimationFrame(
 
   /* ---------------------------------------------------------
      Weapon damage labels: faint green translucent box with white
-     Dmg value on weapon cards and on the equipped paper doll.
+     Dmg range on weapon cards and on the equipped paper doll.
   --------------------------------------------------------- */
   const statStyle='display:inline-block;margin-top:5px;padding:3px 7px;border:1px solid rgba(110,255,145,.48);border-radius:5px;background:rgba(45,190,80,.16);color:#fff;font-size:11px;font-weight:bold;';
-  function weaponDamage(name){ return weaponStats[name]||10; }
+  function weaponDamageRange(name){ const w=weaponStats[name]||weaponStats['Wooden Sword']; return w.min+'-'+w.max; }
   function addWeaponStatBoxes(){
     document.querySelectorAll('#bagItems .itemCard').forEach(card=>{
       const nameEl=card.querySelector('.itemName'); if(!nameEl) return;
@@ -7903,7 +7905,7 @@ requestAnimationFrame(
       let box=card.querySelector('.weaponDamageStat');
       if(!box){ box=document.createElement('div'); box.className='weaponDamageStat'; card.appendChild(box); }
       box.setAttribute('style',statStyle);
-      box.textContent='Dmg - '+weaponDamage(name);
+      box.textContent='Dmg - '+weaponDamageRange(name);
     });
     const el=document.getElementById('equipWeapon');
     if(el){
@@ -7912,13 +7914,13 @@ requestAnimationFrame(
       if(item){
         if(!box){ box=document.createElement('div'); box.className='equippedWeaponDamage'; el.appendChild(box); }
         box.setAttribute('style',statStyle+'margin-bottom:5px;');
-        box.textContent='Dmg - '+weaponDamage(item);
+        box.textContent='Dmg - '+weaponDamageRange(item);
       }else if(box) box.remove();
     }
   }
   const _renderBag=renderBag;
-  renderBag=function(){ _renderBag(); setTimeout(addWeaponStatBoxes,0); };
-  setInterval(addWeaponStatBoxes,500);
+  renderBag=function(){ _renderBag(); addWeaponStatBoxes(); };
+
 
   /* ---------------------------------------------------------
      Fish: double-click heals +5 HP. Mana Potion: double-click

@@ -767,6 +767,20 @@ kbd{
   #pmActions{display:none!important}
 }
 </style>
+
+<style id="attackStartGateFinal">
+#pandaniaAttackRestore{display:none!important}
+#gameWrap.pandaniaStarted #pandaniaAttackRestore{display:flex!important}
+</style>
+<script>
+(function(){
+  const gw=document.getElementById("gameWrap");
+  const pb=document.getElementById("playButton");
+  function sync(){if(gw&&typeof gameStarted!=="undefined"&&gameStarted)gw.classList.add("pandaniaStarted");}
+  if(pb)pb.addEventListener("click",sync,true);
+  sync();
+})();
+</script>
 </head>
 
 <body>
@@ -7646,60 +7660,17 @@ requestAnimationFrame(
   const base=root.querySelector('.jb'), knob=root.querySelector('.jk'); let pid=null;
   function stop(){keys.w=keys.a=keys.s=keys.d=false;knob.style.transform='translate(-50%,-50%)';pid=null;}
   function move(e){const r=base.getBoundingClientRect(),max=r.width*.34;let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.hypot(dx,dy)||1;if(len>max){dx=dx/len*max;dy=dy/len*max}knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;const nx=dx/max,ny=dy/max,dead=.18;keys.w=ny<-dead;keys.s=ny>dead;keys.a=nx<-dead;keys.d=nx>dead;
-      if(keys.w){player.spriteDirection="player1up";setPlayerFacing(0,-1);}
-      else if(keys.s){player.spriteDirection="player1";setPlayerFacing(0,1);}
+      if(keys.w){window.__pandaniaSetDirection("player1up");setPlayerFacing(0,-1);}
+      else if(keys.s){window.__pandaniaSetDirection("player1");setPlayerFacing(0,1);}
       else if(keys.a){
         player.spriteDirection="player1left";
         setPlayerFacing(-1,0);
       }
-      else if(keys.d){player.spriteDirection="player1right";setPlayerFacing(1,0);}}
+      else if(keys.d){window.__pandaniaSetDirection("player1right");setPlayerFacing(1,0);}}
   base.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pid=e.pointerId;base.setPointerCapture?.(pid);move(e)},{passive:false});
   base.addEventListener('pointermove',e=>{if(e.pointerId!==pid)return;e.preventDefault();e.stopPropagation();move(e)},{passive:false});
   ['pointerup','pointercancel','lostpointercapture'].forEach(x=>base.addEventListener(x,e=>{e.preventDefault();e.stopPropagation();stop()},{passive:false}));
   const sync=()=>{const started=typeof gameStarted!=='undefined'&&gameStarted;root.style.display=started&&isMob()?'block':'none';};
-  setInterval(sync,100);sync();
-})();
-</script>
-
-<style id="mobileAttackRestore">
-@media(pointer:coarse),(max-width:700px){
-  #pandaniaAttackRestore{
-    display:flex!important;
-    position:absolute!important;
-    right:12px!important;
-    bottom:max(78px,calc(env(safe-area-inset-bottom) + 70px))!important;
-    z-index:10001!important;
-    width:52px!important;height:52px!important;
-    align-items:center!important;justify-content:center!important;
-    border:1px solid rgba(255,216,106,.85)!important;
-    border-radius:16px!important;
-    background:rgba(12,14,20,.84)!important;
-    color:#fff!important;
-    font-size:22px!important;
-    touch-action:none!important;
-  }
-}
-</style>
-<script>
-(function(){
-  const wrap=document.getElementById("gameWrap");
-  if(!wrap||document.getElementById("pandaniaAttackRestore"))return;
-  const b=document.createElement("button");
-  b.id="pandaniaAttackRestore";
-  b.type="button";
-  b.setAttribute("aria-label","Sword attack");
-  b.textContent="⚔️";
-  b.style.display="none";
-  wrap.appendChild(b);
-  b.addEventListener("pointerdown",e=>{
-    e.preventDefault();e.stopPropagation();
-    swordAttack();
-  },{passive:false});
-  function sync(){
-    const mob=matchMedia("(pointer:coarse)").matches||matchMedia("(max-width:700px)").matches;
-    const started=typeof gameStarted!=="undefined"&&gameStarted;
-    b.style.display=(mob&&started)?"flex":"none";
-  }
   setInterval(sync,100);sync();
 })();
 </script>
@@ -7714,21 +7685,34 @@ requestAnimationFrame(
 })();
 </script>
 
+
 <script>
-/* HARD-WIRED LEFT PLAYER SPRITE
-   Uses the game's exact IMAGE_FOLDER rather than relying on the generic cache. */
 (function(){
-  const leftPlayerImage = new Image();
-  window.__pandaniaPlayer1LeftImage = leftPlayerImage;
-  leftPlayerImage.onload = function(){
-    if(typeof images==="object") images.player1left = leftPlayerImage;
-    window.__pandaniaPlayer1LeftReady = true;
+  const originalDrawSprite=window.drawSprite;
+  if(typeof originalDrawSprite!=="function")return;
+
+  const left=new Image();
+  left.onload=function(){window.__pandaniaLeftSprite=left;};
+  left.src=IMAGE_FOLDER+"player1left.png";
+
+  window.drawSprite=function(ctx,key,x,y,w,h){
+    if(key==="player1left" && window.__pandaniaLeftSprite &&
+       window.__pandaniaLeftSprite.complete &&
+       window.__pandaniaLeftSprite.naturalWidth){
+      const img=window.__pandaniaLeftSprite;
+      ctx.drawImage(img,x,y,w,h);
+      return;
+    }
+    return originalDrawSprite.apply(this,arguments);
   };
-  leftPlayerImage.onerror = function(){
-    console.warn("player1left.png could not be loaded from the game image folder.");
-    window.__pandaniaPlayer1LeftReady = false;
+  drawSprite=window.drawSprite;
+
+  window.__pandaniaSetDirection=function(dir){
+    if(typeof player==="undefined")return;
+    player.spriteDirection=dir;
+    player.facingX=dir==="player1left"?-1:dir==="player1right"?1:0;
+    player.facingY=dir==="player1up"?-1:dir==="player1"?1:0;
   };
-  leftPlayerImage.src = IMAGE_FOLDER + "player1left.png";
 })();
 </script>
 </body>

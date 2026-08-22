@@ -7680,27 +7680,101 @@ requestAnimationFrame(
 
 
 
-<script id="symmetricPlayerDirectionSprites">
+
+
+<script id="directionalAssetLoaderFinal">
 (function(){
-  function syncPlayerSprite(dx,dy){
-    if(typeof player==="undefined") return;
-    if(Math.abs(dx) >= Math.abs(dy)){
-      player.spriteDirection = dx < 0 ? "player1left" : "player1right";
-    }else{
-      player.spriteDirection = dy < 0 ? "player1up" : "player1";
-    }
-  }
-
-  window.__pandaniaSyncPlayerSprite = syncPlayerSprite;
-
-  /* Make sure the new asset is registered exactly like the other three. */
-  if(typeof images==="object" && !images.player1left){
-    const img = new Image();
-    img.onload = function(){ images.player1left = img; };
-    img.src = IMAGE_FOLDER + "player1left.png";
-  }
+  const p="Adventures Of Pandania The Lost Realms/images/";
+  const names=["player1","player1up","player1right","player1left"];
+  names.forEach(n=>{
+    const img=new Image();
+    img.onload=()=>{ if(typeof images==="object") images[n]=img; };
+    img.src=p+n+".png";
+  });
 })();
 </script>
 
+<script id="attackRestoreFinal">
+(function(){
+  const btn=document.getElementById("pandaniaAttackRestore");
+  if(!btn)return;
+  const doAttack=e=>{
+    e.preventDefault(); e.stopPropagation();
+    if(typeof swordAttack==="function"){ swordAttack(); return; }
+    if(typeof attackMonster==="function"){ attackMonster(); return; }
+    const real=document.querySelector("#attackButton,[data-action='attack'],button[aria-label*='attack' i]");
+    if(real && real!==btn) real.click();
+  };
+  btn.replaceWith(btn.cloneNode(true));
+  const b=document.getElementById("pandaniaAttackRestore");
+  b.addEventListener("pointerdown",doAttack,{passive:false});
+  b.addEventListener("touchstart",doAttack,{passive:false});
+})();
+</script>
+
+<script id="entityCollisionAndPandenDownFinal">
+(function(){
+  function circle(a,b){
+    const ax=Number(a.x)||0, ay=Number(a.y)||0;
+    const bx=Number(b.x)||0, by=Number(b.y)||0;
+    const ar=Number(a.radius)||Number(a.size)||16;
+    const br=Number(b.radius)||Number(b.size)||16;
+    const dx=ax-bx,dy=ay-by,d=Math.hypot(dx,dy)||.001;
+    const min=ar+br;
+    if(d>=min)return;
+    const nx=dx/d,ny=dy/d,amt=min-d;
+    a.x+=nx*amt*.5; a.y+=ny*amt*.5;
+    b.x-=nx*amt*.5; b.y-=ny*amt*.5;
+  }
+
+  function pandenDownBlocked(m){
+    /* Prefer an existing named Panden Down/Pandan Down bounds object. */
+    const candidates=[
+      window.pandenDownBounds,window.pandanDownBounds,
+      window.pandenDown,window.pandanDown,
+      window.pandenDownBuilding,window.pandanDownBuilding
+    ].filter(Boolean);
+    for(const r of candidates){
+      if(r.x!=null && r.y!=null && r.w!=null && r.h!=null){
+        const rr=Number(m.radius)||Number(m.size)||16;
+        if(m.x>r.x-rr && m.x<r.x+r.w+rr &&
+           m.y>r.y-rr && m.y<r.y+r.h+rr) return r;
+      }
+    }
+    return null;
+  }
+
+  function resolve(){
+    if(typeof player==="undefined" || !Array.isArray(monsters))return;
+
+    for(const m of monsters){
+      if(!m||m.dead)continue;
+      circle(player,m);
+
+      /* Do not allow monster to enter Panden Down. */
+      const r=pandenDownBlocked(m);
+      if(r){
+        const rr=Number(m.radius)||Number(m.size)||16;
+        const cx=Math.max(r.x,Math.min(m.x,r.x+r.w));
+        const cy=Math.max(r.y,Math.min(m.y,r.y+r.h));
+        const dx=m.x-cx,dy=m.y-cy,d=Math.hypot(dx,dy)||.001;
+        if(d<rr){
+          m.x=cx+(dx/d)*rr;
+          m.y=cy+(dy/d)*rr;
+        }
+      }
+    }
+
+    for(let i=0;i<monsters.length;i++){
+      const a=monsters[i]; if(!a||a.dead)continue;
+      for(let j=i+1;j<monsters.length;j++){
+        const b=monsters[j]; if(!b||b.dead)continue;
+        circle(a,b);
+      }
+    }
+  }
+  setInterval(resolve,20);
+})();
+</script>
 </body>
 </html>

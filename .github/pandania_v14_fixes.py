@@ -44,6 +44,9 @@ function weaponImageSrc(name){
   if(!d||!d.image)return '';
   const ref=d.image;
   if(typeof ref==='string'&&ref.startsWith('data:'))return ref;
+  /* IMPORTANT: imageFiles is the original working asset map and is a local
+     lexical variable in the game source, not necessarily window.imageFiles. */
+  if(typeof imageFiles!=='undefined'&&imageFiles&&imageFiles[ref])return imageFiles[ref];
   if(typeof window.imageFiles==='object'&&window.imageFiles&&window.imageFiles[ref])return window.imageFiles[ref];
   if(typeof window.images==='object'&&window.images&&window.images[ref]&&window.images[ref].src)return window.images[ref].src;
   if(typeof ref==='string'){

@@ -5483,7 +5483,10 @@ function drawSprite(
     alpha=1
 ){
 
-    const img=images[imageKey];
+    const img =
+        imageKey==="player1left" && window.__pandaniaPlayer1LeftImage
+          ? window.__pandaniaPlayer1LeftImage
+          : images[imageKey];
 
     if(!img){
 
@@ -5808,7 +5811,7 @@ function drawPlayer(){
 
     const drawn=
         drawSprite(
-            (player.spriteDirection || "player1"),
+            (player.spriteDirection === "player1left" ? "player1left" : (player.spriteDirection || "player1")),
             player.x,
             player.y+bob,
             76,
@@ -7645,7 +7648,10 @@ requestAnimationFrame(
   function move(e){const r=base.getBoundingClientRect(),max=r.width*.34;let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.hypot(dx,dy)||1;if(len>max){dx=dx/len*max;dy=dy/len*max}knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;const nx=dx/max,ny=dy/max,dead=.18;keys.w=ny<-dead;keys.s=ny>dead;keys.a=nx<-dead;keys.d=nx>dead;
       if(keys.w){player.spriteDirection="player1up";setPlayerFacing(0,-1);}
       else if(keys.s){player.spriteDirection="player1";setPlayerFacing(0,1);}
-      else if(keys.a){player.spriteDirection="player1left";setPlayerFacing(-1,0);}
+      else if(keys.a){
+        player.spriteDirection="player1left";
+        setPlayerFacing(-1,0);
+      }
       else if(keys.d){player.spriteDirection="player1right";setPlayerFacing(1,0);}}
   base.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pid=e.pointerId;base.setPointerCapture?.(pid);move(e)},{passive:false});
   base.addEventListener('pointermove',e=>{if(e.pointerId!==pid)return;e.preventDefault();e.stopPropagation();move(e)},{passive:false});
@@ -7705,6 +7711,24 @@ requestAnimationFrame(
   const img=new Image();
   img.onload=function(){ images.player1left=img; };
   img.src=src;
+})();
+</script>
+
+<script>
+/* HARD-WIRED LEFT PLAYER SPRITE
+   Uses the game's exact IMAGE_FOLDER rather than relying on the generic cache. */
+(function(){
+  const leftPlayerImage = new Image();
+  window.__pandaniaPlayer1LeftImage = leftPlayerImage;
+  leftPlayerImage.onload = function(){
+    if(typeof images==="object") images.player1left = leftPlayerImage;
+    window.__pandaniaPlayer1LeftReady = true;
+  };
+  leftPlayerImage.onerror = function(){
+    console.warn("player1left.png could not be loaded from the game image folder.");
+    window.__pandaniaPlayer1LeftReady = false;
+  };
+  leftPlayerImage.src = IMAGE_FOLDER + "player1left.png";
 })();
 </script>
 </body>

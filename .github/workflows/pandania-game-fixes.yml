@@ -17,8 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Use current full game source
-        run: |
-          test -s "Adventures Of Pandania The Lost Realms/index.html"
+        run: test -s "Adventures Of Pandania The Lost Realms/index.html"
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
       - name: Apply mobile zoom, crit, pickup, and joystick-only layer
@@ -38,7 +37,8 @@ jobs:
             'PANDANIA FINAL STABLE PATCH v11','PANDANIA MOBILE CRIT/ZOOM PATCH v12','PANDANIA V13 COMBAT/INPUT PATCH',
             'PANDANIA V14 POLISH PATCH','PANDANIA V14 FINAL FIXES','__pandaniaWeaponCritStatsV13',
             'pandaniaWeaponGreenStats','critChance','critDamage','CRITICAL!','safePickupAt','fishDoubleClick',
-            'attackRange=m.boss','cleanUnequippedWeaponSlots','tryManaPotion','pandaniaFixEquippedWeaponV14','pandaniaFixMiniMapV14'
+            'attackRange=m.boss','cleanUnequippedWeaponSlots','pandaniaFixEquippedWeaponV14','pandaniaFixMiniMapV14',
+            'pandaniaMobileWeaponOverlay'
           ]
           for check in checks: assert check in s, f'Missing validation target: {check}'
           assert len(s)>150000,'Game source unexpectedly truncated'

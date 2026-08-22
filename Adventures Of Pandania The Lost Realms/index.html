@@ -5825,7 +5825,7 @@ function drawPlayer(){
 
     const drawn=
         drawSprite(
-            (player.spriteDirection === "player1left" ? "player1left" : (player.spriteDirection || "player1")),
+            (player.spriteDirection || "player1"),
             player.x,
             player.y+bob,
             76,
@@ -7675,45 +7675,32 @@ requestAnimationFrame(
 })();
 </script>
 
-<script>
-/* Exact player1left asset preload. */
+
+
+
+
+
+<script id="symmetricPlayerDirectionSprites">
 (function(){
-  const src="./images/player1left.png";
-  const img=new Image();
-  img.onload=function(){ images.player1left=img; };
-  img.src=src;
-})();
-</script>
-
-
-<script>
-(function(){
-  const originalDrawSprite=window.drawSprite;
-  if(typeof originalDrawSprite!=="function")return;
-
-  const left=new Image();
-  left.onload=function(){window.__pandaniaLeftSprite=left;};
-  left.src=IMAGE_FOLDER+"player1left.png";
-
-  window.drawSprite=function(ctx,key,x,y,w,h){
-    if(key==="player1left" && window.__pandaniaLeftSprite &&
-       window.__pandaniaLeftSprite.complete &&
-       window.__pandaniaLeftSprite.naturalWidth){
-      const img=window.__pandaniaLeftSprite;
-      ctx.drawImage(img,x,y,w,h);
-      return;
+  function syncPlayerSprite(dx,dy){
+    if(typeof player==="undefined") return;
+    if(Math.abs(dx) >= Math.abs(dy)){
+      player.spriteDirection = dx < 0 ? "player1left" : "player1right";
+    }else{
+      player.spriteDirection = dy < 0 ? "player1up" : "player1";
     }
-    return originalDrawSprite.apply(this,arguments);
-  };
-  drawSprite=window.drawSprite;
+  }
 
-  window.__pandaniaSetDirection=function(dir){
-    if(typeof player==="undefined")return;
-    player.spriteDirection=dir;
-    player.facingX=dir==="player1left"?-1:dir==="player1right"?1:0;
-    player.facingY=dir==="player1up"?-1:dir==="player1"?1:0;
-  };
+  window.__pandaniaSyncPlayerSprite = syncPlayerSprite;
+
+  /* Make sure the new asset is registered exactly like the other three. */
+  if(typeof images==="object" && !images.player1left){
+    const img = new Image();
+    img.onload = function(){ images.player1left = img; };
+    img.src = IMAGE_FOLDER + "player1left.png";
+  }
 })();
 </script>
+
 </body>
 </html>

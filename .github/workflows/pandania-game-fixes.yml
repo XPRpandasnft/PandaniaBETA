@@ -5,6 +5,7 @@ on:
       - 'Adventures Of Pandania The Lost Realms/index.html'
       - '.github/workflows/pandania-game-fixes.yml'
       - '.github/pandania_patch.py'
+      - '.github/pandania_mobile_crit_zoom_patch.py'
 permissions:
   contents: write
 jobs:
@@ -16,6 +17,8 @@ jobs:
         run: git checkout 03571d54735fa8b744ac1257cf176b3a104b4037 -- "Adventures Of Pandania The Lost Realms/index.html"
       - name: Apply final gameplay layer
         run: python3 .github/pandania_patch.py
+      - name: Apply mobile zoom, crit, pickup, and joystick-only layer
+        run: python3 .github/pandania_mobile_crit_zoom_patch.py
       - name: Validate final HTML
         run: |
           python3 - <<'PY'
@@ -27,17 +30,23 @@ jobs:
             'pandaniaStarted',
             'paperDollEquipImage',
             'equipmentImageSrc',
-            'images/pda.png'
+            'images/pda.png',
+            'PANDANIA MOBILE CRIT/ZOOM PATCH v12',
+            'weaponCritStats',
+            'pandaniaCritStat',
+            'pickupGroundItemAt',
+            'zoomAwareWorldPoint',
+            'CRITICAL!'
           ]
           for check in checks:
               assert check in s, f'Missing validation target: {check}'
           assert len(s) > 150000, 'Game source unexpectedly truncated'
-          print('Pandania final validation passed')
+          print('Pandania mobile/crit/zoom validation passed')
           PY
       - name: Commit final game
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "Adventures Of Pandania The Lost Realms/index.html"
-          git diff --cached --quiet || git commit -m "Fix Pandania paper doll images and mobile start controls [skip ci]"
+          git diff --cached --quiet || git commit -m "Add mobile zoom, weapon crits, joystick-only movement, and easier pickups [skip ci]"
           git push

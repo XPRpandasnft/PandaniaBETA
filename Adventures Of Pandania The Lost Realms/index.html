@@ -5802,14 +5802,27 @@ function drawPlayer(){
         ?0.25
         :1;
 
+    /* Directional player sprites are selected from the actual movement/facing
+       vector, not only from keyboard keys. This makes keyboard, mouse-target,
+       and mobile joystick movement all use the same four player images. */
+    let movementSprite="player1";
+    const fx=Number(player.facingX)||0;
+    const fy=Number(player.facingY)||0;
+    if(Math.abs(fy)>=Math.abs(fx)){
+        if(fy<0) movementSprite="player1up";
+        else if(fy>0) movementSprite="player1";
+    }else{
+        movementSprite=fx<0 ? "player1left" : "player1right";
+    }
+
     const drawn=
         drawSprite(
-            ((keys.w || keys.arrowup) ? "player1up" : (keys.a || keys.arrowleft) ? "player1left" : (keys.d || keys.arrowright) ? "player1right" : "player1"),
+            movementSprite,
             player.x,
             player.y+bob,
             76,
             100,
-            player.facing<0,
+            false,
             alpha
         );
 

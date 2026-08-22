@@ -7636,97 +7636,12 @@ requestAnimationFrame(
     };
   }
 
-  /* ---------- PAPER DOLL / EQUIPMENT ---------- */
-  function ensureDoll(){
-    const bag=document.getElementById('bagWindow'),items=document.getElementById('bagItems');if(!bag||!items||document.getElementById('pandaniaEquipment'))return;
-    const p=document.createElement('div');p.id='pandaniaEquipment';p.style.cssText='margin:0 0 16px;padding:14px;border:2px solid #8b683e;border-radius:12px;background:#15100c;color:#fff';
-    p.innerHTML='<div style="text-align:center;color:#ffd86a;font-size:19px;font-weight:bold;margin-bottom:10px">🧍 Pandee — Equipment</div><div style="display:grid;grid-template-columns:1fr 130px 1fr;gap:10px;align-items:center"><div id="equipWeapon" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">⚔️ Weapon<br><span>Empty</span></div><div style="height:145px;border:2px solid #6f5333;border-radius:10px;background:#090909;display:flex;align-items:center;justify-content:center;font-size:70px">🐼</div><div id="equipArmor" style="padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛡️ Armor<br><span>Empty</span></div></div><div id="equipTool" style="margin:8px auto 0;max-width:220px;padding:10px;border:1px solid #705333;border-radius:8px;background:#21170f;text-align:center">🛠️ Tool<br><span>Empty</span></div>';
-    items.parentNode.insertBefore(p,items);
-  }
-  function invSet(name,count){
-    if(typeof inventory!=='object')return;
-    if(!inventory[name]&&count>0)inventory[name]={count:0};
-    if(inventory[name])inventory[name].count=Math.max(0,count);
-    if(inventory[name]&&inventory[name].count===0)delete inventory[name];
-  }
-
-  /* Resolve the same image sources used by the working older build. */
-  function equipmentImageSrc(name){
-    if(!name)return '';
-    let d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===name);
-    if(!d && inventory[name]?.image)d={name:name,image:inventory[name].image};
-    const aliases={'Proton Lens':'XPR Lens','XPR Lens':'Proton Lens'};
-    if(!d&&aliases[name]){
-      const a=aliases[name];
-      d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w.name===a);
-      if(!d&&inventory[a]?.image)d={name:a,image:inventory[a].image};
-    }
-    if(!d?.image)return '';
-    const ref=d.image;
-    if(typeof ref==='string'&&ref.startsWith('data:'))return ref;
-    if(typeof window.imageFiles==='object'&&window.imageFiles[ref])return window.imageFiles[ref];
-    if(typeof window.images==='object'&&window.images[ref]?.src)return window.images[ref].src;
-    if(typeof ref==='string'&&/^https?:|^data:|^blob:|^\//.test(ref))return ref;
-    if(typeof ref==='string')return 'images/'+ref.replace(/^images[\\/]/,'');
-    return '';
-  }
-
-  function refreshDoll(){
-    ensureDoll();
-    const vals=[['equipWeapon','⚔️','Weapon',state.weapon,'weapon'],['equipArmor','🛡️','Armor',state.armor,'armor'],['equipTool','🛠️','Tool',state.tool,'tool']];
-    vals.forEach(([id,ic,label,item,kind])=>{
-      const el=document.getElementById(id);if(!el)return;
-      let artwork='';
-      if(kind==='weapon'&&item){
-        const src=equipmentImageSrc(item);
-        if(src)artwork='<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>';
-      }
-      el.innerHTML=artwork+ic+' '+label+'<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
-      const b=el.querySelector('.pdUnequip');if(b)b.onclick=e=>{e.stopPropagation();invSet(item,(inventory[item]?.count||0)+1);if(kind==='weapon')state.weapon='';if(kind==='armor')state.armor=null;if(kind==='tool')state.tool=null;refreshDoll();safeRenderBag()};
-    });
-  }
-
-  function isWeapon(name){
-    return Array.isArray(window.weaponDrops)&&window.weaponDrops.some(w=>w.name===name);
-  }
-  function equipItem(name){
-    if(typeof inventory!=='object'||!inventory[name]||inventory[name].count<1)return;
-    if(isWeapon(name)){
-      if(state.weapon)invSet(state.weapon,(inventory[state.weapon]?.count||0)+1);
-      state.weapon=name;
-    }else if(name==='Iron Armor'){
-      if(state.armor)invSet(state.armor,(inventory[state.armor]?.count||0)+1);state.armor=name;
-    }else if(/^(Woodcutting Axe|Fishing Rod)$/.test(name)){
-      if(state.tool)invSet(state.tool,(inventory[state.tool]?.count||0)+1);state.tool=name;
-    }else return;
-    invSet(name,(inventory[name]?.count||1)-1);refreshDoll();safeRenderBag();if(typeof showMessage==='function')showMessage('✅ '+name+' equipped!');
-  }
-  function wireEquipment(){
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
-      if(card.dataset.pandaniaEquipWired==='1')return;
-      const el=card.querySelector('.itemName');if(!el)return;const name=el.textContent.trim();
-      if(!(isWeapon(name)||/^(Iron Armor|Woodcutting Axe|Fishing Rod)$/.test(name)))return;
-      card.dataset.pandaniaEquipWired='1';
-      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equipItem(name)});
-      let last=0,lx=0,ly=0;
-      card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equipItem(name);last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
-    });
-  }
-
-  let rendering=false;
-  function safeRenderBag(){
-    if(rendering||typeof window.renderBag!=='function')return;
-    rendering=true;
-    try{window.renderBag()}catch(e){console.error('Pandania bag render error:',e)}
-    finally{rendering=false}
-    setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},0);
-  }
-
-  /* Never wrap renderBag recursively. Observe the bag after normal renders. */
-  const bagObserver=new MutationObserver(()=>{if(!rendering){ensureDoll();wireEquipment();forcePdaCard()}});
-  bagObserver.observe(document.body,{childList:true,subtree:true});
-  setTimeout(()=>{ensureDoll();refreshDoll();wireEquipment();forcePdaCard()},300);
-
+  /* ---------- PAPER DOLL / EQUIPMENT ----------
+     The working paper-doll implementation is provided by the exact
+     PANDANIA FINAL EQUIPMENT/MOBILE FIX v11 block above. Do not create a
+     second equipment renderer here, because duplicate renderers can fight
+     over the equipped weapon slot.
+  */
   /* ---------- PDA COIN ---------- */
   const PDA_SRC='images/pda.png',PDA_NAME='PDA Coin';
   function forcePdaCard(){
@@ -8623,84 +8538,7 @@ window.__pandaniaV14=true;
 })();
 </script>
 <!-- ===== END PANDANIA V14 POLISH PATCH ===== -->
-<!-- ===== PANDANIA V14 FINAL FIXES ===== -->
-<style>
-@media(max-width:700px),(pointer:coarse){
-  #stats{width:185px!important;padding:5px 6px!important;opacity:1!important;background:rgba(10,10,10,.94)!important;transform:scale(.82);transform-origin:top left}
-  #minimap{left:auto!important;right:10px!important;bottom:auto!important;top:72px!important;width:105px!important;height:105px!important;opacity:.48!important}
-  #pandaniaMobileControls{display:none!important}
-  #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
-  .paperDollWeaponArt{height:58px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
-  .paperDollEquipImage{display:block;width:58px!important;height:58px!important;max-width:58px!important;max-height:58px!important;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
-}
-.paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 3px}
-.paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto}
-</style>
-<script>
-(function(){
-'use strict';
-/* Restore the previously working paper-doll equipment rendering. */
-const wrap=document.getElementById('gameWrap');
-const play=document.getElementById('playButton');
-if(play&&wrap)play.addEventListener('click',()=>wrap.classList.add('pandaniaStarted'),true);
-function syncStart(){
-  if(wrap&&typeof gameStarted!=='undefined'&&gameStarted)wrap.classList.add('pandaniaStarted');
-  else if(wrap){const start=document.getElementById('startScreen');if(!start||start.style.display!=='none')wrap.classList.remove('pandaniaStarted')}
-}
-syncStart();setInterval(syncStart,250);
-
-function weaponImageSrc(name){
-  if(!name)return '';
-  let d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w&&w.name===name);
-  if(!d&&window.inventory&&window.inventory[name]&&window.inventory[name].image)d={name:name,image:window.inventory[name].image};
-  const aliases={'Proton Lens':'XPR Lens','XPR Lens':'Proton Lens'};
-  if(!d&&aliases[name]){
-    const a=aliases[name];
-    d=Array.isArray(window.weaponDrops)&&window.weaponDrops.find(w=>w&&w.name===a);
-    if(!d&&window.inventory&&window.inventory[a]&&window.inventory[a].image)d={name:a,image:window.inventory[a].image};
-  }
-  if(!d||!d.image)return '';
-  const ref=d.image;
-  if(typeof ref==='string'&&ref.startsWith('data:'))return ref;
-  if(typeof window.imageFiles==='object'&&window.imageFiles&&window.imageFiles[ref])return window.imageFiles[ref];
-  if(typeof window.images==='object'&&window.images&&window.images[ref]&&window.images[ref].src)return window.images[ref].src;
-  if(typeof ref==='string'){
-    if(/^https?:|^data:|^blob:|^\//.test(ref))return ref;
-    const folder=(typeof window.IMAGE_FOLDER==='string'?window.IMAGE_FOLDER:'./images/');
-    return folder+ref+'.png';
-  }
-  return '';
-}
-function refreshPaperDoll(){
-  const el=document.getElementById('equipWeapon');
-  const state=window.__pandaniaEquipment;
-  if(!el||!state)return;
-  const item=state.weapon||'';
-  const src=weaponImageSrc(item);
-  let art='';
-  if(item&&src){
-    art='<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+String(item).replace(/"/g,'&quot;')+'"></div>';
-  }
-  el.innerHTML=art+'⚔️ Weapon<br><strong>'+String(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
-  const b=el.querySelector('.pdUnequip');
-  if(b)b.onclick=function(e){
-    e.preventDefault();e.stopPropagation();
-    if(typeof window.setInv==='function')window.setInv(item,(window.inventory&&window.inventory[item]&&window.inventory[item].count||0)+1);
-    state.weapon='';
-    refreshPaperDoll();
-    if(typeof window.renderBag==='function')window.renderBag();
-  };
-}
-const oldOpenBag=window.openBag;
-if(typeof oldOpenBag==='function'&&!window.__pandaniaV11OpenBagWrapped){
-  window.openBag=function(){const r=oldOpenBag.apply(this,arguments);setTimeout(refreshPaperDoll,0);return r};
-  window.__pandaniaV11OpenBagWrapped=true;
-}
-setInterval(refreshPaperDoll,400);
-window.__pandaniaFinalFixV11=true;
-window.__pandaniaFixEquippedWeaponV14=refreshPaperDoll;
-})();
-</script>
-<!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
+<!-- ===== PANDANIA V14 FINAL FIXES / PAPER-DOLL OVERRIDE REMOVED ===== -->
+<!-- The working v11 paper-doll implementation above is the single source of truth. -->
 </body>
 </html>

@@ -39,7 +39,7 @@ jobs:
             'PANDANIA V14 POLISH PATCH','PANDANIA V14 FINAL FIXES','__pandaniaWeaponCritStatsV13',
             'pandaniaWeaponGreenStats','critChance','critDamage','CRITICAL!','safePickupAt','fishDoubleClick',
             'attackRange=m.boss','cleanUnequippedWeaponSlots','pandaniaFixEquippedWeaponV14',
-            'pandaniaMobileWeaponOverlay'
+            'paperDollWeaponArt','paperDollEquipImage','__pandaniaFinalFixV11'
           ]
           for check in checks: assert check in s, f'Missing validation target: {check}'
           assert len(s)>150000,'Game source unexpectedly truncated'

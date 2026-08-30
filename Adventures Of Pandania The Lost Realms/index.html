@@ -3170,7 +3170,7 @@ function updateMonsters(){
                 if(!blocked(nx,m.y,m.r))m.x=nx;
                 if(!blocked(m.x,ny,m.r))m.y=ny;
             }else if(m.attackCooldown<=0&&player.invincible<=0){
-                const dmg=Math.max(1,Number(m.damage)||1);
+                const dmg=Math.max(1,(Number(m.damage)||1)-(window.getEquippedArmorStats?window.getEquippedArmorStats().defense:0));
                 player.hp-=dmg;
                 addDamageNumber(player.x,player.y-38,dmg,"#f33");
                 player.invincible=30;
@@ -7651,8 +7651,6 @@ requestAnimationFrame(
 
 
 
-
-
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -8332,10 +8330,463 @@ requestAnimationFrame(
 
 
 
+<!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
+<script>
+(function(){
+  'use strict';
 
+  /* MOBILE CAMERA + UI ZOOM: 8% landscape / 12% portrait. */
+  const mobileZoomStyle=document.createElement('style');
+  mobileZoomStyle.textContent=`
+    @media (max-width:700px),(pointer:coarse){
+      #hud,#zoneLabel,#message,#controls,#buttons,#spellBar,#dialogue,
+      #bagWindow,#exchangeWindow,#friendsWindow,#mailWindow,
+      #pandaniaMobileControls{zoom:1.08;}
+      #pandaniaMobileControls{transform-origin:center bottom;}
+    }
+  `;
+  document.head.appendChild(mobileZoomStyle);
 
+  const isMobileDevice=()=>{
+    try{return matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches;}
+    catch(e){return false;}
+  };
 
+  /* Mobile world taps are pickup-only; they can never create movement. */
+  function zoomAwareWorldPoint(e){
+    const rect=canvas.getBoundingClientRect();
+    const sx=(e.clientX-rect.left)*(W/rect.width);
+    const sy=(e.clientY-rect.top)*(H/rect.height);
+    const z=(typeof pandaniaMobileZoom==='function'&&isMobileDevice()) ? pandaniaMobileZoom() : 1;
+    if(z!==1){
+      const viewW=W/z, viewH=H/z;
+      return {x:camera.x+viewW/2+(sx-W/2)/z,y:camera.y+viewH/2+(sy-H/2)/z};
+    }
+    return {x:sx+camera.x,y:sy+camera.y};
+  }
 
+  function pickupGroundItemAt(p){
+    if(!Array.isArray(groundDrops)||!groundDrops.length)return false;
+    let bestIndex=-1,bestDistance=Infinity;
+    for(let i=groundDrops.length-1;i>=0;i--){
+      const d=groundDrops[i],dist=Math.hypot(p.x-d.x,p.y-d.y);
+      if(dist<110&&dist<bestDistance){bestDistance=dist;bestIndex=i;}
+    }
+    if(bestIndex<0)return false;
+    const drop=groundDrops[bestIndex];
+    if(typeof collectDrop!=='function')return false;
+    if(!collectDrop(drop))return true;
+    groundDrops.splice(bestIndex,1);
+    try{updateUI();}catch(e){}
+    try{renderBag();}catch(e){}
+    return true;
+  }
+
+  if(typeof canvas!=='undefined')canvas.addEventListener('pointerdown',function(e){
+    if(!isMobileDevice()||!gameStarted)return;
+    const p=zoomAwareWorldPoint(e);
+    /* NPCs remain directly tappable on mobile. This is checked before the
+       pickup-only rule so quest NPCs cannot be swallowed by that handler. */
+    if(Array.isArray(npcs)){
+      const npc=npcs.find(n=>Math.hypot(p.x-n.x,p.y-n.y)<78);
+      if(npc){
+        if(Math.hypot(player.x-npc.x,player.y-npc.y)<105){
+          if(typeof talkToNPC==='function')talkToNPC(npc);
+        }else{
+          player.targetX=npc.x;player.targetY=npc.y;player.targetMonster=null;
+          showMessage('💬 Walking to '+npc.name+'...');
+        }
+        e.preventDefault();e.stopImmediatePropagation();return;
+      }
+    }
+    if(pickupGroundItemAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
+    e.preventDefault();e.stopImmediatePropagation();
+  },true);
+
+  const weaponCritStats={
+    'Wooden Sword':{critChance:.20,critBonus:.05},'Bamboo Sword':{critChance:.20,critBonus:.05},
+    'Iron Sword':{critChance:.20,critBonus:.05},'Goblin Saber':{critChance:.20,critBonus:.05},
+    'XPR Lens':{critChance:.20,critBonus:.05},'Spiked Twin Blade':{critChance:.20,critBonus:.05},
+    'Purple Ice Blade':{critChance:.20,critBonus:.05},'Thunderma':{critChance:.20,critBonus:.05},
+    'Diamond staff':{critChance:.20,critBonus:.05},'Golden Beacon Staff':{critChance:.20,critBonus:.05},
+    'Purplereign':{critChance:.20,critBonus:.05}
+  };
+  window.__pandaniaWeaponCritStats=weaponCritStats;
+
+  /* Critical visual: white number, larger size, neon-red glow. */
+  window.addDamageNumber=function(x,y,amount,color,crit){
+    damageNumbers.push({x,y,amount,color:color||'#fff',crit:!!crit,life:55,maxLife:55});
+  };
+
+  const weaponRanges=window.__pandaniaWeaponStats||{
+    'Wooden Sword':{min:8,max:12},'Bamboo Sword':{min:8,max:12},'Iron Sword':{min:25,max:35},
+    'Goblin Saber':{min:8,max:12},'XPR Lens':{min:165,max:180},'Spiked Twin Blade':{min:75,max:90},
+    'Purple Ice Blade':{min:50,max:65},'Thunderma':{min:200,max:250},'Diamond staff':{min:105,max:125},
+    'Golden Beacon Staff':{min:130,max:155},'Purplereign':{min:190,max:230}
+  };
+
+  function equippedWeaponName(){const s=window.__pandaniaEquipment;return s&&s.weapon?s.weapon:'Wooden Sword';}
+
+  window.swordAttack=function(target=null){
+    if(player.attackCooldown>0)return;
+    player.attackCooldown=22;player.swordSwing=12;
+    if(typeof swordSound==='function')swordSound();
+    if(!target){
+      let closest=null,distance=Infinity;
+      for(const m of monsters){
+        const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
+        if(d>95||d<1)continue;
+        const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
+        if(dot>=.15&&d<distance){closest=m;distance=d;}
+      }
+      if(!closest)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<distance){closest=m;distance=d;}}
+      target=closest;
+    }
+    if(!target){if(typeof showMessage==='function')showMessage('⚔️ Sword swing!');return;}
+    if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
+    const name=equippedWeaponName(),range=weaponRanges[name]||weaponRanges['Wooden Sword'];
+    const rolled=Math.floor(Math.random()*(range.max-range.min+1))+range.min;
+    let damage=Math.max(1,rolled-(target.defense||0));
+    const info=weaponCritStats[name]||{critChance:.20,critBonus:.05};
+    const critical=Math.random()<info.critChance;
+    if(critical)damage=Math.max(1,Math.round(damage*(1+info.critBonus)));
+    target.hp-=damage;addDamageNumber(target.x,target.y-38,damage,'#fff',critical);target.hitFlash=8;
+    if(typeof hitSound==='function')hitSound();
+    if(typeof showMessage==='function')showMessage(critical?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');
+    if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
+  };
+
+  /* Make CRIT 20% visible on weapon cards without touching existing cards twice. */
+  function decorateWeaponCards(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
+      const name=nameEl.textContent.trim();if(!weaponCritStats[name]||card.querySelector('.pandaniaCritStat'))return;
+      const range=weaponRanges[name]||{};const stat=document.createElement('div');stat.className='pandaniaCritStat';
+      stat.innerHTML='ATK '+(range.min??'?')+'–'+(range.max??'?')+' · CRIT 20% <span>(+5%)</span>';card.appendChild(stat);
+    });
+  }
+  const critCardStyle=document.createElement('style');critCardStyle.textContent=`.pandaniaCritStat{margin-top:5px;color:#ffdc70;font-size:10px;font-weight:bold;line-height:1.25;text-align:center;text-shadow:0 0 5px rgba(255,216,80,.2)}.pandaniaCritStat span{color:#ff6878}`;document.head.appendChild(critCardStyle);
+  new MutationObserver(decorateWeaponCards).observe(document.body,{childList:true,subtree:true});
+  setTimeout(decorateWeaponCards,250);
+  window.__pandaniaMobileCritZoomV12=true;
+})();
+</script>
+<!-- ===== END PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
+<!-- ===== PANDANIA V13 COMBAT/INPUT PATCH ===== -->
+<style>
+.pandaniaWeaponGreenStats{margin-top:6px;padding:5px 4px;border-radius:5px;background:#0d4120;border:1px solid #25e86e;color:#69ff9a;font-size:10px;font-weight:800;line-height:1.45;text-align:center;box-shadow:0 0 6px rgba(37,232,110,.22)}
+.pandaniaWeaponGreenStats .critChance{color:#7dffad}.pandaniaWeaponGreenStats .critDamage{color:#ffe66b}
+@media(max-width:700px),(pointer:coarse){.pandaniaWeaponGreenStats{font-size:9px;padding:4px 2px}}
+</style>
+<script>
+(function(){
+'use strict';
+
+/* Per-weapon critical stats. */
+const critStats={
+ 'Wooden Sword':{chance:.05,bonus:.05},
+ 'Bamboo Sword':{chance:.08,bonus:.06},
+ 'Iron Sword':{chance:.12,bonus:.08},
+ 'Goblin Saber':{chance:.15,bonus:.10},
+ 'XPR Lens':{chance:.18,bonus:.12},
+ 'Spiked Twin Blade':{chance:.22,bonus:.14},
+ 'Purple Ice Blade':{chance:.27,bonus:.15},
+ 'Diamond staff':{chance:.32,bonus:.16},
+ 'Golden Beacon Staff':{chance:.40,bonus:.18},
+ 'Thunderma':{chance:.45,bonus:.19},
+ 'Purplereign':{chance:.50,bonus:.20}
+};
+window.__pandaniaWeaponCritStatsV13=critStats;
+
+function isMobile(){try{return matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches}catch(e){return false}}
+function weaponName(){return(window.__pandaniaEquipment&&window.__pandaniaEquipment.weapon)||'Wooden Sword'}
+function weaponRange(n){const r=window.__pandaniaWeaponStats||{};return r[n]||r['Wooden Sword']||{min:8,max:12}}
+
+/* ---------------------------------------------------------
+   SAFE WORLD CLICK HANDLING
+   Desktop + mobile: screen clicks/taps cannot move the player.
+   Ground drops are the one exception: clicking a visible item
+   attempts pickup with a generous radius. Nothing calls renderBag
+   unless the pickup actually succeeds, and all UI refreshes are guarded.
+--------------------------------------------------------- */
+function worldPoint(e){
+ const rect=canvas.getBoundingClientRect();
+ const sx=(e.clientX-rect.left)*(W/rect.width);
+ const sy=(e.clientY-rect.top)*(H/rect.height);
+ const z=isMobile()&&typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
+ if(z!==1){
+   const vw=W/z,vh=H/z;
+   return{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z};
+ }
+ return{x:sx+camera.x,y:sy+camera.y};
+}
+function safePickupAt(p){
+ if(!Array.isArray(groundDrops)||!groundDrops.length)return false;
+ let index=-1,best=Infinity;
+ for(let i=groundDrops.length-1;i>=0;i--){
+   const d=groundDrops[i];
+   if(!d||!Number.isFinite(d.x)||!Number.isFinite(d.y))continue;
+   const dist=Math.hypot(p.x-d.x,p.y-d.y);
+   if(dist<125&&dist<best){best=dist;index=i;}
+ }
+ if(index<0)return false;
+ const drop=groundDrops[index];
+ if(typeof collectDrop!=='function')return false;
+ let ok=false;
+ try{ok=collectDrop(drop)===true}catch(err){console.error('Pandania pickup error:',err);return false}
+ if(!ok)return true;
+ groundDrops.splice(index,1);
+ try{updateUI()}catch(err){console.warn('Pickup UI refresh skipped:',err)}
+ /* Do NOT force a bag render here. This was one of the freeze paths. */
+ return true;
+}
+
+function blockWorldMovement(e){
+ if(e.target!==canvas||!gameStarted)return;
+ const p=worldPoint(e);
+ if(safePickupAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
+ /* All other screen clicks are ignored for movement. */
+ e.preventDefault();e.stopImmediatePropagation();
+}
+['pointerdown','mousedown','click','dblclick','contextmenu'].forEach(type=>{
+ canvas.addEventListener(type,blockWorldMovement,true);
+});
+
+/* ---------------------------------------------------------
+   CRITICAL COMBAT
+--------------------------------------------------------- */
+window.swordAttack=function(target=null){
+ if(player.attackCooldown>0)return;
+ player.attackCooldown=22;player.swordSwing=12;
+ if(typeof swordSound==='function')swordSound();
+ if(!target){
+  let closest=null,distance=Infinity;
+  for(const m of monsters){
+   const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
+   if(d>95||d<1)continue;
+   const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
+   if(dot>=.15&&d<distance){closest=m;distance=d}
+  }
+  if(!closest)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<distance){closest=m;distance=d}}
+  target=closest;
+ }
+ if(!target){if(typeof showMessage==='function')showMessage('⚔️ Sword swing!');return}
+ if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
+ const n=weaponName(),r=weaponRange(n),s=critStats[n]||critStats['Wooden Sword'];
+ let damage=Math.floor(Math.random()*(r.max-r.min+1))+r.min;
+ damage=Math.max(1,damage-(target.defense||0));
+ const crit=Math.random()<s.chance;
+ if(crit)damage=Math.max(1,Math.round(damage*(1+s.bonus)));
+ target.hp-=damage;
+ addDamageNumber(target.x,target.y-38,damage,'#fff',crit);
+ target.hitFlash=8;
+ if(typeof hitSound==='function')hitSound();
+ if(typeof showMessage==='function')showMessage(crit?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');
+ if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
+};
+
+/* ---------------------------------------------------------
+   DAMAGE NUMBERS
+--------------------------------------------------------- */
+window.drawDamageNumbers=function(){
+ for(const d of damageNumbers){
+  ctx.save();
+  ctx.globalAlpha=Math.max(0,d.life/d.maxLife);
+  ctx.textAlign='center';
+  if(d.crit){
+   ctx.font='900 36px Arial';
+   ctx.fillStyle='#ffe94a';
+   ctx.shadowColor='#ff102b';
+   ctx.shadowBlur=26;
+   ctx.lineWidth=3;
+   ctx.strokeStyle='#ff1835';
+   ctx.strokeText(String(d.amount),d.x,d.y);
+   ctx.fillText(String(d.amount),d.x,d.y);
+  }else{
+   ctx.font='900 20px Arial';
+   ctx.fillStyle='#fff';
+   ctx.shadowColor='#000';
+   ctx.shadowBlur=4;
+   ctx.fillText(String(d.amount),d.x,d.y);
+  }
+  ctx.restore();
+ }
+};
+
+/* ---------------------------------------------------------
+   WEAPON INVENTORY STATS
+   No MutationObserver and no interval: those caused the bag
+   freeze by repeatedly mutating the DOM while observing it.
+--------------------------------------------------------- */
+function refreshWeaponStats(){
+ try{
+  document.querySelectorAll('#bagItems .itemCard').forEach(card=>{
+   const e=card.querySelector('.itemName');if(!e)return;
+   const n=e.textContent.trim(),s=critStats[n];if(!s)return;
+   let b=card.querySelector('.pandaniaWeaponGreenStats');
+   if(!b){b=document.createElement('div');b.className='pandaniaWeaponGreenStats';card.appendChild(b)}
+   const r=weaponRange(n);
+   b.innerHTML='ATK '+r.min+'–'+r.max+' · CRIT <span class="critChance">'+Math.round(s.chance*100)+'%</span> · CRIT DMG <span class="critDamage">+'+Math.round(s.bonus*100)+'%</span>';
+  });
+ }catch(err){console.warn('Weapon stat refresh skipped:',err)}
+}
+window.__pandaniaRefreshWeaponStats=refreshWeaponStats;
+
+/* Refresh only when the bag is actually opened, never continuously. */
+const originalOpenBag=window.openBag;
+if(typeof originalOpenBag==='function'&&!window.__pandaniaSafeOpenBagV13){
+ window.openBag=function(){
+  try{originalOpenBag.apply(this,arguments)}catch(err){console.error('Pandania bag open recovered:',err);return}
+  setTimeout(refreshWeaponStats,0);
+ };
+ window.__pandaniaSafeOpenBagV13=true;
+}
+setTimeout(refreshWeaponStats,150);
+
+/* ---------------------------------------------------------
+   REMOVE THE OLD V13 MONSTER-EMOJI OVERLAY.
+   The real image renderer already draws the monster artwork.
+--------------------------------------------------------- */
+window.__pandaniaWideDraw=false;
+
+/* Mobile-only monster width: modify the sprite draw itself, not the
+   entire game draw pass, so opening UI cannot trigger a second renderer. */
+try{
+ const originalSprite=window.drawSprite;
+ if(typeof originalSprite==='function'&&!window.__pandaniaWideSpriteV13){
+  const monsterImages=new Set(['monster1','monster2','monster3','monster4','monster5','monster6','monster7','boss1','boss2','boss3','roamer1']);
+  window.drawSprite=function(imageKey,x,y,width,height,flip=false,alpha=1){
+   if(!isMobile()||!monsterImages.has(imageKey))return originalSprite.apply(this,arguments);
+   const img=images[imageKey];if(!img)return originalSprite.apply(this,arguments);
+   ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.scale(1.15,1);ctx.imageSmoothingEnabled=false;ctx.drawImage(img,-width/2,-height,width,height);ctx.restore();return true;
+  };
+  window.__pandaniaWideSpriteV13=true;
+ }
+}catch(err){console.warn('Mobile monster width patch skipped:',err)}
+
+window.__pandaniaV13=true;
+window.__pandaniaPickupFixV13=true;
+})();
+</script>
+<!-- ===== END PANDANIA V13 COMBAT/INPUT PATCH ===== -->
+<!-- ===== PANDANIA V14 POLISH PATCH ===== -->
+<style>
+/* Paper-doll: reserve a real weapon slot so the panda avatar cannot crush it. */
+#paperDoll,#paperDollWindow,.paperDoll,.paper-doll{position:relative}
+#paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,
+#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,
+.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:72px!important;min-height:72px!important;width:72px!important;height:72px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;position:relative!important;z-index:4!important}
+#paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:62px!important;max-height:62px!important;object-fit:contain!important;position:relative!important;z-index:6!important}
+@media(max-width:700px),(pointer:coarse){
+ #paperDoll,#paperDollWindow,.paperDoll,.paper-doll{min-width:300px!important}
+ #paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:82px!important;min-height:82px!important;width:82px!important;height:82px!important}
+ #paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:72px!important;max-height:72px!important}
+ #mapCanvas,#miniMap,#minimap,.miniMap,.mini-map{top:10px!important;right:10px!important;bottom:auto!important;left:auto!important;width:110px!important;height:82px!important;opacity:.42!important;transform:none!important}
+ #hud,#statusBar,#playerStats,.playerStats,.statusBar{opacity:.68!important}
+}
+/* Never show the placeholder weapon emoji after unequip. */
+.weaponSlot.unequipped,.equippedWeapon.unequipped{font-size:0!important}
+.weaponSlot.unequipped::before,.equippedWeapon.unequipped::before{content:''!important}
+</style>
+<script>
+(function(){
+'use strict';
+
+/* Remove common weapon-placeholder emoji text without touching the panda avatar. */
+function cleanUnequippedWeaponSlots(){
+ document.querySelectorAll('.weaponSlot,.equippedWeapon').forEach(el=>{
+  const t=(el.textContent||'').trim();
+  if(!el.querySelector('img') && /^(⚔️|🗡️|🪓|🔪|🛡️|🗡|⚔)$/.test(t)){el.textContent='';el.classList.add('unequipped')}
+ });
+}
+window.__pandaniaCleanWeaponSlots=cleanUnequippedWeaponSlots;
+
+/* Safe fish double-click: any visible ground fish restores at least 5 HP. */
+function fishDoubleClick(e){
+ if(!Array.isArray(groundDrops)||!groundDrops.length)return;
+ const rect=canvas.getBoundingClientRect();
+ const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);
+ const z=(typeof pandaniaMobileZoom==='function'&&((matchMedia('(pointer:coarse)').matches)||matchMedia('(max-width:700px)').matches))?pandaniaMobileZoom():1;
+ const vw=W/z,vh=H/z;
+ const p=z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
+ for(let i=groundDrops.length-1;i>=0;i--){
+  const d=groundDrops[i];if(!d)continue;
+  const name=String(d.name||d.item||d.type||'').toLowerCase();
+  if(!name.includes('fish'))continue;
+  if(Math.hypot(p.x-d.x,p.y-d.y)>125)continue;
+  player.hp=Math.min(player.maxHp,player.hp+5);
+  if(typeof showMessage==='function')showMessage('🐟 Fish restored +5 HP!');
+  if(typeof updateUI==='function')updateUI();
+  groundDrops.splice(i,1);
+  e.preventDefault();e.stopImmediatePropagation();
+  return;
+ }
+}
+canvas.addEventListener('dblclick',fishDoubleClick,true);
+
+/* Refresh after inventory/paper-doll changes, but never use a MutationObserver. */
+setTimeout(cleanUnequippedWeaponSlots,200);
+setInterval(cleanUnequippedWeaponSlots,1000);
+window.__pandaniaV14=true;
+})();
+</script>
+<!-- ===== END PANDANIA V14 POLISH PATCH ===== -->
+<!-- ===== PANDANIA V14 FINAL FIXES ===== -->
+<style>
+/* SINGLE paper-doll renderer: only control its existing weapon slot. */
+#pandaniaEquipment{position:relative;box-sizing:border-box;overflow:visible!important}
+#pandaniaEquipment #equipWeapon{position:relative;box-sizing:border-box;overflow:visible!important;min-width:0}
+.paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:visible;margin:0 auto 3px;position:relative;z-index:5}
+.paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto;position:relative;z-index:10;visibility:visible;opacity:1}
+@media(max-width:700px),(pointer:coarse){
+  #stats{width:185px!important;padding:5px 6px!important;opacity:1!important;background:rgba(10,10,10,.94)!important;transform:scale(.82);transform-origin:top left}
+  #minimap{left:auto!important;right:10px!important;bottom:auto!important;top:72px!important;width:105px!important;height:105px!important;opacity:.48!important}
+  #pandaniaMobileControls{display:none!important}
+  #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
+
+  /* The original equipment panel uses a 1fr / 130px / 1fr grid. On a
+     phone the 130px center panda can collapse the weapon column. Keep the
+     same paper-doll, but give its existing grid a mobile-safe center width. */
+  #pandaniaEquipment{width:100%!important;max-width:94vw!important;padding:10px!important;overflow:visible!important}
+  #pandaniaEquipment>div:nth-child(2){
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr)!important;
+    gap:6px!important;
+    align-items:center!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+  #pandaniaEquipment>div:nth-child(2)>#equipWeapon,
+  #pandaniaEquipment>div:nth-child(2)>#equipArmor{
+    min-width:0!important;width:100%!important;padding:6px!important;overflow:visible!important;
+    word-break:break-word!important;
+  }
+  #pandaniaEquipment>div:nth-child(2)>div:nth-child(2){
+    width:92px!important;min-width:92px!important;height:110px!important;font-size:48px!important;overflow:visible!important;
+  }
+  .paperDollWeaponArt{height:60px!important;width:100%!important;overflow:visible!important}
+  .paperDollEquipImage{width:60px!important;height:60px!important;max-width:60px!important;max-height:60px!important;display:block!important;visibility:visible!important;opacity:1!important;object-fit:contain!important;z-index:50!important}
+}
+</style>
+<script>
+(function(){
+'use strict';
+/* SINGLE RENDERER ONLY: the existing V11/V7 paper-doll renderer owns #equipWeapon. */
+function refreshSameRenderer(){
+  try{ if(typeof window.renderBag==='function') window.renderBag(); }
+  catch(e){ console.warn('Pandania equipment refresh skipped:',e); }
+}
+window.__pandaniaFixEquippedWeaponV14=refreshSameRenderer;
+window.__pandaniaFinalFixV11=true;
+document.addEventListener('click',function(e){
+  const t=e.target;
+  if(t&&((t.id==='playButton')||(t.closest&&t.closest('#bagWindow'))))setTimeout(refreshSameRenderer,50);
+},true);
+window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});
+window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});
+})();
+</script>
+<!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
 
 <!-- ===== PANDANIA REQUESTED CONTENT EXPANSION ===== -->
 <script>
@@ -9067,459 +9518,142 @@ requestAnimationFrame(
 </script>
 <!-- ===== END PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
 
-<!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
-<script>
-(function(){
-  'use strict';
 
-  /* MOBILE CAMERA + UI ZOOM: 8% landscape / 12% portrait. */
-  const mobileZoomStyle=document.createElement('style');
-  mobileZoomStyle.textContent=`
-    @media (max-width:700px),(pointer:coarse){
-      #hud,#zoneLabel,#message,#controls,#buttons,#spellBar,#dialogue,
-      #bagWindow,#exchangeWindow,#friendsWindow,#mailWindow,
-      #pandaniaMobileControls{zoom:1.08;}
-      #pandaniaMobileControls{transform-origin:center bottom;}
-    }
-  `;
-  document.head.appendChild(mobileZoomStyle);
-
-  const isMobileDevice=()=>{
-    try{return matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches;}
-    catch(e){return false;}
-  };
-
-  /* Mobile world taps are pickup-only; they can never create movement. */
-  function zoomAwareWorldPoint(e){
-    const rect=canvas.getBoundingClientRect();
-    const sx=(e.clientX-rect.left)*(W/rect.width);
-    const sy=(e.clientY-rect.top)*(H/rect.height);
-    const z=(typeof pandaniaMobileZoom==='function'&&isMobileDevice()) ? pandaniaMobileZoom() : 1;
-    if(z!==1){
-      const viewW=W/z, viewH=H/z;
-      return {x:camera.x+viewW/2+(sx-W/2)/z,y:camera.y+viewH/2+(sy-H/2)/z};
-    }
-    return {x:sx+camera.x,y:sy+camera.y};
-  }
-
-  function pickupGroundItemAt(p){
-    if(!Array.isArray(groundDrops)||!groundDrops.length)return false;
-    let bestIndex=-1,bestDistance=Infinity;
-    for(let i=groundDrops.length-1;i>=0;i--){
-      const d=groundDrops[i],dist=Math.hypot(p.x-d.x,p.y-d.y);
-      if(dist<110&&dist<bestDistance){bestDistance=dist;bestIndex=i;}
-    }
-    if(bestIndex<0)return false;
-    const drop=groundDrops[bestIndex];
-    if(typeof collectDrop!=='function')return false;
-    if(!collectDrop(drop))return true;
-    groundDrops.splice(bestIndex,1);
-    try{updateUI();}catch(e){}
-    try{renderBag();}catch(e){}
-    return true;
-  }
-
-  if(typeof canvas!=='undefined')canvas.addEventListener('pointerdown',function(e){
-    if(!isMobileDevice()||!gameStarted)return;
-    const p=zoomAwareWorldPoint(e);
-    if(pickupGroundItemAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
-    e.preventDefault();e.stopImmediatePropagation();
-  },true);
-
-  const weaponCritStats={
-    'Wooden Sword':{critChance:.20,critBonus:.05},'Bamboo Sword':{critChance:.20,critBonus:.05},
-    'Iron Sword':{critChance:.20,critBonus:.05},'Goblin Saber':{critChance:.20,critBonus:.05},
-    'XPR Lens':{critChance:.20,critBonus:.05},'Spiked Twin Blade':{critChance:.20,critBonus:.05},
-    'Purple Ice Blade':{critChance:.20,critBonus:.05},'Thunderma':{critChance:.20,critBonus:.05},
-    'Diamond staff':{critChance:.20,critBonus:.05},'Golden Beacon Staff':{critChance:.20,critBonus:.05},
-    'Purplereign':{critChance:.20,critBonus:.05}
-  };
-  window.__pandaniaWeaponCritStats=weaponCritStats;
-
-  /* Critical visual: white number, larger size, neon-red glow. */
-  window.addDamageNumber=function(x,y,amount,color,crit){
-    damageNumbers.push({x,y,amount,color:color||'#fff',crit:!!crit,life:55,maxLife:55});
-  };
-
-  const weaponRanges=window.__pandaniaWeaponStats||{
-    'Wooden Sword':{min:8,max:12},'Bamboo Sword':{min:8,max:12},'Iron Sword':{min:25,max:35},
-    'Goblin Saber':{min:8,max:12},'XPR Lens':{min:165,max:180},'Spiked Twin Blade':{min:75,max:90},
-    'Purple Ice Blade':{min:50,max:65},'Thunderma':{min:200,max:250},'Diamond staff':{min:105,max:125},
-    'Golden Beacon Staff':{min:130,max:155},'Purplereign':{min:190,max:230}
-  };
-
-  function equippedWeaponName(){const s=window.__pandaniaEquipment;return s&&s.weapon?s.weapon:'Wooden Sword';}
-
-  window.swordAttack=function(target=null){
-    if(player.attackCooldown>0)return;
-    player.attackCooldown=22;player.swordSwing=12;
-    if(typeof swordSound==='function')swordSound();
-    if(!target){
-      let closest=null,distance=Infinity;
-      for(const m of monsters){
-        const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
-        if(d>95||d<1)continue;
-        const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
-        if(dot>=.15&&d<distance){closest=m;distance=d;}
-      }
-      if(!closest)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<distance){closest=m;distance=d;}}
-      target=closest;
-    }
-    if(!target){if(typeof showMessage==='function')showMessage('⚔️ Sword swing!');return;}
-    if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
-    const name=equippedWeaponName(),range=weaponRanges[name]||weaponRanges['Wooden Sword'];
-    const rolled=Math.floor(Math.random()*(range.max-range.min+1))+range.min;
-    let damage=Math.max(1,rolled-(target.defense||0));
-    const info=weaponCritStats[name]||{critChance:.20,critBonus:.05};
-    const critical=Math.random()<info.critChance;
-    if(critical)damage=Math.max(1,Math.round(damage*(1+info.critBonus)));
-    target.hp-=damage;addDamageNumber(target.x,target.y-38,damage,'#fff',critical);target.hitFlash=8;
-    if(typeof hitSound==='function')hitSound();
-    if(typeof showMessage==='function')showMessage(critical?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');
-    if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
-  };
-
-  /* Make CRIT 20% visible on weapon cards without touching existing cards twice. */
-  function decorateWeaponCards(){
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
-      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
-      const name=nameEl.textContent.trim();if(!weaponCritStats[name]||card.querySelector('.pandaniaCritStat'))return;
-      const range=weaponRanges[name]||{};const stat=document.createElement('div');stat.className='pandaniaCritStat';
-      stat.innerHTML='ATK '+(range.min??'?')+'–'+(range.max??'?')+' · CRIT 20% <span>(+5%)</span>';card.appendChild(stat);
-    });
-  }
-  const critCardStyle=document.createElement('style');critCardStyle.textContent=`.pandaniaCritStat{margin-top:5px;color:#ffdc70;font-size:10px;font-weight:bold;line-height:1.25;text-align:center;text-shadow:0 0 5px rgba(255,216,80,.2)}.pandaniaCritStat span{color:#ff6878}`;document.head.appendChild(critCardStyle);
-  new MutationObserver(decorateWeaponCards).observe(document.body,{childList:true,subtree:true});
-  setTimeout(decorateWeaponCards,250);
-  window.__pandaniaMobileCritZoomV12=true;
-})();
-</script>
-<!-- ===== END PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
-<!-- ===== PANDANIA V13 COMBAT/INPUT PATCH ===== -->
+<!-- ===== SURGICAL BOSS4 / FLAMEOZN / STAIRS / GROUNDING FIX ===== -->
 <style>
-.pandaniaWeaponGreenStats{margin-top:6px;padding:5px 4px;border-radius:5px;background:#0d4120;border:1px solid #25e86e;color:#69ff9a;font-size:10px;font-weight:800;line-height:1.45;text-align:center;box-shadow:0 0 6px rgba(37,232,110,.22)}
-.pandaniaWeaponGreenStats .critChance{color:#7dffad}.pandaniaWeaponGreenStats .critDamage{color:#ffe66b}
-@media(max-width:700px),(pointer:coarse){.pandaniaWeaponGreenStats{font-size:9px;padding:4px 2px}}
+@keyframes pandaniaBoss4Shake{0%{transform:translate(0,0)}25%{transform:translate(2px,-1px)}50%{transform:translate(-2px,1px)}75%{transform:translate(1px,2px)}100%{transform:translate(0,0)}}
+#gameWrap.pandaniaBoss4Earthquake{animation:pandaniaBoss4Shake .10s linear infinite}
 </style>
 <script>
 (function(){
 'use strict';
 
-/* Per-weapon critical stats. */
-const critStats={
- 'Wooden Sword':{chance:.05,bonus:.05},
- 'Bamboo Sword':{chance:.08,bonus:.06},
- 'Iron Sword':{chance:.12,bonus:.08},
- 'Goblin Saber':{chance:.15,bonus:.10},
- 'XPR Lens':{chance:.18,bonus:.12},
- 'Spiked Twin Blade':{chance:.22,bonus:.14},
- 'Purple Ice Blade':{chance:.27,bonus:.15},
- 'Diamond staff':{chance:.32,bonus:.16},
- 'Golden Beacon Staff':{chance:.40,bonus:.18},
- 'Thunderma':{chance:.45,bonus:.19},
- 'Purplereign':{chance:.50,bonus:.20}
-};
-window.__pandaniaWeaponCritStatsV13=critStats;
+/* Do not touch any existing gameplay systems except the requested effects. */
+window.__boss4MeteorSystem=window.__boss4MeteorSystem||{next:0,warningUntil:0,meteors:[]};
+const sys=window.__boss4MeteorSystem;
 
-function isMobile(){try{return matchMedia('(pointer:coarse)').matches||matchMedia('(max-width:700px)').matches}catch(e){return false}}
-function weaponName(){return(window.__pandaniaEquipment&&window.__pandaniaEquipment.weapon)||'Wooden Sword'}
-function weaponRange(n){const r=window.__pandaniaWeaponStats||{};return r[n]||r['Wooden Sword']||{min:8,max:12}}
-
-/* ---------------------------------------------------------
-   SAFE WORLD CLICK HANDLING
-   Desktop + mobile: screen clicks/taps cannot move the player.
-   Ground drops are the one exception: clicking a visible item
-   attempts pickup with a generous radius. Nothing calls renderBag
-   unless the pickup actually succeeds, and all UI refreshes are guarded.
---------------------------------------------------------- */
-function worldPoint(e){
- const rect=canvas.getBoundingClientRect();
- const sx=(e.clientX-rect.left)*(W/rect.width);
- const sy=(e.clientY-rect.top)*(H/rect.height);
- const z=isMobile()&&typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
- if(z!==1){
-   const vw=W/z,vh=H/z;
-   return{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z};
- }
- return{x:sx+camera.x,y:sy+camera.y};
+function isBoss4Level(){return !!(inDungeon && typeof dungeonLevel!=='undefined' && dungeonLevel===4);}
+function loadMetalAttackImage(){
+  if(images.metalmonsterspecialattack)return images.metalmonsterspecialattack;
+  const img=new Image();
+  img.onload=function(){images.metalmonsterspecialattack=img};
+  img.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
+  return null;
 }
-function safePickupAt(p){
- if(!Array.isArray(groundDrops)||!groundDrops.length)return false;
- let index=-1,best=Infinity;
- for(let i=groundDrops.length-1;i>=0;i--){
-   const d=groundDrops[i];
-   if(!d||!Number.isFinite(d.x)||!Number.isFinite(d.y))continue;
-   const dist=Math.hypot(p.x-d.x,p.y-d.y);
-   if(dist<125&&dist<best){best=dist;index=i;}
- }
- if(index<0)return false;
- const drop=groundDrops[index];
- if(typeof collectDrop!=='function')return false;
- let ok=false;
- try{ok=collectDrop(drop)===true}catch(err){console.error('Pandania pickup error:',err);return false}
- if(!ok)return true;
- groundDrops.splice(index,1);
- try{updateUI()}catch(err){console.warn('Pickup UI refresh skipped:',err)}
- /* Do NOT force a bag render here. This was one of the freeze paths. */
- return true;
-}
+loadMetalAttackImage();
 
-function blockWorldMovement(e){
- if(e.target!==canvas||!gameStarted)return;
- const p=worldPoint(e);
- if(safePickupAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
- /* All other screen clicks are ignored for movement. */
- e.preventDefault();e.stopImmediatePropagation();
-}
-['pointerdown','mousedown','click','dblclick','contextmenu'].forEach(type=>{
- canvas.addEventListener(type,blockWorldMovement,true);
-});
-
-/* ---------------------------------------------------------
-   CRITICAL COMBAT
---------------------------------------------------------- */
-window.swordAttack=function(target=null){
- if(player.attackCooldown>0)return;
- player.attackCooldown=22;player.swordSwing=12;
- if(typeof swordSound==='function')swordSound();
- if(!target){
-  let closest=null,distance=Infinity;
-  for(const m of monsters){
-   const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
-   if(d>95||d<1)continue;
-   const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
-   if(dot>=.15&&d<distance){closest=m;distance=d}
+/* Independent 5-second timer so later updateMonsters wrappers cannot suppress Boss4. */
+const priorUpdateMonsters=updateMonsters;
+updateMonsters=function(){
+  priorUpdateMonsters();
+  const now=performance.now();
+  if(!isBoss4Level()){
+    sys.next=0;sys.warningUntil=0;sys.meteors.length=0;
+    const wrap=document.getElementById('gameWrap');if(wrap)wrap.classList.remove('pandaniaBoss4Earthquake');
+    return;
   }
-  if(!closest)for(const m of monsters){const d=Math.hypot(m.x-player.x,m.y-player.y);if(d<82&&d<distance){closest=m;distance=d}}
-  target=closest;
- }
- if(!target){if(typeof showMessage==='function')showMessage('⚔️ Sword swing!');return}
- if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
- const n=weaponName(),r=weaponRange(n),s=critStats[n]||critStats['Wooden Sword'];
- let damage=Math.floor(Math.random()*(r.max-r.min+1))+r.min;
- damage=Math.max(1,damage-(target.defense||0));
- const crit=Math.random()<s.chance;
- if(crit)damage=Math.max(1,Math.round(damage*(1+s.bonus)));
- target.hp-=damage;
- addDamageNumber(target.x,target.y-38,damage,'#fff',crit);
- target.hitFlash=8;
- if(typeof hitSound==='function')hitSound();
- if(typeof showMessage==='function')showMessage(crit?'💥 CRITICAL! '+target.name+' for '+damage+' damage!':'⚔️ Hit '+target.name+' for '+damage+' damage!');
- if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
+  if(!sys.next)sys.next=now+5000;
+  /* One second warning: earthquake at t=4s, then the meteors launch at t=5s. */
+  if(now>=sys.next-1000 && now<sys.next && sys.warningUntil<now){
+    sys.warningUntil=now+550;
+    const wrap=document.getElementById('gameWrap');if(wrap)wrap.classList.add('pandaniaBoss4Earthquake');
+  }
+  if(sys.warningUntil && now>=sys.warningUntil){
+    const wrap=document.getElementById('gameWrap');if(wrap)wrap.classList.remove('pandaniaBoss4Earthquake');
+  }
+  if(now>=sys.next){
+    const count=7;
+    const viewW=W/(typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1);
+    const viewH=H/(typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1);
+    const ceiling=Math.max(95,camera.y-viewH/2-80);
+    for(let i=0;i<count;i++){
+      const targetX=150+Math.random()*(dungeon.width-300);
+      const targetY=210+Math.random()*(dungeon.height-300);
+      sys.meteors.push({x:targetX+(Math.random()-.5)*110,y:ceiling-Math.random()*100,targetX,targetY,speed:11+Math.random()*2,damage:48,life:180});
+    }
+    sys.next=now+5000;
+    sys.warningUntil=0;
+    if(typeof bossSound==='function')bossSound();
+    if(typeof showMessage==='function')showMessage('☄️ Metal Monster unleashes METAL METEOR!');
+  }
+  for(let i=sys.meteors.length-1;i>=0;i--){
+    const q=sys.meteors[i];
+    const dy=q.targetY-q.y;
+    if(dy>0)q.y=Math.min(q.targetY,q.y+q.speed);else q.y=q.targetY;
+    q.life--;
+    if(q.y>=q.targetY){
+      if(Math.hypot(player.x-q.targetX,player.y-q.targetY)<52 && player.invincible<=0){
+        player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;if(typeof hitSound==='function')hitSound();if(player.hp<=0&&typeof respawnPlayer==='function')respawnPlayer();
+      }
+      q.life=8;
+    }
+    if(q.life<=0)sys.meteors.splice(i,1);
+  }
 };
 
-/* ---------------------------------------------------------
-   DAMAGE NUMBERS
---------------------------------------------------------- */
-window.drawDamageNumbers=function(){
- for(const d of damageNumbers){
-  ctx.save();
-  ctx.globalAlpha=Math.max(0,d.life/d.maxLife);
-  ctx.textAlign='center';
-  if(d.crit){
-   ctx.font='900 36px Arial';
-   ctx.fillStyle='#ffe94a';
-   ctx.shadowColor='#ff102b';
-   ctx.shadowBlur=26;
-   ctx.lineWidth=3;
-   ctx.strokeStyle='#ff1835';
-   ctx.strokeText(String(d.amount),d.x,d.y);
-   ctx.fillText(String(d.amount),d.x,d.y);
-  }else{
-   ctx.font='900 20px Arial';
-   ctx.fillStyle='#fff';
-   ctx.shadowColor='#000';
-   ctx.shadowBlur=4;
-   ctx.fillText(String(d.amount),d.x,d.y);
+/* Restore Flameozn's working four-way fire visibility over the isolated dungeon renderer. */
+const priorDrawStableDungeon=drawStableDungeon;
+drawStableDungeon=function(){
+  priorDrawStableDungeon();
+  if(!inDungeon)return;
+  const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,vw=W/z,vh=H/z;
+  ctx.save();ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
+  if(Array.isArray(bossFireShots)){
+    for(const q of bossFireShots){
+      ctx.save();ctx.translate(q.x,q.y);ctx.shadowColor='#ff4b18';ctx.shadowBlur=18;ctx.fillStyle='#ff4b18';ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffd36a';ctx.beginPath();ctx.arc(2,-2,6,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+  }
+  /* Boss4 meteors are drawn here, above the dungeon floor and below the player. */
+  if(isBoss4Level()){
+    const img=loadMetalAttackImage();
+    for(const q of sys.meteors){
+      const pulse=.78+Math.sin(performance.now()/85+q.life*.08)*.22;
+      ctx.save();ctx.globalAlpha=pulse;ctx.shadowColor='#a735ff';ctx.shadowBlur=30+Math.sin(performance.now()/100)*12;
+      if(img)ctx.drawImage(img,q.x-36,q.y-72,72,72);
+      else{ctx.fillStyle='#a735ff';ctx.beginPath();ctx.arc(q.x,q.y-36,18,0,Math.PI*2);ctx.fill()}
+      ctx.restore();
+    }
   }
   ctx.restore();
- }
 };
 
-/* ---------------------------------------------------------
-   WEAPON INVENTORY STATS
-   No MutationObserver and no interval: those caused the bag
-   freeze by repeatedly mutating the DOM while observing it.
---------------------------------------------------------- */
-function refreshWeaponStats(){
- try{
-  document.querySelectorAll('#bagItems .itemCard').forEach(card=>{
-   const e=card.querySelector('.itemName');if(!e)return;
-   const n=e.textContent.trim(),s=critStats[n];if(!s)return;
-   let b=card.querySelector('.pandaniaWeaponGreenStats');
-   if(!b){b=document.createElement('div');b.className='pandaniaWeaponGreenStats';card.appendChild(b)}
-   const r=weaponRange(n);
-   b.innerHTML='ATK '+r.min+'–'+r.max+' · CRIT <span class="critChance">'+Math.round(s.chance*100)+'%</span> · CRIT DMG <span class="critDamage">+'+Math.round(s.bonus*100)+'%</span>';
-  });
- }catch(err){console.warn('Weapon stat refresh skipped:',err)}
-}
-window.__pandaniaRefreshWeaponStats=refreshWeaponStats;
-
-/* Refresh only when the bag is actually opened, never continuously. */
-const originalOpenBag=window.openBag;
-if(typeof originalOpenBag==='function'&&!window.__pandaniaSafeOpenBagV13){
- window.openBag=function(){
-  try{originalOpenBag.apply(this,arguments)}catch(err){console.error('Pandania bag open recovered:',err);return}
-  setTimeout(refreshWeaponStats,0);
- };
- window.__pandaniaSafeOpenBagV13=true;
-}
-setTimeout(refreshWeaponStats,150);
-
-/* ---------------------------------------------------------
-   REMOVE THE OLD V13 MONSTER-EMOJI OVERLAY.
-   The real image renderer already draws the monster artwork.
---------------------------------------------------------- */
-window.__pandaniaWideDraw=false;
-
-/* Mobile-only monster width: modify the sprite draw itself, not the
-   entire game draw pass, so opening UI cannot trigger a second renderer. */
-try{
- const originalSprite=window.drawSprite;
- if(typeof originalSprite==='function'&&!window.__pandaniaWideSpriteV13){
-  const monsterImages=new Set(['monster1','monster2','monster3','monster4','monster5','monster6','monster7','boss1','boss2','boss3','roamer1']);
-  window.drawSprite=function(imageKey,x,y,width,height,flip=false,alpha=1){
-   if(!isMobile()||!monsterImages.has(imageKey))return originalSprite.apply(this,arguments);
-   const img=images[imageKey];if(!img)return originalSprite.apply(this,arguments);
-   ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.scale(1.15,1);ctx.imageSmoothingEnabled=false;ctx.drawImage(img,-width/2,-height,width,height);ctx.restore();return true;
-  };
-  window.__pandaniaWideSpriteV13=true;
- }
-}catch(err){console.warn('Mobile monster width patch skipped:',err)}
-
-window.__pandaniaV13=true;
-window.__pandaniaPickupFixV13=true;
-})();
-</script>
-<!-- ===== END PANDANIA V13 COMBAT/INPUT PATCH ===== -->
-<!-- ===== PANDANIA V14 POLISH PATCH ===== -->
-<style>
-/* Paper-doll: reserve a real weapon slot so the panda avatar cannot crush it. */
-#paperDoll,#paperDollWindow,.paperDoll,.paper-doll{position:relative}
-#paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,
-#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,
-.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:72px!important;min-height:72px!important;width:72px!important;height:72px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;position:relative!important;z-index:4!important}
-#paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:62px!important;max-height:62px!important;object-fit:contain!important;position:relative!important;z-index:6!important}
-@media(max-width:700px),(pointer:coarse){
- #paperDoll,#paperDollWindow,.paperDoll,.paper-doll{min-width:300px!important}
- #paperDoll .weaponSlot,#paperDoll .equippedWeapon,#paperDoll .weapon,#paperDollWindow .weaponSlot,#paperDollWindow .equippedWeapon,.paperDoll .weaponSlot,.paper-doll .weaponSlot{min-width:82px!important;min-height:82px!important;width:82px!important;height:82px!important}
- #paperDoll .weaponSlot img,#paperDoll .equippedWeapon img,#paperDollWindow .weaponSlot img,#paperDollWindow .equippedWeapon img{max-width:72px!important;max-height:72px!important}
- #mapCanvas,#miniMap,#minimap,.miniMap,.mini-map{top:10px!important;right:10px!important;bottom:auto!important;left:auto!important;width:110px!important;height:82px!important;opacity:.42!important;transform:none!important}
- #hud,#statusBar,#playerStats,.playerStats,.statusBar{opacity:.68!important}
-}
-/* Never show the placeholder weapon emoji after unequip. */
-.weaponSlot.unequipped,.equippedWeapon.unequipped{font-size:0!important}
-.weaponSlot.unequipped::before,.equippedWeapon.unequipped::before{content:''!important}
-</style>
-<script>
-(function(){
-'use strict';
-
-/* Remove common weapon-placeholder emoji text without touching the panda avatar. */
-function cleanUnequippedWeaponSlots(){
- document.querySelectorAll('.weaponSlot,.equippedWeapon').forEach(el=>{
-  const t=(el.textContent||'').trim();
-  if(!el.querySelector('img') && /^(⚔️|🗡️|🪓|🔪|🛡️|🗡|⚔)$/.test(t)){el.textContent='';el.classList.add('unequipped')}
- });
-}
-window.__pandaniaCleanWeaponSlots=cleanUnequippedWeaponSlots;
-
-/* Safe fish double-click: any visible ground fish restores at least 5 HP. */
-function fishDoubleClick(e){
- if(!Array.isArray(groundDrops)||!groundDrops.length)return;
- const rect=canvas.getBoundingClientRect();
- const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);
- const z=(typeof pandaniaMobileZoom==='function'&&((matchMedia('(pointer:coarse)').matches)||matchMedia('(max-width:700px)').matches))?pandaniaMobileZoom():1;
- const vw=W/z,vh=H/z;
- const p=z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
- for(let i=groundDrops.length-1;i>=0;i--){
-  const d=groundDrops[i];if(!d)continue;
-  const name=String(d.name||d.item||d.type||'').toLowerCase();
-  if(!name.includes('fish'))continue;
-  if(Math.hypot(p.x-d.x,p.y-d.y)>125)continue;
-  player.hp=Math.min(player.maxHp,player.hp+5);
-  if(typeof showMessage==='function')showMessage('🐟 Fish restored +5 HP!');
-  if(typeof updateUI==='function')updateUI();
-  groundDrops.splice(i,1);
-  e.preventDefault();e.stopImmediatePropagation();
-  return;
- }
-}
-canvas.addEventListener('dblclick',fishDoubleClick,true);
-
-/* Refresh after inventory/paper-doll changes, but never use a MutationObserver. */
-setTimeout(cleanUnequippedWeaponSlots,200);
-setInterval(cleanUnequippedWeaponSlots,1000);
-window.__pandaniaV14=true;
-})();
-</script>
-<!-- ===== END PANDANIA V14 POLISH PATCH ===== -->
-<!-- ===== PANDANIA V14 FINAL FIXES ===== -->
-<style>
-#pandaniaEquipment{position:relative;box-sizing:border-box;overflow:visible!important}
-#pandaniaEquipment #equipWeapon{position:relative;box-sizing:border-box;overflow:visible!important;min-width:0}
-.paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:visible;margin:0 auto 3px;position:relative;z-index:5}
-.paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto;position:relative;z-index:10;visibility:visible;opacity:1}
-@media(max-width:700px),(pointer:coarse){
-#stats{width:185px!important;padding:5px 6px!important;opacity:1!important;background:rgba(10,10,10,.94)!important;transform:scale(.82);transform-origin:top left}
-#minimap{left:auto!important;right:10px!important;bottom:auto!important;top:72px!important;width:105px!important;height:105px!important;opacity:.48!important}
-#pandaniaMobileControls{display:none!important}#gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
-#pandaniaEquipment{width:100%!important;max-width:94vw!important;padding:10px!important;overflow:visible!important}
-#pandaniaEquipment>div:nth-child(2){display:grid!important;grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr)!important;gap:6px!important;align-items:center!important;width:100%!important;overflow:visible!important}
-#pandaniaEquipment>div:nth-child(2)>#equipWeapon,#pandaniaEquipment>div:nth-child(2)>#equipArmor{min-width:0!important;width:100%!important;padding:6px!important;overflow:visible!important;word-break:break-word!important}
-#pandaniaEquipment>div:nth-child(2)>div:nth-child(2){width:92px!important;min-width:92px!important;height:110px!important;font-size:48px!important;overflow:visible!important}
-.paperDollWeaponArt{height:60px!important;width:100%!important;overflow:visible!important}.paperDollEquipImage{width:60px!important;height:60px!important;max-width:60px!important;max-height:60px!important;display:block!important;visibility:visible!important;opacity:1!important;object-fit:contain!important;z-index:50!important}
-}
-</style>
-<script>
-(function(){'use strict';
-function refreshSameRenderer(){try{if(typeof window.renderBag==='function')window.renderBag();}catch(e){console.warn('Pandania equipment refresh skipped:',e);}}
-window.__pandaniaFixEquippedWeaponV14=refreshSameRenderer;window.__pandaniaFinalFixV11=true;
-document.addEventListener('click',function(e){const t=e.target;if(t&&((t.id==='playButton')||(t.closest&&t.closest('#bagWindow'))))setTimeout(refreshSameRenderer,50);},true);
-window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});})();
-</script>
-<!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
+/* Force stairs to become visible when the current floor has no boss left. */
+const priorUpdatePlayer=updatePlayer;
 updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
+  priorUpdatePlayer();
+  if(inDungeon && !dungeonStairOpen && typeof dungeonLevel!=='undefined' && dungeonLevel<=4){
+    const remaining=monsters.some(m=>m.boss && (m.dungeonLevel||1)===dungeonLevel);
+    if(!remaining)dungeonStairOpen=true;
+  }
 };
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
+
+/* Put the staircase in the visible upper-middle area instead of the old y=235,
+   which can sit above the camera's viewport at the normal dungeon spawn. */
+if(typeof dungeonStair!=='undefined'){dungeonStair.x=750;dungeonStair.y=330;}
+
+/* Ground all monsters/bosses except Boss3 and roamer1. Preserve their artwork and stats. */
+function groundedMonsterRenderer(m){
+  const floating=(m.type==='boss3'||m.type==='roamer1');
+  const size=m.type==='roamer1'?110:(m.boss?120:65);
+  const off=floating?0:14;
   if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
   const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
   if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
+  const width=(m.boss||m.type==='roamer1')?110:50;
+  ctx.fillStyle='#191919';ctx.fillRect(m.x-width/2,m.y+off-size-8,width,7);
+  ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-width/2,m.y+off-size-8,width*Math.max(0,m.hp/m.maxHp),7);
+  ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);
+  if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}
+  if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
 }
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
+const originalDrawMonster=drawMonster;
+drawMonster=function(m){groundedMonsterRenderer(m);};
+if(typeof window.drawStableMonster==='function')window.drawStableMonster=groundedMonsterRenderer;
+
+window.__pandaniaSurgicalBossFix=true;
 })();
 </script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
+<!-- ===== END SURGICAL BOSS4 / FLAMEOZN / STAIRS / GROUNDING FIX ===== -->
+
 </body>
 </html>

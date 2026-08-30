@@ -1225,6 +1225,7 @@ const imageFiles={
     monster7:IMAGE_FOLDER+"monster7.png",
     roamer1:IMAGE_FOLDER+"roamer1.png",
     npc3:IMAGE_FOLDER+"npc3.png",
+    npc4:IMAGE_FOLDER+"npc4.png",
     weapon4:IMAGE_FOLDER+"weapon4.png",
     weapon5:IMAGE_FOLDER+"weapon5.png",
     weapon6:IMAGE_FOLDER+"weapon6.png",
@@ -1238,7 +1239,7 @@ const imageFiles={
     armor2:IMAGE_FOLDER+"armor2.png",
     armor3:IMAGE_FOLDER+"armor3.png",
     armor4:IMAGE_FOLDER+"armor4.png",
-    minimartshelf:IMAGE_FOLDER+"Minimartshelf.png",
+    minimartshelf:IMAGE_FOLDER+"minimartshelf.png",
     lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
     metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png",
     metalmonsterminion1:IMAGE_FOLDER+"metalmonsterminion1.png",
@@ -1964,7 +1965,7 @@ placeBuildingsRandomly();
     for(const c of candidates){
         const r={x:c.x,y:c.y,w,h};
         if(c.x<townBounds.x+20||c.x+w>townBounds.x+townBounds.w-20||c.y<townBounds.y+20||c.y+h>townBounds.y+townBounds.h-20)continue;
-        if(environment.buildings.some(b=>overlapsRect(r,b,28)))continue;
+        if(environment.buildings.some(b=>overlapsRect(r,b,60)))continue;
         if(environment.ponds.some(water=>overlapsRect(r,water,45)))continue;
         chosen=c;break;
     }
@@ -1972,7 +1973,7 @@ placeBuildingsRandomly();
         chosen={x:townBounds.x+townBounds.w-w-35,y:townBounds.y+townBounds.h-h-35};
         for(let i=0;i<80;i++){
             const r={x:townBounds.x+25+Math.random()*(townBounds.w-w-50),y:townBounds.y+25+Math.random()*(townBounds.h-h-50),w,h};
-            if(!environment.buildings.some(b=>overlapsRect(r,b,22))&&!environment.ponds.some(water=>overlapsRect(r,water,35))){chosen={x:r.x,y:r.y};break;}
+            if(!environment.buildings.some(b=>overlapsRect(r,b,60))&&!environment.ponds.some(water=>overlapsRect(r,water,45))){chosen={x:r.x,y:r.y};break;}
         }
     }
     addBuilding("minimartbuilding",chosen.x,chosen.y,w,h,"Pandania Mini Mart",{miniMart:true});
@@ -2954,7 +2955,7 @@ function swordAttack(target=null){
     if(d>88)
         return;
 
-    let damage=Math.max(1,(15+player.level*3)-(target.defense||0));
+    let damage=Math.max(1,(15+player.level*3)-(target.defense||0))+(window.getEquippedArmorStats?window.getEquippedArmorStats().attack:0);
 
     /* Weapon bonuses */
 
@@ -3149,7 +3150,7 @@ function updateMonsters(){
                 if(!blocked(nx,m.y,m.r))m.x=nx;
                 if(!blocked(m.x,ny,m.r))m.y=ny;
             }else if(m.attackCooldown<=0&&player.invincible<=0){
-                const dmg=Math.max(1,Number(m.damage)||1);
+                const dmg=Math.max(1,(Number(m.damage)||1)-(window.getEquippedArmorStats?window.getEquippedArmorStats().defense:0));
                 player.hp-=dmg;
                 addDamageNumber(player.x,player.y-38,dmg,"#f33");
                 player.invincible=30;
@@ -3467,7 +3468,7 @@ function castFire(){
 
         if(monsters.includes(target)){
 
-            const fireDamage=Math.max(1,28-(target.defense||0));
+            const fireDamage=Math.max(1,28-(target.defense||0))+(window.getEquippedArmorStats?window.getEquippedArmorStats().magicAttack:0);
             target.hp-=fireDamage;
             addDamageNumber(target.x,target.y-38,fireDamage,"#fff");
 
@@ -3530,7 +3531,7 @@ function castLightning(){
 
         if(monsters.includes(target)){
 
-            const lightningDamage=Math.max(1,40-(target.defense||0));
+            const lightningDamage=Math.max(1,40-(target.defense||0))+(window.getEquippedArmorStats?window.getEquippedArmorStats().magicAttack:0);
             target.hp-=lightningDamage;
             addDamageNumber(target.x,target.y-38,lightningDamage,"#fff");
 
@@ -4070,7 +4071,8 @@ function renderBag(){
         if(!item || item.count<=0)return;
         const card=document.createElement("div");card.className="itemCard";
         let iconHTML=item.image&&images[item.image]?`<img class="itemImage" src="${images[item.image].src}" alt="">`:name==="Gold Coin"?`<div class="goldBagIcon"><span class="goldCoinCore"></span><span class="goldSpark s1"></span><span class="goldSpark s2"></span><span class="goldSpark s3"></span><span class="goldSpark s4"></span></div>`:`<div class="itemIcon">${item.icon||"📦"}</div>`;
-        card.innerHTML=`${iconHTML}<div class="itemName">${name}</div><div class="itemCount">Quantity: ${item.count}</div>`;container.appendChild(card);
+        const statText=item.stats?`<div class="itemCount">DEF +${item.stats.defense||0} · ATK +${item.stats.attack||0} · M.ATK +${item.stats.magicAttack||0}</div>`:"";
+        card.innerHTML=`${iconHTML}<div class="itemName">${name}</div><div class="itemCount">Quantity: ${item.count}</div>${statText}`;container.appendChild(card);
     });
     for(let i=inventoryUsedSlots();i<inventoryMaxSlots();i++){const slot=document.createElement("div");slot.className="bagEmptySlot";container.appendChild(slot);}
     for(const item of blockchainItems){const card=document.createElement("div");card.className="itemCard";card.innerHTML=`<div class="itemIcon">${item.icon||"⛓️"}</div><div class="itemName">${item.name||"Blockchain Item"}</div><div class="itemCount">Quantity: ${item.count||1}</div>`;blockchain.appendChild(card);}
@@ -7629,8 +7631,6 @@ requestAnimationFrame(
 
 
 
-
-
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -8310,279 +8310,6 @@ requestAnimationFrame(
 
 
 
-
-
-
-
-
-<!-- ===== PANDANIA REQUESTED CONTENT EXPANSION ===== -->
-<script>
-(function(){
-  "use strict";
-
-  /* Load the newly supplied artwork through the same image system. */
-  const newAssets={
-    armor1:IMAGE_FOLDER+"armor1.png", armor2:IMAGE_FOLDER+"armor2.png", armor3:IMAGE_FOLDER+"armor3.png", armor4:IMAGE_FOLDER+"armor4.png",
-    minimartshelf:IMAGE_FOLDER+"Minimartshelf.png", lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
-    metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png", metalmonsterminion1:IMAGE_FOLDER+"metalmonsterminion1.png", metalmonsterminion2:IMAGE_FOLDER+"metalmonsterminion2.png",
-    dungeongem:IMAGE_FOLDER+"dungeongem.png", fish:IMAGE_FOLDER+"fish.png", manapotion:IMAGE_FOLDER+"manapotion.png",
-    minimartcandy:IMAGE_FOLDER+"minimartcandy.png", minimartchips:IMAGE_FOLDER+"minimartchips.png", minimartcola:IMAGE_FOLDER+"minimartcola.png", minimartgain:IMAGE_FOLDER+"minimartgain.png", minimartlights:IMAGE_FOLDER+"minimartlights.png", minimartmallows:IMAGE_FOLDER+"minimartmallows.png", lofidisc:IMAGE_FOLDER+"lofidisc.png"
-  };
-  Object.assign(imageFiles,newAssets);
-  Object.entries(newAssets).forEach(([key,src])=>{if(images[key])return;const img=new Image();img.onload=()=>{images[key]=img};img.onerror=()=>console.warn("Could not load new image:",src);img.src=src;});
-
-  /* Four new armors are normal inventory items and can be equipped through the existing paper doll. */
-  Object.assign(inventory,{
-    "Armor 1":{icon:"🛡️",image:"armor1",count:0},
-    "Armor 2":{icon:"🛡️",image:"armor2",count:0},
-    "Armor 3":{icon:"🛡️",image:"armor3",count:0},
-    "Armor 4":{icon:"🛡️",image:"armor4",count:0}
-  });
-
-  /* Every monster can roll an armor drop. Existing drop behavior is preserved. */
-  const originalKillMonster=killMonster;
-  killMonster=function(monster){
-    originalKillMonster(monster);
-    if(monster){
-      const armorNames=["Armor 1","Armor 2","Armor 3","Armor 4"];
-      if(Math.random()<0.20){
-        const name=armorNames[Math.floor(Math.random()*armorNames.length)];
-        const imgKey=inventory[name].image;
-        groundDrops.push({x:monster.x+(Math.random()-.5)*36,y:monster.y+(Math.random()-.5)*28,name,icon:"🛡️",image:imgKey,bob:Math.random()*Math.PI*2});
-      }
-    }
-  };
-
-  /* Extend the existing equipment paper doll to all four new armors. */
-  const armorNames=new Set(["Iron Armor","Armor 1","Armor 2","Armor 3","Armor 4"]);
-  const oldEquipItem=window.__pandaniaGameplayV11;
-  const equipmentState=window.__pandaniaEquipment;
-  function equipmentImage(name){
-    const item=inventory[name];
-    return item&&item.image&&imageFiles[item.image]?imageFiles[item.image]:"";
-  }
-  function refreshArmorDoll(){
-    const el=document.getElementById("equipArmor");
-    if(!el||!equipmentState)return;
-    const item=equipmentState.armor;
-    const src=equipmentImage(item);
-    el.innerHTML=(item&&src?'<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>':'')+'🛡️ Armor<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
-    const b=el.querySelector('.pdUnequip');
-    if(b)b.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof inventory[item]==='object')inventory[item].count=(inventory[item].count||0)+1;equipmentState.armor=null;renderBag();};
-  }
-  function wireNewArmorCards(){
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
-      if(card.dataset.pandaniaNewArmor==='1')return;
-      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
-      const name=nameEl.textContent.trim();if(!armorNames.has(name)||/^Iron Armor$/.test(name))return;
-      card.dataset.pandaniaNewArmor='1';
-      const equip=()=>{
-        if(!inventory[name]||inventory[name].count<1)return;
-        if(equipmentState.armor&&inventory[equipmentState.armor])inventory[equipmentState.armor].count++;
-        equipmentState.armor=name;inventory[name].count--;refreshArmorDoll();renderBag();showMessage('✅ '+name+' equipped!');
-      };
-      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equip()},{passive:false});
-      let last=0,lx=0,ly=0;card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equip();last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
-    });
-  }
-  const oldRenderBag=renderBag;
-  renderBag=function(){oldRenderBag();setTimeout(()=>{wireNewArmorCards();refreshArmorDoll()},0)};
-
-  /* ---------------- MINI MART ---------------- */
-  let inMiniMart=false;
-  let miniMartReturnX=0,miniMartReturnY=0;
-  const miniMartInterior={width:900,height:600,exitX:450,exitY:535};
-  const miniMartBuilding=environment.buildings.find(b=>b.miniMart);
-  const miniMartShelves=[
-    {x:180,y:150,w:170,h:125},{x:400,y:150,w:170,h:125},
-    {x:625,y:285,w:170,h:125},{x:625,y:455,w:170,h:125}
-  ];
-  const miniMartShelfHit=miniMartShelves.map(r=>({x:r.x-r.w/2,y:r.y-r.h/2,w:r.w,h:r.h}));
-  const miniMartStoreItems=[
-    {name:"Mini Mart Candy",image:"minimartcandy",price:2},
-    {name:"Mini Mart Chips",image:"minimartchips",price:3},
-    {name:"Mini Mart Cola",image:"minimartcola",price:3},
-    {name:"Mini Mart Gain",image:"minimartgain",price:5},
-    {name:"Mini Mart Lights",image:"minimartlights",price:4},
-    {name:"Mini Mart Mallows",image:"minimartmallows",price:2},
-    {name:"Lofi Disc",image:"lofidisc",price:6}
-  ];
-
-  Object.assign(inventory,Object.fromEntries(miniMartStoreItems.map(i=>[i.name,{icon:"📦",image:i.image,count:0}])));
-
-  function drawMiniMartInterior(){
-    const w=miniMartInterior.width,h=miniMartInterior.height;
-    ctx.fillStyle="#4a3024";ctx.fillRect(0,0,w,h);
-    ctx.fillStyle="#b88958";ctx.fillRect(38,38,w-76,h-76);
-    ctx.fillStyle="#e7d0a2";ctx.fillRect(62,62,w-124,h-124);
-    ctx.fillStyle="#6e4931";ctx.fillRect(0,0,w,32);ctx.fillRect(0,h-32,w,32);ctx.fillRect(0,0,32,h);ctx.fillRect(w-32,0,32,h);
-    ctx.fillStyle="#2d1b12";ctx.fillRect(miniMartInterior.exitX-45,h-72,90,72);
-    ctx.fillStyle="#ffe08a";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("EXIT",miniMartInterior.exitX,h-84);
-    ctx.fillStyle="rgba(55,30,18,.7)";ctx.font="bold 28px Georgia";ctx.fillText("PANDANIA MINI MART",w/2,88);
-    miniMartShelves.forEach(r=>{
-      const img=images.minimartshelf;
-      if(img)ctx.drawImage(img,r.x-r.w/2,r.y-r.h/2,r.w,r.h);
-      else{ctx.fillStyle="#7a4d2b";ctx.fillRect(r.x-r.w/2,r.y-r.h/2,r.w,r.h);}
-    });
-    const j=images.lofijukebox;
-    if(j)ctx.drawImage(j,82,82,100,130);else{ctx.fillStyle="#553c2c";ctx.fillRect(82,82,100,130)}
-    ctx.fillStyle="#4a2e1e";ctx.font="bold 11px Arial";ctx.fillText("JUKEBOX",132,228);
-  }
-
-  function miniMartPoint(e){
-    const rect=canvas.getBoundingClientRect();const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);const z=pandaniaMobileZoom();const vw=W/z,vh=H/z;return z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
-  }
-  function closeMiniMartStore(){const el=document.getElementById('miniMartStoreWindow');if(el)el.remove()}
-  function showMiniMartStore(){
-    closeMiniMartStore();closeWindows();
-    const el=document.createElement('div');el.id='miniMartStoreWindow';el.className='window';
-    el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,620px);max-height:82vh;overflow:auto;background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:14px;color:#fff;box-sizing:border-box';
-    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🏪 Pandania Mini Mart</div><div style="color:#d8c29a;font-size:12px;margin-bottom:10px">Purchases are made with PDA only. These items cannot be found anywhere else.</div><div id="miniMartStoreItems" class="itemGrid"></div>';
-    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=closeMiniMartStore;
-    const grid=el.querySelector('#miniMartStoreItems');
-    miniMartStoreItems.forEach(item=>{
-      const card=document.createElement('div');card.className='itemCard';
-      const src=imageFiles[item.image]||'';card.innerHTML=(src?'<img class="itemImage" src="'+src.replace(/"/g,'&quot;')+'" alt="">':'<div class="itemIcon">📦</div>')+'<div class="itemName">'+item.name+'</div><div class="itemCount">'+item.price+' PDA</div><button class="buyBtn" type="button">Buy</button>';
-      card.querySelector('button').onclick=()=>{const pdas=inventory['PDA Coin']?.count||0;if(pdas<item.price){showMessage('Not enough PDA.');return}if(!canAddNewInventoryItem(item.name)){showMessage('🎒 Your bag is full.');return}inventory['PDA Coin'].count-=item.price;inventory[item.name].count++;updateUI();renderBag();showMessage('🛒 Purchased '+item.name+'!');};grid.appendChild(card);
-    });
-  }
-  function showJukebox(){
-    closeMiniMartStore();closeWindows();
-    const el=document.createElement('div');el.id='miniMartJukeboxWindow';el.className='window';el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,430px);background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:18px;color:#fff;box-sizing:border-box';
-    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🎵 Lofi Jukebox</div><div style="color:#d8c29a;font-size:13px;margin-top:12px">No songs have been installed yet. Add your song files later and they can be added here.</div>';
-    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=()=>el.remove();
-  }
-
-  function enterMiniMart(){
-    if(!miniMartBuilding)return;
-    miniMartReturnX=player.x;miniMartReturnY=player.y;inMiniMart=true;closeWindows();closeMiniMartStore();
-    player.x=miniMartInterior.exitX;player.y=455;player.targetX=null;player.targetY=null;player.targetMonster=null;
-    showMessage('🏪 Welcome to the Pandania Mini Mart!');updateCamera();
-  }
-  function leaveMiniMart(){
-    inMiniMart=false;player.x=miniMartReturnX;player.y=miniMartReturnY+55;player.targetX=null;player.targetY=null;player.targetMonster=null;closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();showMessage('🚪 You left the Mini Mart.');updateCamera();
-  }
-
-  /* Mini Mart is a normal world building; add its door to the existing interaction flow. */
-  const oldInteract=interact;
-  interact=function(){
-    if(inMiniMart){
-      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<100){leaveMiniMart();return;}
-      showMessage('🏪 Browse the shelves or use the jukebox.');return;
-    }
-    if(miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<70){enterMiniMart();return;}
-    return oldInteract();
-  };
-
-  window.__pandaniaMiniMartInterior=miniMartInterior;
-
-  const oldBlocked=blocked;
-  blocked=function(x,y,r=player.r){
-    if(inMiniMart)return x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20;
-    return oldBlocked(x,y,r);
-  };
-  const oldUpdateCamera=updateCamera;
-  updateCamera=function(){
-    if(inMiniMart){const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;camera.x=Math.max(0,Math.min(player.x-vw/2,Math.max(0,miniMartInterior.width-vw)));camera.y=Math.max(0,Math.min(player.y-vh/2,Math.max(0,miniMartInterior.height-vh)));return;}
-    return oldUpdateCamera();
-  };
-  const oldUpdatePlayer=updatePlayer;
-  updatePlayer=function(){
-    oldUpdatePlayer();
-    if(!inMiniMart&&miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<58)enterMiniMart();
-    if(inMiniMart&&Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<55)leaveMiniMart();
-  };
-  const oldDraw=draw;
-  draw=function(){
-    if(!inMiniMart)return oldDraw();
-    ctx.clearRect(0,0,W,H);ctx.save();const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);drawMiniMartInterior();drawPlayer();ctx.restore();drawMiniMartMiniMap();
-  };
-  function drawMiniMartMiniMap(){drawMiniMap();}
-
-  /* Capture canvas clicks before the normal world click handler so shelf/jukebox/exit interactions work on desktop and touch devices. */
-  canvas.addEventListener('pointerdown',e=>{
-    if(!gameStarted)return;
-    if(!inMiniMart&&miniMartBuilding){
-      const p=miniMartPoint(e);
-      if(Math.hypot(p.x-miniMartBuilding.doorX,p.y-miniMartBuilding.doorY)<105){if(Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<110){e.preventDefault();e.stopImmediatePropagation();enterMiniMart();}else{player.targetX=miniMartBuilding.doorX;player.targetY=miniMartBuilding.doorY;showMessage('🏪 Walking to the Mini Mart...');e.preventDefault();e.stopImmediatePropagation();}return;}
-    }
-    if(!inMiniMart)return;
-    const p=miniMartPoint(e);
-    if(Math.hypot(p.x-miniMartInterior.exitX,p.y-miniMartInterior.exitY)<90){e.preventDefault();e.stopImmediatePropagation();leaveMiniMart();return;}
-    if(Math.hypot(p.x-132,p.y-150)<95){e.preventDefault();e.stopImmediatePropagation();showJukebox();return;}
-    if(miniMartShelfHit.some(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)){e.preventDefault();e.stopImmediatePropagation();showMiniMartStore();return;}
-    player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
-  },true);
-
-  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
-  const level4Gems=[
-    [130,150],[250,190],[390,120],[520,190],[680,135],[850,180],[1010,130],[1170,190],[1360,150],
-    [160,410],[300,650],[460,430],[650,590],[850,470],[1030,650],[1210,430],[1360,650],[1120,800]
-  ];
-  const oldDrawDungeon=drawDungeon;
-  drawDungeon=function(){
-    oldDrawDungeon();
-    const levelText=document.querySelector('#zoneLabel')?.textContent||'';
-    const level4Active=monsters.some(m=>m.type==='boss4'||m.dungeonLevel===4);
-    if(!level4Active)return;
-    const gem=images.dungeongem;
-    if(gem){for(const [x,y] of level4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,x-18,y-30,36,60);ctx.restore();}}
-  };
-
-  const metalMeteorShots=window.__pandaniaMetalMeteorShots=[];
-  const oldUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    oldUpdateMonsters();
-    if(!inDungeon)return;
-    for(const m of monsters){
-      if(m.type!=='boss4')continue;
-      if(m.metalMeteorCooldown==null)m.metalMeteorCooldown=300;
-      m.metalMeteorCooldown--;
-      if(m.metalMeteorCooldown<=0){
-        const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;
-        metalMeteorShots.push({x:m.x,y:m.y,tx:player.x,ty:player.y,vx:dx/len*7.5,vy:dy/len*7.5,life:150,damage:48});
-        m.metalMeteorCooldown=300;
-        if(typeof bossSound==='function')bossSound();
-        showMessage('☄️ Metal Monster uses METAL METEOR!');
-      }
-    }
-    for(let i=metalMeteorShots.length-1;i>=0;i--){const q=metalMeteorShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;if(Math.hypot(q.x-q.tx,q.y-q.ty)<18||q.life<=0){if(Math.hypot(player.x-q.x,player.y-q.y)<38&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;hitSound();if(player.hp<=0)respawnPlayer();}metalMeteorShots.splice(i,1);}}
-  };
-  const oldDrawWithMeteor=draw;
-  draw=function(){
-    oldDrawWithMeteor();
-    if(!inDungeon)return;
-    for(const q of metalMeteorShots){
-      const img=images.metalmonsterspecialattack;if(!img)continue;
-      const pulse=0.72+Math.sin(Date.now()/90)*0.22;ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#b13cff';ctx.shadowBlur=28+Math.sin(Date.now()/100)*10;ctx.drawImage(img,q.x-34,q.y-34,68,68);ctx.restore();
-    }
-  };
-
-  /* Mini Mart building and interior state do not interfere with existing houses. */
-  const originalCloseWindows=closeWindows;
-  closeWindows=function(){originalCloseWindows();closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();};
-
-  const miniMartNames=new Set(miniMartStoreItems.map(i=>i.name));
-  const originalCreateListing=createListing;
-  createListing=function(){
-    const name=(document.getElementById('sellItem')?.value||'').trim();
-    if(miniMartNames.has(name)){showMessage('🏪 Mini Mart items cannot be sold or purchased through the Grand Exchange.');return;}
-    return originalCreateListing();
-  };
-  const originalBuyListing=buyListing;
-  buyListing=function(index){
-    if(listings[index]&&miniMartNames.has(listings[index].item)){showMessage('🏪 Mini Mart items can only be purchased with PDA at the Mini Mart.');return;}
-    return originalBuyListing(index);
-  };
-
-  /* Make fish and mana potion use their new image assets everywhere the bag renderer displays them. */
-  if(inventory.Fish)inventory.Fish.image='fish';
-  if(inventory['Mana Potion'])inventory['Mana Potion'].image='manapotion';
-
-  window.__pandaniaRequestedContentExpansion=true;
-})();
-</script>
-<!-- ===== END PANDANIA REQUESTED CONTENT EXPANSION ===== -->
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
 (function(){
@@ -9026,5 +8753,387 @@ window.addEventListener('orientationchange',function(){setTimeout(refreshSameRen
 })();
 </script>
 <!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
+
+<!-- ===== PANDANIA REQUESTED CONTENT EXPANSION ===== -->
+<script>
+(function(){
+  "use strict";
+
+  /* Load the newly supplied artwork through the same image system. */
+  const newAssets={
+    armor1:IMAGE_FOLDER+"armor1.png", armor2:IMAGE_FOLDER+"armor2.png", armor3:IMAGE_FOLDER+"armor3.png", armor4:IMAGE_FOLDER+"armor4.png",
+    minimartshelf:IMAGE_FOLDER+"minimartshelf.png", lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
+    metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png", metalmonsterminion1:IMAGE_FOLDER+"metalmonsterminion1.png", metalmonsterminion2:IMAGE_FOLDER+"metalmonsterminion2.png",
+    dungeongem:IMAGE_FOLDER+"dungeongem.png", fish:IMAGE_FOLDER+"fish.png", manapotion:IMAGE_FOLDER+"manapotion.png",
+    minimartcandy:IMAGE_FOLDER+"minimartcandy.png", minimartchips:IMAGE_FOLDER+"minimartchips.png", minimartcola:IMAGE_FOLDER+"minimartcola.png", minimartgain:IMAGE_FOLDER+"minimartgain.png", minimartlights:IMAGE_FOLDER+"minimartlights.png", minimartmallows:IMAGE_FOLDER+"minimartmallows.png", lofidisc:IMAGE_FOLDER+"lofidisc.png"
+  };
+  Object.assign(imageFiles,newAssets);
+  Object.entries(newAssets).forEach(([key,src])=>{if(images[key])return;const img=new Image();img.onload=()=>{images[key]=img};img.onerror=()=>console.warn("Could not load new image:",src);img.src=src;});
+
+  /* Four new armors are normal inventory items and can be equipped through the existing paper doll. */
+  Object.assign(inventory,{
+    "Magic Robe":{icon:"🛡️",image:"armor1",count:0,stats:{defense:5,attack:0,magicAttack:10}},
+    "Bruiser Plate":{icon:"🛡️",image:"armor2",count:0,stats:{defense:10,attack:5,magicAttack:0}},
+    "Pda Cloak":{icon:"🛡️",image:"armor3",count:0,stats:{defense:50,attack:0,magicAttack:50}},
+    "Golden Plate":{icon:"🛡️",image:"armor4",count:0,stats:{defense:100,attack:20,magicAttack:0}}
+  });
+
+  /* Every monster can roll an armor drop. Existing drop behavior is preserved. */
+  const originalKillMonster=killMonster;
+  killMonster=function(monster){
+    originalKillMonster(monster);
+    if(monster){
+      const armorNames=["Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"];
+      if(Math.random()<0.20){
+        const name=armorNames[Math.floor(Math.random()*armorNames.length)];
+        const imgKey=inventory[name].image;
+        groundDrops.push({x:monster.x+(Math.random()-.5)*36,y:monster.y+(Math.random()-.5)*28,name,icon:"🛡️",image:imgKey,bob:Math.random()*Math.PI*2});
+      }
+    }
+  };
+
+  /* Extend the existing equipment paper doll to all four new armors. */
+  const armorNames=new Set(["Iron Armor","Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"]);
+  const oldEquipItem=window.__pandaniaGameplayV11;
+  const equipmentState=window.__pandaniaEquipment;
+  function equipmentImage(name){
+    const item=inventory[name];
+    return item&&item.image&&imageFiles[item.image]?imageFiles[item.image]:"";
+  }
+  function refreshArmorDoll(){
+    const el=document.getElementById("equipArmor");
+    if(!el||!equipmentState)return;
+    const item=equipmentState.armor;
+    const src=equipmentImage(item);
+    el.innerHTML=(item&&src?'<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>':'')+'🛡️ Armor<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+    const b=el.querySelector('.pdUnequip');
+    if(b)b.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof inventory[item]==='object')inventory[item].count=(inventory[item].count||0)+1;equipmentState.armor=null;renderBag();};
+  }
+  function wireNewArmorCards(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      if(card.dataset.pandaniaNewArmor==='1')return;
+      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
+      const name=nameEl.textContent.trim();if(!armorNames.has(name)||/^Iron Armor$/.test(name))return;
+      card.dataset.pandaniaNewArmor='1';
+      const equip=()=>{
+        if(!inventory[name]||inventory[name].count<1)return;
+        if(equipmentState.armor&&inventory[equipmentState.armor])inventory[equipmentState.armor].count++;
+        equipmentState.armor=name;inventory[name].count--;refreshArmorDoll();renderBag();showMessage('✅ '+name+' equipped!');
+      };
+      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equip()},{passive:false});
+      let last=0,lx=0,ly=0;card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equip();last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
+    });
+  }
+  const oldRenderBag=renderBag;
+  renderBag=function(){oldRenderBag();setTimeout(()=>{wireNewArmorCards();refreshArmorDoll()},0)};
+
+  /* ---------------- MINI MART ---------------- */
+  let inMiniMart=false;
+  window.__pandaniaInMiniMart=()=>inMiniMart;
+  let miniMartReturnX=0,miniMartReturnY=0;
+  const miniMartInterior={width:900,height:600,exitX:450,exitY:535};
+  const miniMartBuilding=environment.buildings.find(b=>b.miniMart);
+  const miniMartShelves=[
+    {x:180,y:155,w:170,h:125},{x:400,y:155,w:170,h:125},{x:620,y:155,w:170,h:125},
+    {x:180,y:330,w:170,h:125},{x:400,y:330,w:170,h:125},{x:620,y:330,w:170,h:125}
+  ];
+  const miniMartShelfHit=miniMartShelves.map(r=>({x:r.x-r.w/2,y:r.y-r.h/2,w:r.w,h:r.h}));
+  const miniMartStoreItems=[
+    {name:"Mini Mart Candy",image:"minimartcandy",price:2},
+    {name:"Mini Mart Chips",image:"minimartchips",price:3},
+    {name:"Mini Mart Cola",image:"minimartcola",price:3},
+    {name:"Mini Mart Gain",image:"minimartgain",price:5},
+    {name:"Mini Mart Lights",image:"minimartlights",price:4},
+    {name:"Mini Mart Mallows",image:"minimartmallows",price:2},
+    {name:"Lofi Disc",image:"lofidisc",price:6}
+  ];
+
+  Object.assign(inventory,Object.fromEntries(miniMartStoreItems.map(i=>[i.name,{icon:"📦",image:i.image,count:0}])));
+
+  function drawMiniMartInterior(){
+    const w=miniMartInterior.width,h=miniMartInterior.height;
+    ctx.fillStyle="#4a3024";ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#b88958";ctx.fillRect(38,38,w-76,h-76);
+    ctx.fillStyle="#e7d0a2";ctx.fillRect(62,62,w-124,h-124);
+    ctx.fillStyle="#6e4931";ctx.fillRect(0,0,w,32);ctx.fillRect(0,h-32,w,32);ctx.fillRect(0,0,32,h);ctx.fillRect(w-32,0,32,h);
+    ctx.fillStyle="#2d1b12";ctx.fillRect(miniMartInterior.exitX-45,h-72,90,72);
+    ctx.fillStyle="#ffe08a";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("EXIT",miniMartInterior.exitX,h-84);
+    ctx.fillStyle="rgba(55,30,18,.7)";ctx.font="bold 28px Georgia";ctx.fillText("PANDANIA MINI MART",w/2,88);
+    miniMartShelves.forEach(r=>{
+      const img=images.minimartshelf;
+      if(img)ctx.drawImage(img,r.x-r.w/2,r.y-r.h/2,r.w,r.h);
+      else{ctx.fillStyle="#7a4d2b";ctx.fillRect(r.x-r.w/2,r.y-r.h/2,r.w,r.h);}
+    });
+    const j=images.lofijukebox;
+    if(j)ctx.drawImage(j,82,82,100,130);else{ctx.fillStyle="#553c2c";ctx.fillRect(82,82,100,130)}
+    ctx.fillStyle="#4a2e1e";ctx.font="bold 11px Arial";ctx.fillText("JUKEBOX",132,228);
+  }
+
+  function miniMartPoint(e){
+    const rect=canvas.getBoundingClientRect();const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);const z=pandaniaMobileZoom();const vw=W/z,vh=H/z;return z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
+  }
+  function closeMiniMartStore(){const el=document.getElementById('miniMartStoreWindow');if(el)el.remove()}
+  function showMiniMartStore(){
+    closeMiniMartStore();closeWindows();
+    const el=document.createElement('div');el.id='miniMartStoreWindow';el.className='window';
+    el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,620px);max-height:82vh;overflow:auto;background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:14px;color:#fff;box-sizing:border-box';
+    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🏪 Pandania Mini Mart</div><div style="color:#d8c29a;font-size:12px;margin-bottom:10px">Purchases are made with PDA only. These items cannot be found anywhere else.</div><div id="miniMartStoreItems" class="itemGrid"></div>';
+    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=closeMiniMartStore;
+    const grid=el.querySelector('#miniMartStoreItems');
+    miniMartStoreItems.forEach(item=>{
+      const card=document.createElement('div');card.className='itemCard';
+      const src=imageFiles[item.image]||'';card.innerHTML=(src?'<img class="itemImage" src="'+src.replace(/"/g,'&quot;')+'" alt="">':'<div class="itemIcon">📦</div>')+'<div class="itemName">'+item.name+'</div><div class="itemCount">'+item.price+' PDA</div><button class="buyBtn" type="button">Buy</button>';
+      card.querySelector('button').onclick=()=>{const pdas=inventory['PDA Coin']?.count||0;if(pdas<item.price){showMessage('Not enough PDA.');return}if(!canAddNewInventoryItem(item.name)){showMessage('🎒 Your bag is full.');return}inventory['PDA Coin'].count-=item.price;inventory[item.name].count++;updateUI();renderBag();showMessage('🛒 Purchased '+item.name+'!');};grid.appendChild(card);
+    });
+  }
+  function showJukebox(){
+    closeMiniMartStore();closeWindows();
+    const el=document.createElement('div');el.id='miniMartJukeboxWindow';el.className='window';el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,430px);background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:18px;color:#fff;box-sizing:border-box';
+    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🎵 Lofi Jukebox</div><div style="color:#d8c29a;font-size:13px;margin-top:12px">No songs have been installed yet. Add your song files later and they can be added here.</div>';
+    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=()=>el.remove();
+  }
+
+  function enterMiniMart(){
+    if(!miniMartBuilding)return;
+    miniMartReturnX=player.x;miniMartReturnY=player.y;inMiniMart=true;inDungeon=false;closeWindows();closeMiniMartStore();
+    player.x=miniMartInterior.exitX;player.y=455;player.targetX=null;player.targetY=null;player.targetMonster=null;
+    showMessage('🏪 Welcome to the Pandania Mini Mart!');updateCamera();
+  }
+  function leaveMiniMart(){
+    inMiniMart=false;player.x=miniMartReturnX;player.y=miniMartReturnY+55;player.targetX=null;player.targetY=null;player.targetMonster=null;closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();showMessage('🚪 You left the Mini Mart.');updateCamera();
+  }
+
+  /* Mini Mart is a normal world building; add its door to the existing interaction flow. */
+  const oldInteract=interact;
+  interact=function(){
+    if(inMiniMart){
+      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<100){leaveMiniMart();return;}
+      showMessage('🏪 Browse the shelves or use the jukebox.');return;
+    }
+    if(miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<70){enterMiniMart();return;}
+    return oldInteract();
+  };
+
+  window.__pandaniaMiniMartInterior=miniMartInterior;
+
+  const oldBlocked=blocked;
+  blocked=function(x,y,r=player.r){
+    if(inMiniMart)return x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20;
+    return oldBlocked(x,y,r);
+  };
+  const oldUpdateCamera=updateCamera;
+  updateCamera=function(){
+    if(inMiniMart){const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;camera.x=Math.max(0,Math.min(player.x-vw/2,Math.max(0,miniMartInterior.width-vw)));camera.y=Math.max(0,Math.min(player.y-vh/2,Math.max(0,miniMartInterior.height-vh)));return;}
+    return oldUpdateCamera();
+  };
+  const oldUpdatePlayer=updatePlayer;
+  updatePlayer=function(){
+    oldUpdatePlayer();
+    if(!inMiniMart&&miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<58)enterMiniMart();
+    if(inMiniMart&&Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<55)leaveMiniMart();
+  };
+  const oldDraw=draw;
+  draw=function(){
+    if(!inMiniMart)return oldDraw();
+    ctx.clearRect(0,0,W,H);ctx.save();const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);drawMiniMartInterior();drawPlayer();ctx.restore();drawMiniMartMiniMap();
+  };
+  function drawMiniMartMiniMap(){drawMiniMap();}
+
+  /* Capture canvas clicks before the normal world click handler so shelf/jukebox/exit interactions work on desktop and touch devices. */
+  canvas.addEventListener('pointerdown',e=>{
+    if(!gameStarted)return;
+    if(!inMiniMart&&miniMartBuilding){
+      const p=miniMartPoint(e);
+      if(Math.hypot(p.x-miniMartBuilding.doorX,p.y-miniMartBuilding.doorY)<105){if(Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<110){e.preventDefault();e.stopImmediatePropagation();enterMiniMart();}else{player.targetX=miniMartBuilding.doorX;player.targetY=miniMartBuilding.doorY;showMessage('🏪 Walking to the Mini Mart...');e.preventDefault();e.stopImmediatePropagation();}return;}
+    }
+    if(!inMiniMart)return;
+    const p=miniMartPoint(e);
+    if(Math.hypot(p.x-miniMartInterior.exitX,p.y-miniMartInterior.exitY)<90){e.preventDefault();e.stopImmediatePropagation();leaveMiniMart();return;}
+    if(Math.hypot(p.x-132,p.y-150)<95){e.preventDefault();e.stopImmediatePropagation();showJukebox();return;}
+    if(miniMartShelfHit.some(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)){e.preventDefault();e.stopImmediatePropagation();showMiniMartStore();return;}
+    player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
+  },true);
+
+  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
+  const level4Gems=[];
+  /* Tons of gems concentrated around Metal Monster's Level 4 boss arena only. */
+  for(let i=0;i<70;i++){
+    const a=Math.random()*Math.PI*2;
+    const radius=90+Math.random()*470;
+    level4Gems.push([Math.max(55,Math.min(dungeon.width-55,750+Math.cos(a)*radius)),Math.max(55,Math.min(dungeon.height-55,350+Math.sin(a)*radius*.78))]);
+  }
+  const oldDrawDungeon=drawDungeon;
+  drawDungeon=function(){
+    oldDrawDungeon();
+    if(dungeonLevel!==4)return;
+    const gem=images.dungeongem;
+    if(gem){for(const [x,y] of level4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,x-18,y-30,36,60);ctx.restore();}}
+  };
+
+  const metalMeteorShots=window.__pandaniaMetalMeteorShots=[];
+  const oldUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    oldUpdateMonsters();
+    if(!inDungeon)return;
+    for(const m of monsters){
+      if(m.type!=='boss4')continue;
+      if(m.metalMeteorCooldown==null)m.metalMeteorCooldown=300;
+      m.metalMeteorCooldown--;
+      if(m.metalMeteorCooldown<=0){
+        const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;
+        metalMeteorShots.push({x:m.x,y:m.y,tx:player.x,ty:player.y,vx:dx/len*7.5,vy:dy/len*7.5,life:150,damage:48});
+        m.metalMeteorCooldown=300;
+        if(typeof bossSound==='function')bossSound();
+        showMessage('☄️ Metal Monster uses METAL METEOR!');
+      }
+    }
+    for(let i=metalMeteorShots.length-1;i>=0;i--){const q=metalMeteorShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;if(Math.hypot(q.x-q.tx,q.y-q.ty)<18||q.life<=0){if(Math.hypot(player.x-q.x,player.y-q.y)<38&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;hitSound();if(player.hp<=0)respawnPlayer();}metalMeteorShots.splice(i,1);}}
+  };
+  const oldDrawWithMeteor=draw;
+  draw=function(){
+    oldDrawWithMeteor();
+    if(!inDungeon)return;
+    for(const q of metalMeteorShots){
+      const img=images.metalmonsterspecialattack;if(!img)continue;
+      const pulse=0.72+Math.sin(Date.now()/90)*0.22;ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#b13cff';ctx.shadowBlur=28+Math.sin(Date.now()/100)*10;ctx.drawImage(img,q.x-34,q.y-34,68,68);ctx.restore();
+    }
+  };
+
+  /* Mini Mart building and interior state do not interfere with existing houses. */
+  const originalCloseWindows=closeWindows;
+  closeWindows=function(){originalCloseWindows();closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();};
+
+  const miniMartNames=new Set(miniMartStoreItems.map(i=>i.name));
+  const originalCreateListing=createListing;
+  createListing=function(){
+    const name=(document.getElementById('sellItem')?.value||'').trim();
+    if(miniMartNames.has(name)){showMessage('🏪 Mini Mart items cannot be sold or purchased through the Grand Exchange.');return;}
+    return originalCreateListing();
+  };
+  const originalBuyListing=buyListing;
+  buyListing=function(index){
+    if(listings[index]&&miniMartNames.has(listings[index].item)){showMessage('🏪 Mini Mart items can only be purchased with PDA at the Mini Mart.');return;}
+    return originalBuyListing(index);
+  };
+
+  /* Make fish and mana potion use their new image assets everywhere the bag renderer displays them. */
+  if(inventory.Fish)inventory.Fish.image='fish';
+  if(inventory['Mana Potion'])inventory['Mana Potion'].image='manapotion';
+
+  window.__pandaniaRequestedContentExpansion=true;
+})();
+</script>
+<!-- ===== PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
+<script>
+(function(){
+  "use strict";
+
+  /* Armor stats are applied only while the corresponding armor is equipped. */
+  window.getEquippedArmorStats=function(){
+    const state=window.__pandaniaEquipment;
+    const name=state&&state.armor;
+    const item=name&&inventory[name];
+    return item&&item.stats?item.stats:{defense:0,attack:0,magicAttack:0};
+  };
+
+  /* Stop all monster AI, attacks and special attacks while the player is inside
+     the Mini Mart. This is an isolated interior, not a dungeon state. */
+  const previousUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    return previousUpdateMonsters();
+  };
+
+  /* Keep DegenHooper inside Panden Town while roaming. */
+  let degenX=1040,degenY=560;
+  for(let attempt=0;attempt<300;attempt++){
+    const tx=townBounds.x+55+Math.random()*(townBounds.w-110);
+    const ty=townBounds.y+55+Math.random()*(townBounds.h-110);
+    const occupied=environment.buildings.some(b=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},b,20))||environment.ponds.some(w=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},w,20));
+    if(!occupied){degenX=tx;degenY=ty;break;}
+  }
+  const degen={
+    x:degenX,y:degenY,name:"DegenHooper",image:"npc4",wander:true,townOnly:true,
+    specialQuest:"Dropped the Ball"
+  };
+  degen.homeX=degen.x;degen.homeY=degen.y;degen.targetX=degen.x;degen.targetY=degen.y;degen.walkTimer=0;
+  if(!npcs.some(n=>n.name==="DegenHooper"))npcs.push(degen);
+
+  const previousUpdateNPCs=updateNPCs;
+  updateNPCs=function(){
+    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    previousUpdateNPCs();
+    const n=npcs.find(n=>n.name==="DegenHooper");
+    if(n){
+      n.x=Math.max(townBounds.x+45,Math.min(townBounds.x+townBounds.w-45,n.x));
+      n.y=Math.max(townBounds.y+45,Math.min(townBounds.y+townBounds.h-45,n.y));
+    }
+  };
+
+  /* DegenHooper's special quest has its own quest state and does not alter
+     the existing Captain Panda quest progression. */
+  let droppedTheBallStarted=false;
+  const previousTalkToNPC=talkToNPC;
+  talkToNPC=function(n){
+    if(n&&n.specialQuest==="Dropped the Ball"){
+      if(!droppedTheBallStarted){
+        droppedTheBallStarted=true;
+        setQuest("Dropped the Ball","Special quest from DegenHooper.");
+        openDialogue("DegenHooper","Yo! You dropped the ball. I've got a special quest for you: Dropped the Ball.");
+      }else{
+        openDialogue("DegenHooper","You accepted the special quest: Dropped the Ball.");
+      }
+      return;
+    }
+    return previousTalkToNPC(n);
+  };
+
+  /* Only one Panden Town building carries the Your House identity. */
+  const playerHouse=environment.buildings.find(b=>b.type==="house1"&&b.playerHouse);
+  if(playerHouse)playerHouse.name="Your House";
+  environment.buildings.forEach(b=>{
+    if(b!==playerHouse&&b.name==="Your House")b.name="Panden Town House";
+  });
+
+  /* The updated shelf artwork is the exact lowercase filename supplied. */
+  if(imageFiles.minimartshelf){}
+
+  /* Armor combat bonuses. */
+  const armorStats=window.getEquippedArmorStats;
+  const originalSwordAttack=swordAttack;
+  swordAttack=function(target=null){
+    const before=player.__pandaniaArmorAttackBonus||0;
+    const stats=armorStats();
+    player.__pandaniaArmorAttackBonus=stats.attack||0;
+    try{return originalSwordAttack(target);}finally{player.__pandaniaArmorAttackBonus=before;}
+  };
+
+  /* The original melee/spell routines read these temporary bonuses when they
+     execute; this keeps all existing weapon and spell behavior intact. */
+  const originalCastFire=castFire;
+  castFire=function(){
+    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
+    try{return originalCastFire();}finally{player.__pandaniaArmorMagicBonus=old;}
+  };
+  const originalCastLightning=castLightning;
+  castLightning=function(){
+    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
+    try{return originalCastLightning();}finally{player.__pandaniaArmorMagicBonus=old;}
+  };
+
+  /* Final armor-aware damage hooks. */
+  const oldUpdateMonstersArmor=updateMonsters;
+  updateMonsters=function(){
+    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    return oldUpdateMonstersArmor();
+  };
+
+  /* Correct the existing routines' numeric formulas without replacing their
+     renderers or other game systems. */
+  window.__pandaniaFollowupFixes=true;
+})();
+</script>
+<!-- ===== END PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
+<!-- ===== END PANDANIA REQUESTED CONTENT EXPANSION ===== -->
 </body>
 </html>

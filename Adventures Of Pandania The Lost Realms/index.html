@@ -3170,7 +3170,7 @@ function updateMonsters(){
                 if(!blocked(nx,m.y,m.r))m.x=nx;
                 if(!blocked(m.x,ny,m.r))m.y=ny;
             }else if(m.attackCooldown<=0&&player.invincible<=0){
-                const dmg=Math.max(1,Number(m.damage)||1);
+                const dmg=Math.max(1,(Number(m.damage)||1)-(window.getEquippedArmorStats?window.getEquippedArmorStats().defense:0));
                 player.hp-=dmg;
                 addDamageNumber(player.x,player.y-38,dmg,"#f33");
                 player.invincible=30;
@@ -3365,6 +3365,9 @@ function leaveDungeon(){
     inDungeon=false;
     stopDungeonMusic();
     bossFireShots=[];
+    spellEffects=[];
+    window.__stableMetalMeteors=[];
+    window.__boss4Earthquake=0;
 
     /* Resume the normal overworld music after leaving the dungeon. */
     if(gameStarted) resumeOverworldMusic();
@@ -5592,142 +5595,54 @@ function drawFallbackNPC(x,y){
 ========================================================= */
 
 function drawMonster(m){
-
-    ctx.save();
-
-    /*
-       Shadow
-    */
-
-    ctx.fillStyle="rgba(0,0,0,.35)";
-
-    ctx.beginPath();
-
-    ctx.ellipse(
-        m.x,
-        m.y+5,
-        m.r+5,
-        8,
-        0,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
-
+    const keepFloating=(m.type==="roamer1" || m.type==="boss3");
+    const groundOffset=keepFloating?0:10;
+    const drawY=m.y+groundOffset;
     const size=
         m.type==="roamer1"
         ?110
         :(m.boss ?120 :65);
 
-    const drawn=
-        drawSprite(
-            m.image,
-            m.x,
-            m.y,
-            size,
-            size,
-            false,
-            1
-        );
-
-    if(!drawn){
-
-        ctx.fillStyle=
-            m.boss
-            ?"#5b1d32"
-            :"#75a83f";
-
+    if(keepFloating){
+        ctx.save();
+        ctx.fillStyle="rgba(0,0,0,.35)";
         ctx.beginPath();
-
-        ctx.arc(
-            m.x,
-            m.y-25,
-            m.boss?40:22,
-            0,
-            Math.PI*2
-        );
-
+        ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);
         ctx.fill();
+        ctx.restore();
     }
 
-    ctx.restore();
+    const drawn=drawSprite(m.image,m.x,drawY,size,size,false,1);
 
-    /* Health bar */
+    if(!drawn){
+        ctx.save();
+        ctx.fillStyle=m.boss?"#5b1d32":"#75a83f";
+        ctx.beginPath();
+        ctx.arc(m.x,drawY-25,m.boss?40:22,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
 
-    const width=
-        (m.boss||m.type==="roamer1")
-        ?110
-        :50;
-
+    const width=(m.boss||m.type==="roamer1")?110:50;
     ctx.fillStyle="#191919";
-
-    ctx.fillRect(
-        m.x-width/2,
-        m.y-size-8,
-        width,
-        7
-    );
-
-    ctx.fillStyle=
-        m.boss
-        ?"#d7263d"
-        :"#e74c3c";
-
-    ctx.fillRect(
-        m.x-width/2,
-        m.y-size-8,
-        width*
-        Math.max(
-            0,
-            m.hp/m.maxHp
-        ),
-        7
-    );
-
+    ctx.fillRect(m.x-width/2,drawY-size-8,width,7);
+    ctx.fillStyle=m.boss?"#d7263d":"#e74c3c";
+    ctx.fillRect(m.x-width/2,drawY-size-8,width*Math.max(0,m.hp/m.maxHp),7);
     ctx.fillStyle="#fff";
-
-    ctx.font=
-        m.boss
-        ?"bold 13px Arial"
-        :"9px Arial";
-
+    ctx.font=m.boss?"bold 13px Arial":"9px Arial";
     ctx.textAlign="center";
-
-    ctx.fillText(
-        m.name,
-        m.x,
-        m.y-size-12
-    );
+    ctx.fillText(m.name,m.x,drawY-size-12);
 
     if(m.boss){
-
         ctx.fillStyle="#ffd36b";
-
         ctx.font="bold 11px Arial";
-
-        ctx.fillText(
-            "BOSS",
-            m.x,
-            m.y-size-27
-        );
+        ctx.fillText("BOSS",m.x,drawY-size-27);
     }
 
     if(m.hitFlash){
-
-        ctx.fillStyle=
-            "rgba(255,70,70,.35)";
-
+        ctx.fillStyle="rgba(255,70,70,.35)";
         ctx.beginPath();
-
-        ctx.arc(
-            m.x,
-            m.y-30,
-            size*.45,
-            0,
-            Math.PI*2
-        );
-
+        ctx.arc(m.x,drawY-30,size*.45,0,Math.PI*2);
         ctx.fill();
     }
 }
@@ -5741,6 +5656,110 @@ function drawMonsters(){
 /* =========================================================
    PLAYER
 ========================================================= */
+
+/* =========================================================
+   EQUIPPED WEAPON VISUALS
+   Idle weapons are mounted behind the player. The weapon image is
+   rotated from the player's facing vector so its blade/staff end
+   changes direction on all four cardinal directions. During an
+   attack it moves from the hand in the same direction and swings.
+========================================================= */
+const pdWeaponVisualKeys={
+    "Wooden Sword":null,
+    "Bamboo Sword":"weapon1",
+    "Iron Sword":"weapon2",
+    "Goblin Saber":"weapon3",
+    "XPR Lens":"weapon4",
+    "Spiked Twin Blade":"weapon5",
+    "Purple Ice Blade":"weapon6",
+    "Thunderma":"weapon7",
+    "Diamond staff":"weapon8",
+    "Golden Beacon Staff":"weapon9",
+    "Purplereign":"weapon10"
+};
+function pdCurrentWeaponName(){
+    const st=window.__pandaniaEquipment;
+    return st&&st.weapon?st.weapon:"Wooden Sword";
+}
+function pdWeaponImage(key){
+    if(!key)return null;
+    if(images[key])return images[key];
+    const src=imageFiles[key];
+    if(!src)return null;
+    const img=new Image();
+    img.onload=()=>{images[key]=img;};
+    img.src=src;
+    return null;
+}
+function pdFacingCardinal(){
+    const fx=Number(player.facingX)||1, fy=Number(player.facingY)||0;
+    if(Math.abs(fx)>=Math.abs(fy)) return fx<0?"left":"right";
+    return fy<0?"up":"down";
+}
+function pdWeaponAngle(){
+    switch(pdFacingCardinal()){
+        case "left": return Math.PI;
+        case "up": return -Math.PI/2;
+        case "down": return Math.PI/2;
+        default: return 0;
+    }
+}
+function pdDrawBackWeapon(){
+    const name=pdCurrentWeaponName();
+    const key=pdWeaponVisualKeys[name];
+    const img=key?pdWeaponImage(key):null;
+    const dir=pdFacingCardinal();
+    const bob=player.moving?Math.abs(Math.sin(player.walkTime))*3:0;
+    let bx=player.x, by=player.y+bob-48;
+    /* Opposite the facing direction = the character's back. */
+    if(dir==="right") bx-=11;
+    if(dir==="left") bx+=11;
+    if(dir==="up") by+=7;
+    if(dir==="down") by-=4;
+    ctx.save();
+    ctx.translate(bx,by);
+    ctx.rotate(pdWeaponAngle());
+    ctx.globalAlpha=.98;
+    ctx.imageSmoothingEnabled=false;
+    if(img){
+        const w=42,h=42;
+        ctx.drawImage(img,-w/2,-h/2,w,h);
+    }else{
+        /* Wooden Sword fallback, kept in the same directional system. */
+        ctx.fillStyle="#79542d";ctx.fillRect(-3,-5,6,18);
+        ctx.fillStyle="#dedede";ctx.fillRect(-4,-24,8,20);
+        ctx.fillStyle="#d39a4f";ctx.fillRect(-9,-8,18,4);
+    }
+    ctx.restore();
+}
+function pdDrawAttackWeapon(){
+    const name=pdCurrentWeaponName();
+    const key=pdWeaponVisualKeys[name];
+    const img=key?pdWeaponImage(key):null;
+    const dir=pdFacingCardinal();
+    const base=pdWeaponAngle();
+    const swing=Number(player.swordSwing)||0;
+    if(swing<=0)return;
+    const progress=1-swing/12;
+    /* Tight hand pivot. The weapon begins beside the hand/body rather
+       than several pixels in front of the character. */
+    const side=(dir==="right"||dir==="left")?(dir==="right"?13:-13):8;
+    const hx=player.x+(dir==="right"?side:dir==="left"?side:0);
+    const hy=player.y-47+(dir==="up"?4:dir==="down"?9:0);
+    const swingOffset=-1.25+progress*2.5;
+    ctx.save();
+    ctx.translate(hx,hy);
+    ctx.rotate(base+swingOffset);
+    ctx.imageSmoothingEnabled=false;
+    if(img){
+        ctx.drawImage(img,-21,-21,42,42);
+    }else{
+        ctx.fillStyle="#79542d";ctx.fillRect(-3,-5,6,18);
+        ctx.fillStyle="#dedede";ctx.fillRect(-4,-24,8,20);
+        ctx.fillStyle="#d39a4f";ctx.fillRect(-9,-8,18,4);
+    }
+    ctx.restore();
+}
 
 function drawPlayer(){
 
@@ -5775,6 +5794,9 @@ function drawPlayer(){
     }else{
         movementSprite=fx<0 ? "player1left" : "player1right";
     }
+
+    /* Back-mounted weapon is rendered first so the player body naturally occludes it. */
+    pdDrawBackWeapon();
 
     const drawn=
         drawSprite(
@@ -5927,108 +5949,31 @@ function drawFallbackPlayer(){
 ========================================================= */
 
 function drawPlayerEffects(){
+    /* Attack weapon is intentionally drawn after the player so it appears
+       in the hand only while swinging. Idle weapon remains behind the body. */
+    pdDrawAttackWeapon();
 
     const x=player.x;
     const y=player.y;
 
-    if(player.swordSwing>0){
-
-        ctx.save();
-
-        ctx.translate(
-            x,
-            y
-        );
-
-        const angle=Math.atan2(
-            player.facingY,
-            player.facingX
-        );
-
-        ctx.rotate(angle);
-
-        const progress=
-            1-player.swordSwing/12;
-
-        ctx.rotate(
-            -1.5+
-            progress*3
-        );
-
-        ctx.strokeStyle="#dedede";
-        ctx.lineWidth=4;
-        ctx.lineCap="round";
-
-        ctx.beginPath();
-
-        ctx.moveTo(19,2);
-        ctx.lineTo(45,-28);
-
-        ctx.stroke();
-
-        ctx.strokeStyle="#79542d";
-        ctx.lineWidth=3;
-
-        ctx.beginPath();
-
-        ctx.moveTo(15,6);
-        ctx.lineTo(23,13);
-
-        ctx.stroke();
-
-        ctx.restore();
-    }
-
     if(player.healEffect>0){
-
         ctx.save();
-
-        ctx.fillStyle=
-            "rgba(50,255,110,.18)";
-
+        ctx.fillStyle="rgba(50,255,110,.18)";
         ctx.beginPath();
-
-        ctx.arc(
-            x,
-            y-30,
-            55+
-            Math.sin(
-                Date.now()/70
-            )*4,
-            0,
-            Math.PI*2
-        );
-
+        ctx.arc(x,y-30,55+Math.sin(Date.now()/70)*4,0,Math.PI*2);
         ctx.fill();
-
-        ctx.strokeStyle=
-            "rgba(80,255,130,.6)";
-
+        ctx.strokeStyle="rgba(80,255,130,.6)";
         ctx.lineWidth=3;
-
         ctx.stroke();
-
         ctx.restore();
     }
 
     if(player.healText>0){
-
         ctx.save();
-
         ctx.fillStyle="#67ff91";
-
         ctx.font="bold 17px Arial";
-
         ctx.textAlign="center";
-
-        ctx.fillText(
-            "+"+
-            player.healAmount,
-            x,
-            y-90-
-            (25-player.healText)*.6
-        );
-
+        ctx.fillText("+"+player.healAmount,x,y-90-(25-player.healText)*.6);
         ctx.restore();
     }
 }
@@ -7436,6 +7381,7 @@ requestAnimationFrame(
 
     if(wasCurrentDungeonBoss && !bossesRemainingOnCurrentLevel()){
       openDungeonStair();
+      dungeonStairOpen=true;
     }
   };
 
@@ -7456,6 +7402,10 @@ requestAnimationFrame(
     player.targetY=null;
     player.targetMonster=null;
     groundDrops=[];
+    spellEffects=[];
+    bossFireShots=[];
+    window.__stableMetalMeteors=[];
+    window.__boss4Earthquake=0;
 
     spawnDungeonLevel(dungeonLevel);
     setZoneLabel("🕯️ THE LOST CAVE — LEVEL "+dungeonLevel);
@@ -7625,8 +7575,6 @@ requestAnimationFrame(
   window.__pandaniaFinalFixV11=true;
 })();
 /* ===== END PANDANIA FINAL EQUIPMENT/MOBILE FIX v11 ===== */
-
-
 
 
 
@@ -8332,1032 +8280,6 @@ requestAnimationFrame(
 
 
 
-
-
-
-
-
-<!-- ===== PANDANIA REQUESTED CONTENT EXPANSION ===== -->
-<script>
-(function(){
-  "use strict";
-
-  /* Load the newly supplied artwork through the same image system. */
-  const newAssets={
-    armor1:IMAGE_FOLDER+"armor1.png", armor2:IMAGE_FOLDER+"armor2.png", armor3:IMAGE_FOLDER+"armor3.png", armor4:IMAGE_FOLDER+"armor4.png",
-    minimartshelf:IMAGE_FOLDER+"minimartshelf.png", lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
-    metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png", metalmonsterminion1:IMAGE_FOLDER+"metalmonsterminion1.png", metalmonsterminion2:IMAGE_FOLDER+"metalmonsterminion2.png",
-    dungeongem:IMAGE_FOLDER+"dungeongem.png", fish:IMAGE_FOLDER+"fish.png", manapotion:IMAGE_FOLDER+"manapotion.png",
-    minimartcandy:IMAGE_FOLDER+"minimartcandy.png", minimartchips:IMAGE_FOLDER+"minimartchips.png", minimartcola:IMAGE_FOLDER+"minimartcola.png", minimartgain:IMAGE_FOLDER+"minimartgain.png", minimartlights:IMAGE_FOLDER+"minimartlights.png", minimartmallows:IMAGE_FOLDER+"minimartmallows.png", lofidisc:IMAGE_FOLDER+"lofidisc.png"
-  };
-  Object.assign(imageFiles,newAssets);
-  Object.entries(newAssets).forEach(([key,src])=>{if(images[key])return;const img=new Image();img.onload=()=>{images[key]=img};img.onerror=()=>console.warn("Could not load new image:",src);img.src=src;});
-
-  /* Four new armors are normal inventory items and can be equipped through the existing paper doll. */
-  Object.assign(inventory,{
-    "Magic Robe":{icon:"🛡️",image:"armor1",count:0,stats:{defense:5,attack:0,magicAttack:10}},
-    "Bruiser Plate":{icon:"🛡️",image:"armor2",count:0,stats:{defense:10,attack:5,magicAttack:0}},
-    "Pda Cloak":{icon:"🛡️",image:"armor3",count:0,stats:{defense:50,attack:0,magicAttack:50}},
-    "Golden Plate":{icon:"🛡️",image:"armor4",count:0,stats:{defense:100,attack:20,magicAttack:0}}
-  });
-
-  /* Every monster can roll an armor drop. Existing drop behavior is preserved. */
-  const originalKillMonster=killMonster;
-  killMonster=function(monster){
-    originalKillMonster(monster);
-    if(monster){
-      const armorNames=["Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"];
-      if(Math.random()<0.20){
-        const name=armorNames[Math.floor(Math.random()*armorNames.length)];
-        const imgKey=inventory[name].image;
-        groundDrops.push({x:monster.x+(Math.random()-.5)*36,y:monster.y+(Math.random()-.5)*28,name,icon:"🛡️",image:imgKey,bob:Math.random()*Math.PI*2});
-      }
-    }
-  };
-
-  /* Extend the existing equipment paper doll to all four new armors. */
-  const armorNames=new Set(["Iron Armor","Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"]);
-  const oldEquipItem=window.__pandaniaGameplayV11;
-  const equipmentState=window.__pandaniaEquipment;
-  function equipmentImage(name){
-    const item=inventory[name];
-    return item&&item.image&&imageFiles[item.image]?imageFiles[item.image]:"";
-  }
-  function refreshArmorDoll(){
-    const el=document.getElementById("equipArmor");
-    if(!el||!equipmentState)return;
-    const item=equipmentState.armor;
-    const src=equipmentImage(item);
-    el.innerHTML=(item&&src?'<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>':'')+'🛡️ Armor<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
-    const b=el.querySelector('.pdUnequip');
-    if(b)b.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof inventory[item]==='object')inventory[item].count=(inventory[item].count||0)+1;equipmentState.armor=null;renderBag();};
-  }
-  function wireNewArmorCards(){
-    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
-      if(card.dataset.pandaniaNewArmor==='1')return;
-      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
-      const name=nameEl.textContent.trim();if(!armorNames.has(name)||/^Iron Armor$/.test(name))return;
-      card.dataset.pandaniaNewArmor='1';
-      const equip=()=>{
-        if(!inventory[name]||inventory[name].count<1)return;
-        if(equipmentState.armor&&inventory[equipmentState.armor])inventory[equipmentState.armor].count++;
-        equipmentState.armor=name;inventory[name].count--;refreshArmorDoll();renderBag();showMessage('✅ '+name+' equipped!');
-      };
-      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equip()},{passive:false});
-      let last=0,lx=0,ly=0;card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equip();last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
-    });
-  }
-  const oldRenderBag=renderBag;
-  renderBag=function(){oldRenderBag();setTimeout(()=>{wireNewArmorCards();refreshArmorDoll()},0)};
-
-  /* ---------------- MINI MART ---------------- */
-  let inMiniMart=false;
-  window.__pandaniaInMiniMart=()=>inMiniMart;
-  let miniMartReturnX=0,miniMartReturnY=0;
-  const miniMartInterior={width:900,height:600,exitX:450,exitY:535};
-  const miniMartBuilding=environment.buildings.find(b=>b.miniMart);
-  const miniMartShelves=[
-    {x:285,y:165,w:170,h:120},{x:505,y:165,w:170,h:120},{x:725,y:165,w:170,h:120},
-    {x:285,y:350,w:170,h:120},{x:505,y:350,w:170,h:120},{x:725,y:350,w:170,h:120}
-  ];
-  const miniMartShelfHit=miniMartShelves.map(r=>({x:r.x-r.w/2,y:r.y-r.h/2,w:r.w,h:r.h}));
-  const miniMartStoreItems=[
-    {name:"Mini Mart Candy",image:"minimartcandy",price:2},
-    {name:"Mini Mart Chips",image:"minimartchips",price:3},
-    {name:"Mini Mart Cola",image:"minimartcola",price:3},
-    {name:"Mini Mart Gain",image:"minimartgain",price:5},
-    {name:"Mini Mart Lights",image:"minimartlights",price:4},
-    {name:"Mini Mart Mallows",image:"minimartmallows",price:2},
-    {name:"Lofi Disc",image:"lofidisc",price:6}
-  ];
-
-  Object.assign(inventory,Object.fromEntries(miniMartStoreItems.map(i=>[i.name,{icon:"📦",image:i.image,count:0}])));
-
-  function drawMiniMartInterior(){
-    const w=miniMartInterior.width,h=miniMartInterior.height;
-    ctx.fillStyle="#4a3024";ctx.fillRect(0,0,w,h);
-    ctx.fillStyle="#b88958";ctx.fillRect(38,38,w-76,h-76);
-    ctx.fillStyle="#e7d0a2";ctx.fillRect(62,62,w-124,h-124);
-    ctx.fillStyle="#6e4931";ctx.fillRect(0,0,w,32);ctx.fillRect(0,h-32,w,32);ctx.fillRect(0,0,32,h);ctx.fillRect(w-32,0,32,h);
-    ctx.fillStyle="#2d1b12";ctx.fillRect(miniMartInterior.exitX-45,h-72,90,72);
-    ctx.fillStyle="#ffe08a";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("EXIT",miniMartInterior.exitX,h-84);
-    ctx.fillStyle="rgba(55,30,18,.7)";ctx.font="bold 28px Georgia";ctx.fillText("PANDANIA MINI MART",w/2,88);
-    miniMartShelves.forEach(r=>{
-      const img=images.minimartshelf;
-      if(img)ctx.drawImage(img,r.x-r.w/2,r.y-r.h/2,r.w,r.h);
-      else{ctx.fillStyle="#7a4d2b";ctx.fillRect(r.x-r.w/2,r.y-r.h/2,r.w,r.h);}
-    });
-    const j=images.lofijukebox;
-    if(j)ctx.drawImage(j,58,72,95,125);else{ctx.fillStyle="#553c2c";ctx.fillRect(58,72,95,125)}
-    ctx.fillStyle="#4a2e1e";ctx.font="bold 11px Arial";ctx.fillText("JUKEBOX",106,207);
-  }
-
-  function miniMartPoint(e){
-    const rect=canvas.getBoundingClientRect();const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);const z=pandaniaMobileZoom();const vw=W/z,vh=H/z;return z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
-  }
-  function closeMiniMartStore(){const el=document.getElementById('miniMartStoreWindow');if(el)el.remove()}
-  function showMiniMartStore(){
-    closeMiniMartStore();closeWindows();
-    const el=document.createElement('div');el.id='miniMartStoreWindow';el.className='window';
-    el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,620px);max-height:82vh;overflow:auto;background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:14px;color:#fff;box-sizing:border-box';
-    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🏪 Pandania Mini Mart</div><div style="color:#d8c29a;font-size:12px;margin-bottom:10px">Purchases are made with PDA only. These items cannot be found anywhere else.</div><div id="miniMartStoreItems" class="itemGrid"></div>';
-    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=closeMiniMartStore;
-    const grid=el.querySelector('#miniMartStoreItems');
-    miniMartStoreItems.forEach(item=>{
-      const card=document.createElement('div');card.className='itemCard';
-      const src=imageFiles[item.image]||'';card.innerHTML=(src?'<img class="itemImage" src="'+src.replace(/"/g,'&quot;')+'" alt="">':'<div class="itemIcon">📦</div>')+'<div class="itemName">'+item.name+'</div><div class="itemCount">'+item.price+' PDA</div><button class="buyBtn" type="button">Buy</button>';
-      card.querySelector('button').onclick=()=>{const pdas=inventory['PDA Coin']?.count||0;if(pdas<item.price){showMessage('Not enough PDA.');return}if(!canAddNewInventoryItem(item.name)){showMessage('🎒 Your bag is full.');return}inventory['PDA Coin'].count-=item.price;inventory[item.name].count++;updateUI();renderBag();showMessage('🛒 Purchased '+item.name+'!');};grid.appendChild(card);
-    });
-  }
-  function showJukebox(){
-    closeMiniMartStore();closeWindows();
-    const el=document.createElement('div');el.id='miniMartJukeboxWindow';el.className='window';el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,430px);background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:18px;color:#fff;box-sizing:border-box';
-    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🎵 Lofi Jukebox</div><div style="color:#d8c29a;font-size:13px;margin-top:12px">No songs have been installed yet. Add your song files later and they can be added here.</div>';
-    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=()=>el.remove();
-  }
-
-  function enterMiniMart(){
-    if(!miniMartBuilding)return;
-    miniMartReturnX=player.x;miniMartReturnY=player.y;inMiniMart=true;inDungeon=false;closeWindows();closeMiniMartStore();
-    player.x=miniMartInterior.exitX;player.y=455;player.targetX=null;player.targetY=null;player.targetMonster=null;
-    showMessage('🏪 Welcome to the Pandania Mini Mart!');updateCamera();
-  }
-  function leaveMiniMart(){
-    inMiniMart=false;player.x=miniMartReturnX;player.y=miniMartReturnY+55;player.targetX=null;player.targetY=null;player.targetMonster=null;closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();showMessage('🚪 You left the Mini Mart.');updateCamera();
-  }
-
-  /* Mini Mart is a normal world building; add its door to the existing interaction flow. */
-  const oldInteract=interact;
-  interact=function(){
-    if(inMiniMart){
-      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<100){leaveMiniMart();return;}
-      showMessage('🏪 Browse the shelves or use the jukebox.');return;
-    }
-    if(miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<70){enterMiniMart();return;}
-    return oldInteract();
-  };
-
-  window.__pandaniaMiniMartInterior=miniMartInterior;
-
-  const oldBlocked=blocked;
-  blocked=function(x,y,r=player.r){
-    if(inMiniMart)return x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20;
-    return oldBlocked(x,y,r);
-  };
-  const oldUpdateCamera=updateCamera;
-  updateCamera=function(){
-    if(inMiniMart){const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;camera.x=Math.max(0,Math.min(player.x-vw/2,Math.max(0,miniMartInterior.width-vw)));camera.y=Math.max(0,Math.min(player.y-vh/2,Math.max(0,miniMartInterior.height-vh)));return;}
-    return oldUpdateCamera();
-  };
-  const oldUpdatePlayer=updatePlayer;
-  updatePlayer=function(){
-    /* Never run the overworld/dungeon auto-entry logic while inside the Mini Mart.
-       The interior is its own isolated zone. */
-    if(inMiniMart){
-      let dx=0,dy=0;
-      if(keys["w"]||keys["arrowup"])dy--;
-      if(keys["s"]||keys["arrowdown"])dy++;
-      if(keys["a"]||keys["arrowleft"])dx--;
-      if(keys["d"]||keys["arrowright"])dx++;
-      if(dx||dy){
-        const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
-        setPlayerFacing(dx,dy);
-        const sp=player.speed;
-        const nx=player.x+dx*sp,ny=player.y+dy*sp;
-        if(!miniMartBlocked(nx,player.y))player.x=nx;
-        if(!miniMartBlocked(player.x,ny))player.y=ny;
-        player.moving=true;player.walkTime+=.32;
-      }else{player.moving=false;player.walkTime*=.86;}
-      if(player.attackCooldown>0)player.attackCooldown--;
-      if(player.invincible>0)player.invincible--;
-      if(player.swordSwing>0)player.swordSwing--;
-      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<55)leaveMiniMart();
-      return;
-    }
-    oldUpdatePlayer();
-    if(!inMiniMart&&miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<58)enterMiniMart();
-  };
-  function miniMartBlocked(x,y,r=player.r){
-    if(x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20)return true;
-    for(const rct of miniMartShelfHit){if(circleRectCollision(x,y,r,rct))return true;}
-    const jukeboxRect={x:72,y:76,w:120,h:145};
-    if(circleRectCollision(x,y,r,jukeboxRect))return true;
-    return false;
-  }
-  const oldDraw=draw;
-  draw=function(){
-    if(!inMiniMart)return oldDraw();
-    ctx.clearRect(0,0,W,H);ctx.save();const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);drawMiniMartInterior();drawPlayer();ctx.restore();drawMiniMartMiniMap();
-  };
-  function drawMiniMartMiniMap(){drawMiniMap();}
-
-  /* Capture canvas clicks before the normal world click handler so shelf/jukebox/exit interactions work on desktop and touch devices. */
-  canvas.addEventListener('pointerdown',e=>{
-    if(!gameStarted)return;
-    if(!inMiniMart&&miniMartBuilding){
-      const p=miniMartPoint(e);
-      if(Math.hypot(p.x-miniMartBuilding.doorX,p.y-miniMartBuilding.doorY)<105){if(Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<110){e.preventDefault();e.stopImmediatePropagation();enterMiniMart();}else{player.targetX=miniMartBuilding.doorX;player.targetY=miniMartBuilding.doorY;showMessage('🏪 Walking to the Mini Mart...');e.preventDefault();e.stopImmediatePropagation();}return;}
-    }
-    if(!inMiniMart)return;
-    const p=miniMartPoint(e);
-    if(Math.hypot(p.x-miniMartInterior.exitX,p.y-miniMartInterior.exitY)<90){e.preventDefault();e.stopImmediatePropagation();leaveMiniMart();return;}
-    if(Math.hypot(p.x-132,p.y-150)<95){e.preventDefault();e.stopImmediatePropagation();showJukebox();return;}
-    if(miniMartShelfHit.some(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)){e.preventDefault();e.stopImmediatePropagation();showMiniMartStore();return;}
-    player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
-  },true);
-
-  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
-  const level4Gems=[];
-  /* Tons of gems concentrated around Metal Monster's Level 4 boss arena only. */
-  for(let i=0;i<70;i++){
-    const a=Math.random()*Math.PI*2;
-    const radius=90+Math.random()*470;
-    level4Gems.push([Math.max(55,Math.min(dungeon.width-55,750+Math.cos(a)*radius)),Math.max(55,Math.min(dungeon.height-55,350+Math.sin(a)*radius*.78))]);
-  }
-  const oldDrawDungeon=drawDungeon;
-  drawDungeon=function(){
-    oldDrawDungeon();
-    if(dungeonLevel!==4)return;
-    const gem=images.dungeongem;
-    if(gem){for(const [x,y] of level4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,x-18,y-30,36,60);ctx.restore();}}
-  };
-
-  const metalMeteorShots=window.__pandaniaMetalMeteorShots=[];
-  const oldUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    oldUpdateMonsters();
-    if(!inDungeon)return;
-    for(const m of monsters){
-      if(m.type!=='boss4')continue;
-      if(m.metalMeteorCooldown==null)m.metalMeteorCooldown=300;
-      m.metalMeteorCooldown--;
-      if(m.metalMeteorCooldown<=0){
-        const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;
-        metalMeteorShots.push({x:m.x,y:m.y,tx:player.x,ty:player.y,vx:dx/len*7.5,vy:dy/len*7.5,life:150,damage:48});
-        m.metalMeteorCooldown=300;
-        if(typeof bossSound==='function')bossSound();
-        showMessage('☄️ Metal Monster uses METAL METEOR!');
-      }
-    }
-    for(let i=metalMeteorShots.length-1;i>=0;i--){const q=metalMeteorShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;if(Math.hypot(q.x-q.tx,q.y-q.ty)<18||q.life<=0){if(Math.hypot(player.x-q.x,player.y-q.y)<38&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;hitSound();if(player.hp<=0)respawnPlayer();}metalMeteorShots.splice(i,1);}}
-  };
-  const oldDrawWithMeteor=draw;
-  draw=function(){
-    oldDrawWithMeteor();
-    if(!inDungeon)return;
-    for(const q of metalMeteorShots){
-      const img=images.metalmonsterspecialattack;if(!img)continue;
-      const pulse=0.72+Math.sin(Date.now()/90)*0.22;ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#b13cff';ctx.shadowBlur=28+Math.sin(Date.now()/100)*10;ctx.drawImage(img,q.x-34,q.y-34,68,68);ctx.restore();
-    }
-  };
-
-  /* Mini Mart building and interior state do not interfere with existing houses. */
-  const originalCloseWindows=closeWindows;
-  closeWindows=function(){originalCloseWindows();closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();};
-
-  const miniMartNames=new Set(miniMartStoreItems.map(i=>i.name));
-  const originalCreateListing=createListing;
-  createListing=function(){
-    const name=(document.getElementById('sellItem')?.value||'').trim();
-    if(miniMartNames.has(name)){showMessage('🏪 Mini Mart items cannot be sold or purchased through the Grand Exchange.');return;}
-    return originalCreateListing();
-  };
-  const originalBuyListing=buyListing;
-  buyListing=function(index){
-    if(listings[index]&&miniMartNames.has(listings[index].item)){showMessage('🏪 Mini Mart items can only be purchased with PDA at the Mini Mart.');return;}
-    return originalBuyListing(index);
-  };
-
-  /* Make fish and mana potion use their new image assets everywhere the bag renderer displays them. */
-  if(inventory.Fish)inventory.Fish.image='fish';
-  if(inventory['Mana Potion'])inventory['Mana Potion'].image='manapotion';
-
-  window.__pandaniaRequestedContentExpansion=true;
-})();
-</script>
-<!-- ===== PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
-<script>
-(function(){
-  "use strict";
-
-  /* Armor stats are applied only while the corresponding armor is equipped. */
-  window.getEquippedArmorStats=function(){
-    const state=window.__pandaniaEquipment;
-    const name=state&&state.armor;
-    const item=name&&inventory[name];
-    return item&&item.stats?item.stats:{defense:0,attack:0,magicAttack:0};
-  };
-
-  /* Stop all monster AI, attacks and special attacks while the player is inside
-     the Mini Mart. This is an isolated interior, not a dungeon state. */
-  const previousUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
-    return previousUpdateMonsters();
-  };
-
-  /* Keep DegenHooper inside Panden Town while roaming. */
-  let degenX=1040,degenY=560;
-  for(let attempt=0;attempt<300;attempt++){
-    const tx=townBounds.x+55+Math.random()*(townBounds.w-110);
-    const ty=townBounds.y+55+Math.random()*(townBounds.h-110);
-    const occupied=environment.buildings.some(b=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},b,20))||environment.ponds.some(w=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},w,20));
-    if(!occupied){degenX=tx;degenY=ty;break;}
-  }
-  const degen={
-    x:degenX,y:degenY,name:"DegenHooper",image:"npc4",wander:true,townOnly:true,quest:true,
-    specialQuest:"Dropped the Ball"
-  };
-  degen.homeX=degen.x;degen.homeY=degen.y;degen.targetX=degen.x;degen.targetY=degen.y;degen.walkTimer=0;
-  if(!npcs.some(n=>n.name==="DegenHooper"))npcs.push(degen);
-
-  const previousUpdateNPCs=updateNPCs;
-  updateNPCs=function(){
-    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
-    previousUpdateNPCs();
-    const n=npcs.find(n=>n.name==="DegenHooper");
-    if(n){
-      n.x=Math.max(townBounds.x+45,Math.min(townBounds.x+townBounds.w-45,n.x));
-      n.y=Math.max(townBounds.y+45,Math.min(townBounds.y+townBounds.h-45,n.y));
-    }
-  };
-
-  /* DegenHooper's special quest has its own quest state and does not alter
-     the existing Captain Panda quest progression. */
-  let droppedTheBallStarted=false;
-  const previousTalkToNPC=talkToNPC;
-  talkToNPC=function(n){
-    if(n&&n.specialQuest==="Dropped the Ball"){
-      if(!droppedTheBallStarted){
-        droppedTheBallStarted=true;
-        setQuest("Dropped the Ball","Special quest from DegenHooper.");
-        openDialogue("DegenHooper","Yo! You dropped the ball. I've got a special quest for you: Dropped the Ball.");
-      }else{
-        openDialogue("DegenHooper","You accepted the special quest: Dropped the Ball.");
-      }
-      return;
-    }
-    return previousTalkToNPC(n);
-  };
-
-  /* Only one Panden Town building carries the Your House identity. */
-  const playerHouse=environment.buildings.find(b=>b.type==="house1"&&b.playerHouse);
-  if(playerHouse)playerHouse.name="Your House";
-  environment.buildings.forEach(b=>{
-    if(b!==playerHouse&&b.name==="Your House")b.name="Panden Town House";
-  });
-
-  /* The updated shelf artwork is the exact lowercase filename supplied. */
-  if(imageFiles.minimartshelf){}
-
-  /* Armor combat bonuses. */
-  const armorStats=window.getEquippedArmorStats;
-  const originalSwordAttack=swordAttack;
-  swordAttack=function(target=null){
-    const before=player.__pandaniaArmorAttackBonus||0;
-    const stats=armorStats();
-    player.__pandaniaArmorAttackBonus=stats.attack||0;
-    try{return originalSwordAttack(target);}finally{player.__pandaniaArmorAttackBonus=before;}
-  };
-
-  /* The original melee/spell routines read these temporary bonuses when they
-     execute; this keeps all existing weapon and spell behavior intact. */
-  const originalCastFire=castFire;
-  castFire=function(){
-    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
-    try{return originalCastFire();}finally{player.__pandaniaArmorMagicBonus=old;}
-  };
-  const originalCastLightning=castLightning;
-  castLightning=function(){
-    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
-    try{return originalCastLightning();}finally{player.__pandaniaArmorMagicBonus=old;}
-  };
-
-  /* Final armor-aware damage hooks. */
-  const oldUpdateMonstersArmor=updateMonsters;
-  updateMonsters=function(){
-    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
-    return oldUpdateMonstersArmor();
-  };
-
-  /* Correct the existing routines' numeric formulas without replacing their
-     renderers or other game systems. */
-  window.__pandaniaFollowupFixes=true;
-})();
-</script>
-<!-- ===== END PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
-<!-- ===== END PANDANIA REQUESTED CONTENT EXPANSION ===== -->
-<script>
-(function(){
-  "use strict";
-  /* Final corrective pass: keep Panden buildings separated without changing
-     their identities, and guarantee all quest NPCs are interactable. */
-  try{
-    const pad=38;
-    const bs=environment.buildings.filter(b=>b.x>=townBounds.x-250&&b.x<=townBounds.x+townBounds.w+250&&b.y>=townBounds.y-250&&b.y<=townBounds.y+townBounds.h+250);
-    for(let pass=0;pass<80;pass++){
-      let moved=false;
-      for(let i=0;i<bs.length;i++){
-        for(let j=i+1;j<bs.length;j++){
-          const a=bs[i],b=bs[j];
-          if(!overlapsRect(a,b,pad))continue;
-          const ax=a.x+a.w/2,ay=a.y+a.h/2,bx=b.x+b.w/2,by=b.y+b.h/2;
-          const dx=ax-bx,dy=ay-by;
-          if(Math.abs(dx)>=Math.abs(dy)){
-            const push=(a.w+b.w)/2+pad-Math.abs(dx);
-            const dir=dx>=0?1:-1; a.x+=dir*push*.55; b.x-=dir*push*.45;
-          }else{
-            const push=(a.h+b.h)/2+pad-Math.abs(dy);
-            const dir=dy>=0?1:-1; a.y+=dir*push*.55; b.y-=dir*push*.45;
-          }
-          moved=true;
-        }
-      }
-      bs.forEach(b=>{
-        b.x=Math.max(townBounds.x+20,Math.min(townBounds.x+townBounds.w-b.w-20,b.x));
-        b.y=Math.max(townBounds.y+20,Math.min(townBounds.y+townBounds.h-b.h-20,b.y));
-        b.doorX=b.x+b.w/2;b.doorY=b.y+b.h+8;
-      });
-      if(!moved)break;
-    }
-    const ge=environment.buildings.find(b=>b.grandExchange);
-    if(ge&&typeof grandExchangeLocation!=="undefined"){grandExchangeLocation.x=ge.doorX;grandExchangeLocation.y=ge.doorY;}
-  }catch(e){console.warn('Panden building spacing fix',e);}
-
-  /* Yellow quest marker above DegenHooper and reliable NPC tap/click handling. */
-  const degen=npcs.find(n=>n.name==='DegenHooper');
-  if(degen)degen.quest=true;
-
-  canvas.addEventListener('pointerdown',function(e){
-    if(!gameStarted||inDungeon||inHouse||window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
-    const p=(typeof zoomAwareWorldPoint==='function')?zoomAwareWorldPoint(e):getWorldMousePosition(e);
-    const npc=npcs.find(n=>Math.hypot(p.x-n.x,p.y-n.y)<72);
-    if(!npc)return;
-    if(Math.hypot(player.x-npc.x,player.y-npc.y)<115){
-      talkToNPC(npc);
-    }else{
-      player.targetX=npc.x;player.targetY=npc.y;player.targetMonster=null;
-      showMessage('💬 Walking to '+npc.name+'...');
-    }
-    e.preventDefault();e.stopImmediatePropagation();
-  },true);
-
-  const style=document.createElement('style');
-  style.textContent='.pandaniaArmorStat{color:#ffd84d!important;font-weight:bold;text-shadow:0 0 4px rgba(255,216,77,.25)}';
-  document.head.appendChild(style);
-})();
-</script>
-<!-- ===== PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
-<script>
-(function(){
-  'use strict';
-
-  /* ---------------------------------------------------------
-     PANDEN TOWN BUILDING LAYOUT
-     Replace the random/over-tight final positions with a deterministic
-     layout that leaves clear walking lanes in front of every door.
-     The Mini Mart remains in town and is given its own larger footprint.
-  --------------------------------------------------------- */
-  try{
-    const townBuildings=environment.buildings.filter(b=>
-      b.type==='house1'||b.type==='house2'||b.miniMart
-    );
-    const mart=townBuildings.find(b=>b.miniMart);
-    const housesOnly=townBuildings.filter(b=>!b.miniMart);
-
-    /* Four staggered rows keep doors facing into open lanes rather than
-       directly into another building. */
-    const positions=[
-      [535,350],[745,350],[955,350],[1165,350],
-      [535,525],[745,525],[955,525],[1165,525],
-      [535,700],[745,700],[955,700],[1165,700],
-      [535,855],[745,855],[955,855],[1165,855]
-    ];
-
-    housesOnly.forEach((b,i)=>{
-      const p=positions[i];
-      if(!p)return;
-      /* Slightly compact the town houses only where necessary so all four
-         rows fit while preserving their artwork and identity. */
-      const isH1=b.type==='house1';
-      b.w=isH1?155:125;
-      b.h=isH1?128:105;
-      b.x=p[0]-b.w/2;
-      b.y=p[1]-b.h;
-      b.doorX=b.x+b.w/2;
-      b.doorY=b.y+b.h+12;
-    });
-
-    if(mart){
-      mart.w=205;mart.h=160;
-      mart.x=townBounds.x+townBounds.w-mart.w-24;
-      mart.y=townBounds.y+townBounds.h-mart.h-24;
-      mart.doorX=mart.x+mart.w/2;
-      mart.doorY=mart.y+mart.h+14;
-    }
-
-    /* Move any house whose doorway is too close to another building's body.
-       Re-run a few small horizontal shifts rather than allowing a door to
-       become trapped behind a neighboring wall. */
-    const townAll=environment.buildings.filter(b=>
-      b.type==='house1'||b.type==='house2'||b.miniMart
-    );
-    for(let pass=0;pass<20;pass++){
-      let changed=false;
-      for(const a of townAll){
-        for(const b of townAll){
-          if(a===b)continue;
-          const door={x:a.doorX-28,y:a.doorY-18,w:56,h:55};
-          const body={x:b.x-12,y:b.y-12,w:b.w+24,h:b.h+24};
-          if(overlapsRect(door,body,0)){
-            /* Prefer shifting the building sideways inside town. */
-            const left=Math.max(townBounds.x+18,a.w+18);
-            const right=townBounds.x+townBounds.w-a.w-18;
-            const dir=(a.x+a.w/2)<(b.x+b.w/2)?-1:1;
-            a.x=Math.max(left,Math.min(right,a.x+dir*22));
-            a.doorX=a.x+a.w/2;
-            a.doorY=a.y+a.h+12;
-            changed=true;
-          }
-        }
-      }
-      if(!changed)break;
-    }
-
-    if(typeof grandExchangeBuilding!=='undefined'&&grandExchangeBuilding){
-      grandExchangeLocation.x=grandExchangeBuilding.doorX;
-      grandExchangeLocation.y=grandExchangeBuilding.doorY;
-    }
-  }catch(e){console.warn('Panden town arrangement fix:',e)}
-
-  /* ---------------------------------------------------------
-     STABLE DUNGEON RENDERER
-     The previous draw() stack has accumulated several wrappers. When one
-     of those throws, safeDraw clears the canvas and leaves only the brown
-     fallback floor. For dungeon scenes, use one isolated renderer so the
-     floor, lamps, enemies and boss are always drawn together.
-  --------------------------------------------------------- */
-  const previousDraw=draw;
-  function stableDungeonSprite(key,x,y,w,h){
-    const img=images[key];
-    if(img){
-      ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(img,x-w/2,y-h,w,h);ctx.restore();
-      return true;
-    }
-    return false;
-  }
-
-  function drawStableDungeon(){
-    const dw=dungeon.width,dh=dungeon.height;
-    ctx.clearRect(0,0,W,H);
-    ctx.save();
-    const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
-    const vw=W/z,vh=H/z;
-    ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
-
-    /* Floor */
-    ctx.fillStyle='#5b4635';ctx.fillRect(0,0,dw,dh);
-    for(let x=0;x<dw;x+=26){for(let y=0;y<dh;y+=26){const n=Math.sin(x*3.7+y*8.1);if(n>.15){ctx.fillStyle=n>.65?'rgba(165,130,88,.28)':'rgba(30,20,15,.25)';const s=2+Math.abs(n)*3;ctx.beginPath();ctx.arc(x+n*9,y+n*7,s,0,Math.PI*2);ctx.fill();}}}
-
-    /* Walls and jagged rock edge */
-    ctx.fillStyle='#33271f';ctx.fillRect(0,0,dw,85);ctx.fillRect(0,dh-85,dw,85);ctx.fillRect(0,0,80,dh);ctx.fillRect(dw-80,0,80,dh);
-    ctx.fillStyle='#4a382b';
-    for(let x=0;x<dw;x+=70){
-      ctx.beginPath();ctx.moveTo(x,85);ctx.lineTo(x+30,55);ctx.lineTo(x+55,85);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.moveTo(x,dh-85);ctx.lineTo(x+30,dh-55);ctx.lineTo(x+55,dh-85);ctx.closePath();ctx.fill();
-    }
-
-    /* Lamps: draw the complete warm glow and fixture, not just a floor. */
-    for(let x=160;x<dw-120;x+=180){drawStableLamp(x,105);drawStableLamp(x+90,dh-110)}
-    for(let y=190;y<dh-180;y+=190){drawStableLamp(105,y);drawStableLamp(dw-105,y+70)}
-
-    /* Level 4 gems only around Metal Monster's arena. */
-    if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4&&Array.isArray(window.__stableLevel4Gems)){
-      const gem=images.dungeongem;
-      if(gem){for(const g of window.__stableLevel4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,g.x-18,g.y-30,36,60);ctx.restore()}}
-    }
-
-    /* Stair and exit */
-    if(typeof dungeonExit!=='undefined')drawStableExit(dungeonExit.x,dungeonExit.y);
-    if(typeof dungeonStair!=='undefined'&&typeof dungeonStairOpen!=='undefined'&&dungeonStairOpen)drawStableStair(dungeonStair.x,dungeonStair.y);
-
-    /* Drops */
-    if(Array.isArray(groundDrops)){
-      for(const d of groundDrops){
-        const img=d.image&&images[d.image];
-        if(img){ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(img,d.x-22,d.y-22,44,44);ctx.restore()}
-        else if(d.name==='Gold Coin'){
-          ctx.save();ctx.shadowColor='#ffd84d';ctx.shadowBlur=14;ctx.fillStyle='#ffd43b';ctx.beginPath();ctx.arc(d.x,d.y,11,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#fff2a8';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff8c7';ctx.beginPath();ctx.arc(d.x-3,d.y-4,3,0,Math.PI*2);ctx.fill();
-          for(let s=0;s<4;s++){const a=Date.now()/350+s*Math.PI/2,sx=d.x+Math.cos(a)*17,sy=d.y+Math.sin(a)*17;ctx.fillStyle='rgba(255,246,150,.9)';ctx.fillRect(sx-1,sy-3,2,6);ctx.fillRect(sx-3,sy-1,6,2)}ctx.restore();
-        }else {ctx.fillStyle='#ffd43b';ctx.beginPath();ctx.arc(d.x,d.y,10,0,Math.PI*2);ctx.fill()}
-        ctx.fillStyle='#fff';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText(d.name,d.x,d.y-30);
-      }
-    }
-
-    /* Monsters and bosses */
-    if(Array.isArray(monsters)){
-      for(const m of monsters)drawStableMonster(m);
-    }
-
-    /* Metal Meteor visual layer */
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const img=images.metalmonsterspecialattack;
-      for(const q of window.__stableMetalMeteors){
-        const pulse=.72+Math.sin(Date.now()/85)*.22;
-        ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#a735ff';ctx.shadowBlur=30+Math.sin(Date.now()/100)*12;
-        if(img)ctx.drawImage(img,q.x-36,q.y-72,72,72);
-        else{ctx.fillStyle='#a735ff';ctx.beginPath();ctx.arc(q.x,q.y-35,18,0,Math.PI*2);ctx.fill()}
-        ctx.restore();
-      }
-    }
-
-    drawPlayer();
-    drawDamageNumbers();
-    ctx.restore();
-    drawMiniMap();
-  }
-
-  function drawStableLamp(x,y){
-    ctx.save();
-    const glow=34+Math.sin(Date.now()/180+x)*5;
-    const g=ctx.createRadialGradient(x,y,2,x,y,glow);g.addColorStop(0,'rgba(255,210,70,.58)');g.addColorStop(1,'rgba(255,110,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,glow,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#5a3820';ctx.fillRect(x-5,y,10,30);ctx.fillStyle='#ffad24';ctx.beginPath();ctx.arc(x,y-5,9,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff1a0';ctx.beginPath();ctx.arc(x,y-7,4,0,Math.PI*2);ctx.fill();ctx.restore();
-  }
-  function drawStableExit(x,y){
-    ctx.save();ctx.fillStyle='rgba(0,0,0,.5)';ctx.beginPath();ctx.ellipse(x,y+20,75,38,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#2d241e';ctx.beginPath();ctx.ellipse(x,y,48,62,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#090807';ctx.beginPath();ctx.ellipse(x,y+5,33,47,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffd36b';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText('EXIT',x,y+85);ctx.restore();
-  }
-  function drawStableStair(x,y){
-    ctx.save();ctx.shadowColor='rgba(0,0,0,.95)';ctx.shadowBlur=22;ctx.fillStyle='#070604';ctx.beginPath();ctx.ellipse(x,y+8,78,58,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#9b7b58';ctx.lineWidth=5;ctx.stroke();for(let i=0;i<7;i++){const w=70-i*8,yy=y-30+i*10;ctx.fillStyle='#b08a60';ctx.fillRect(x-w/2,yy,w,8);ctx.fillStyle='#654a32';ctx.fillRect(x-w/2,yy+8,w,5)}ctx.fillStyle='#d7b17c';ctx.font='bold 13px Georgia';ctx.textAlign='center';ctx.fillText('DESCEND',x,y+82);ctx.restore();
-  }
-  function drawStableMonster(m){
-    const size=m.boss?120:65;
-    ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();
-    const drawn=stableDungeonSprite(m.image,m.x,m.y,size,size);
-    if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y-25,m.boss?40:22,0,Math.PI*2);ctx.fill()}
-    const bw=m.boss?130:58;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y-size-10,bw,8);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y-size-10,bw*Math.max(0,m.hp/m.maxHp),8);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 14px Arial':'bold 10px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y-size-14);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y-size-29)}
-  }
-
-  if(!Array.isArray(window.__stableLevel4Gems)){
-    window.__stableLevel4Gems=[];
-    for(let i=0;i<85;i++){
-      const a=Math.random()*Math.PI*2,r=75+Math.random()*500;
-      window.__stableLevel4Gems.push({x:Math.max(105,Math.min(dungeon.width-105,750+Math.cos(a)*r)),y:Math.max(125,Math.min(dungeon.height-125,350+Math.sin(a)*r*.72))});
-    }
-  }
-  /* Keep the supplied Level 4 gem asset available even if the first preload
-     completed after the dungeon renderer was installed. */
-  function ensureDungeonGemImage(){
-    if(images.dungeongem) return images.dungeongem;
-    const src=IMAGE_FOLDER+'dungeongem.png';
-    const img=new Image();
-    img.onload=()=>{images.dungeongem=img};
-    img.src=src;
-    return null;
-  }
-  ensureDungeonGemImage();
-  window.__stableMetalMeteors=window.__stableMetalMeteors||[];
-
-  window.draw=draw=function(){
-    if(inDungeon){drawStableDungeon();return;}
-    return previousDraw.apply(this,arguments);
-  };
-
-  /* ---------------------------------------------------------
-     METAL METEOR — every 5 seconds, multiple impact locations.
-     Suppress the older single-projectile Boss4 attack while preserving
-     all other monster AI and attacks.
-  --------------------------------------------------------- */
-  const previousUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    if(inDungeon&&Array.isArray(monsters)){
-      for(const m of monsters){if(m.type==='boss4')m.metalMeteorCooldown=999999;}
-    }
-    previousUpdateMonsters();
-    if(!inDungeon||typeof dungeonLevel==='undefined'||dungeonLevel!==4)return;
-    for(const m of monsters){
-      if(m.type!=='boss4')continue;
-      if(m.__stableMeteorCooldown==null)m.__stableMeteorCooldown=300;
-      m.__stableMeteorCooldown--;
-      if(m.__stableMeteorCooldown<=0){
-        const count=7;
-        for(let i=0;i<count;i++){
-          const tx=140+Math.random()*(dungeon.width-280);
-          const ty=190+Math.random()*(dungeon.height-300);
-          window.__stableMetalMeteors.push({x:tx,y:-80-Math.random()*100,targetY:ty,life:95,damage:48,phase:Math.random()*Math.PI*2});
-        }
-        m.__stableMeteorCooldown=300;
-        if(typeof bossSound==='function')bossSound();
-        if(typeof showMessage==='function')showMessage('☄️ Metal Monster unleashes METAL METEOR!');
-      }
-    }
-    for(let i=window.__stableMetalMeteors.length-1;i>=0;i--){
-      const q=window.__stableMetalMeteors[i];
-      q.y+=9.5;
-      q.life--;
-      if(q.y>=q.targetY){
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<48&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==='function')hitSound();if(player.hp<=0)respawnPlayer();}
-        q.y=q.targetY;q.life=9;
-      }
-      if(q.life<=0)window.__stableMetalMeteors.splice(i,1);
-    }
-  };
-
-  window.__pandaniaFinalDungeonTownFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
-
-
-<!-- ===== PANDANIA WEAPON-IN-HAND + DIRECTIONAL SWING / HIT FX ===== -->
-<script>
-(function(){
-  "use strict";
-
-  /* This final combat layer changes only the weapon's visual presentation and
-     melee hit feedback. Existing damage values, critical-hit math, damage
-     numbers, inventory/equipment state, movement and other systems remain in
-     charge of the current game. */
-  const oldPlayerEffects=drawPlayerEffects;
-  const combatFx=[];
-
-  const weaponImageKey={
-    "Wooden Sword":null,
-    "Bamboo Sword":"weapon1",
-    "Iron Sword":"weapon2",
-    "Goblin Saber":"weapon3",
-    "XPR Lens":"weapon4",
-    "Spiked Twin Blade":"weapon5",
-    "Purple Ice Blade":"weapon6",
-    "Thunderma":"weapon7",
-    "Diamond staff":"weapon8",
-    "Golden Beacon Staff":"weapon9",
-    "Purplereign":"weapon10"
-  };
-
-  function currentWeaponName(){
-    const s=window.__pandaniaEquipment;
-    return s&&s.weapon?s.weapon:"Wooden Sword";
-  }
-
-  function ensureWeaponImage(key){
-    if(!key)return null;
-    if(images[key])return images[key];
-    const src=imageFiles[key];
-    if(!src)return null;
-    const img=new Image();
-    img.onload=function(){images[key]=img;};
-    img.src=src;
-    return null;
-  }
-
-  function facingAngle(){
-    const fx=Number(player.facingX)||1;
-    const fy=Number(player.facingY)||0;
-    return Math.atan2(fy,fx);
-  }
-
-  function drawFallbackWeapon(angle, swingAngle, alpha){
-    ctx.save();
-    const hx=player.x+(Math.cos(angle)*18);
-    const hy=player.y-31+(Math.sin(angle)*14);
-    ctx.translate(hx,hy);
-    ctx.rotate(swingAngle);
-    ctx.globalAlpha=alpha;
-    ctx.imageSmoothingEnabled=false;
-
-    /* A clean pixel-style fallback for the Wooden Sword, which intentionally
-       has no image asset in the current inventory definitions. */
-    ctx.strokeStyle="#6f4527";
-    ctx.lineWidth=5;
-    ctx.lineCap="square";
-    ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(15,0);ctx.stroke();
-    ctx.strokeStyle="#cfcfcf";
-    ctx.lineWidth=7;
-    ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(39,0);ctx.stroke();
-    ctx.strokeStyle="#f4f4f4";
-    ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(14,-1);ctx.lineTo(39,-1);ctx.stroke();
-    ctx.strokeStyle="#d39a4f";
-    ctx.lineWidth=4;
-    ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(0,7);ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawEquippedWeapon(){
-    const name=currentWeaponName();
-    const key=weaponImageKey[name];
-    const img=key?ensureWeaponImage(key):null;
-
-    const fx=Number(player.facingX)||1;
-    const fy=Number(player.facingY)||0;
-    const baseAngle=Math.atan2(fy,fx);
-    const swing=Number(player.swordSwing)||0;
-    const progress=swing>0 ? 1-(swing/12) : 0;
-    const bob=player.moving
-      ?Math.abs(Math.sin(player.walkTime))*3
-      :Math.sin(Date.now()/700)*.35;
-
-    /*
-       Weapon is anchored to the player's actual hand area instead of being
-       positioned out in front of the body.  While idle it hangs vertically
-       on the player's visible left side.  During an attack it lifts from
-       that hand and rotates toward the direction the player is facing.
-       This keeps the weapon visually attached to the character.
-    */
-    const handX=player.x-22;
-    const handY=player.y-49+bob;
-    const idleAngle=-Math.PI/2;
-    const attackStart=-1.10;
-    const attackEnd=1.10;
-    const swingOffset=swing>0
-      ?attackStart+progress*(attackEnd-attackStart)
-      :0;
-    const weaponAngle=swing>0
-      ?baseAngle+swingOffset
-      :idleAngle;
-
-    const alpha=player.invincible>0&&Math.floor(player.invincible/4)%2===0 ? .25 : 1;
-    const size=(name==="Diamond staff"||name==="Golden Beacon Staff")?62:58;
-
-    if(img){
-      ctx.save();
-      ctx.translate(handX,handY);
-      ctx.rotate(weaponAngle);
-      ctx.globalAlpha=alpha;
-      ctx.imageSmoothingEnabled=false;
-
-      /*
-         Weapon images are drawn with their grip very close to the player's
-         hand.  The image center is shifted away from the hand so the grip,
-         rather than the middle of the weapon, is the attachment point.
-      */
-      const gripOffset=size*.28;
-      ctx.drawImage(img,-size/2,-size/2+gripOffset,size,size);
-      ctx.restore();
-    }else{
-      /* Wooden Sword fallback uses the same hand anchor. */
-      ctx.save();
-      ctx.translate(handX,handY);
-      ctx.rotate(weaponAngle);
-      ctx.globalAlpha=alpha;
-      ctx.imageSmoothingEnabled=false;
-
-      ctx.strokeStyle="#6f4527";
-      ctx.lineWidth=5;
-      ctx.lineCap="square";
-      ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(15,0);ctx.stroke();
-      ctx.strokeStyle="#cfcfcf";
-      ctx.lineWidth=7;
-      ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(39,0);ctx.stroke();
-      ctx.strokeStyle="#f4f4f4";
-      ctx.lineWidth=3;
-      ctx.beginPath();ctx.moveTo(14,-1);ctx.lineTo(39,-1);ctx.stroke();
-      ctx.strokeStyle="#d39a4f";
-      ctx.lineWidth=4;
-      ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(0,7);ctx.stroke();
-      ctx.restore();
-    }
-
-    /* Keep the attack trail attached to the same hand/pivot. */
-    if(swing>0){
-      ctx.save();
-      ctx.translate(handX,handY);
-      ctx.rotate(weaponAngle);
-      ctx.globalAlpha=.18+.28*Math.sin(progress*Math.PI);
-      ctx.strokeStyle="#ffffff";
-      ctx.lineWidth=3;
-      ctx.beginPath();
-      ctx.arc(0,0,40,-.62,.62);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  function drawCombatHitFx(){
-    for(let i=combatFx.length-1;i>=0;i--){
-      const f=combatFx[i];
-      f.life--;
-      const p=1-f.life/f.maxLife;
-      if(f.life<=0){combatFx.splice(i,1);continue;}
-
-      ctx.save();
-      ctx.globalAlpha=Math.max(0,f.life/f.maxLife);
-      ctx.translate(f.x,f.y);
-      const scale=.45+p*.75;
-      ctx.scale(scale,scale);
-      ctx.strokeStyle=f.critical?"#ffe45c":"#ffffff";
-      ctx.shadowColor=f.critical?"#ff2948":"#fff";
-      ctx.shadowBlur=f.critical?18:10;
-      ctx.lineWidth=f.critical?4:3;
-      ctx.lineCap="round";
-      for(let r=0;r<8;r++){
-        const a=r*Math.PI/4;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(a)*10,Math.sin(a)*10);
-        ctx.lineTo(Math.cos(a)*30,Math.sin(a)*30);
-        ctx.stroke();
-      }
-      ctx.fillStyle=f.critical?"#fff09a":"#ffffff";
-      ctx.beginPath();ctx.arc(0,0,8+10*p,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  /* Replace only the old fake straight-line sword graphic. Keep its healing
-     and other player effects by temporarily hiding swordSwing while invoking
-     the original effect renderer. */
-  drawPlayerEffects=function(){
-    const savedSwing=player.swordSwing;
-    player.swordSwing=0;
-    try{oldPlayerEffects();}finally{player.swordSwing=savedSwing;}
-    drawEquippedWeapon();
-    drawCombatHitFx();
-  };
-
-  /* Preserve the current equipped-weapon damage and critical-hit behavior,
-     while adding a visible impact effect at the exact monster that receives
-     the existing damage number. */
-  const weaponRanges=window.__pandaniaWeaponStats||{
-    "Wooden Sword":{min:8,max:12},"Bamboo Sword":{min:8,max:12},"Iron Sword":{min:25,max:35},
-    "Goblin Saber":{min:8,max:12},"XPR Lens":{min:165,max:180},"Spiked Twin Blade":{min:75,max:90},
-    "Purple Ice Blade":{min:50,max:65},"Thunderma":{min:200,max:250},"Diamond staff":{min:105,max:125},
-    "Golden Beacon Staff":{min:130,max:155},"Purplereign":{min:190,max:230}
-  };
-  const critStats=window.__pandaniaWeaponCritStats||{
-    "Wooden Sword":{critChance:.20,critBonus:.05},"Bamboo Sword":{critChance:.20,critBonus:.05},
-    "Iron Sword":{critChance:.20,critBonus:.05},"Goblin Saber":{critChance:.20,critBonus:.05},
-    "XPR Lens":{critChance:.20,critBonus:.05},"Spiked Twin Blade":{critChance:.20,critBonus:.05},
-    "Purple Ice Blade":{critChance:.20,critBonus:.05},"Thunderma":{critChance:.20,critBonus:.05},
-    "Diamond staff":{critChance:.20,critBonus:.05},"Golden Beacon Staff":{critChance:.20,critBonus:.05},
-    "Purplereign":{critChance:.20,critBonus:.05}
-  };
-
-  window.swordAttack=function(target=null){
-    if(player.attackCooldown>0)return;
-    player.attackCooldown=22;
-    player.swordSwing=12;
-    if(typeof swordSound==='function')swordSound();
-
-    if(!target){
-      let closest=null,distance=Infinity;
-      for(const m of monsters){
-        const vx=m.x-player.x,vy=m.y-player.y,d=Math.hypot(vx,vy);
-        if(d>95||d<1)continue;
-        const dot=(vx*(player.facingX||0)+vy*(player.facingY||0))/d;
-        if(dot>=.15&&d<distance){closest=m;distance=d;}
-      }
-      if(!closest){
-        for(const m of monsters){
-          const d=Math.hypot(m.x-player.x,m.y-player.y);
-          if(d<82&&d<distance){closest=m;distance=d;}
-        }
-      }
-      target=closest;
-    }
-
-    if(!target){
-      if(typeof showMessage==='function')showMessage("⚔️ "+currentWeaponName()+" swing!");
-      return;
-    }
-    if(Math.hypot(target.x-player.x,target.y-player.y)>88)return;
-
-    const name=currentWeaponName();
-    const range=weaponRanges[name]||weaponRanges["Wooden Sword"];
-    const rolled=Math.floor(Math.random()*(range.max-range.min+1))+range.min;
-    let damage=Math.max(1,rolled-(target.defense||0));
-    const info=critStats[name]||{critChance:.20,critBonus:.05};
-    const critical=Math.random()<info.critChance;
-    if(critical)damage=Math.max(1,Math.round(damage*(1+info.critBonus)));
-
-    target.hp-=damage;
-    /* Keep the damage/critical number call exactly in the existing format. */
-    addDamageNumber(target.x,target.y-38,damage,"#fff",critical);
-    target.hitFlash=8;
-
-    combatFx.push({x:target.x,y:target.y-22,life:12,maxLife:12,critical:critical});
-
-    if(typeof hitSound==='function')hitSound();
-    if(typeof showMessage==='function'){
-      showMessage(critical
-        ?"💥 CRITICAL! "+target.name+" for "+damage+" damage!"
-        :"⚔️ Hit "+target.name+" for "+damage+" damage!");
-    }
-    if(target.hp<=0&&typeof killMonster==='function')killMonster(target);
-  };
-
-  /* Make sure the weapon layer always gets a chance to render after the
-     player's direction changes, including mouse-target and mobile movement. */
-  const oldSetPlayerFacing=setPlayerFacing;
-  setPlayerFacing=function(dx,dy){
-    oldSetPlayerFacing(dx,dy);
-    player.weaponFacingX=player.facingX;
-    player.weaponFacingY=player.facingY;
-  };
-
-  window.__pandaniaWeaponCombatV14=true;
-})();
-</script>
-<!-- ===== END PANDANIA WEAPON-IN-HAND + DIRECTIONAL SWING / HIT FX ===== -->
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
 (function(){
@@ -9413,6 +8335,20 @@ requestAnimationFrame(
   if(typeof canvas!=='undefined')canvas.addEventListener('pointerdown',function(e){
     if(!isMobileDevice()||!gameStarted)return;
     const p=zoomAwareWorldPoint(e);
+    /* NPCs remain directly tappable on mobile. This is checked before the
+       pickup-only rule so quest NPCs cannot be swallowed by that handler. */
+    if(Array.isArray(npcs)){
+      const npc=npcs.find(n=>Math.hypot(p.x-n.x,p.y-n.y)<78);
+      if(npc){
+        if(Math.hypot(player.x-npc.x,player.y-npc.y)<105){
+          if(typeof talkToNPC==='function')talkToNPC(npc);
+        }else{
+          player.targetX=npc.x;player.targetY=npc.y;player.targetMonster=null;
+          showMessage('💬 Walking to '+npc.name+'...');
+        }
+        e.preventDefault();e.stopImmediatePropagation();return;
+      }
+    }
     if(pickupGroundItemAt(p)){e.preventDefault();e.stopImmediatePropagation();return;}
     e.preventDefault();e.stopImmediatePropagation();
   },true);
@@ -9747,70 +8683,914 @@ window.__pandaniaV14=true;
 <!-- ===== END PANDANIA V14 POLISH PATCH ===== -->
 <!-- ===== PANDANIA V14 FINAL FIXES ===== -->
 <style>
+/* SINGLE paper-doll renderer: only control its existing weapon slot. */
 #pandaniaEquipment{position:relative;box-sizing:border-box;overflow:visible!important}
 #pandaniaEquipment #equipWeapon{position:relative;box-sizing:border-box;overflow:visible!important;min-width:0}
 .paperDollWeaponArt{height:72px;display:flex;align-items:center;justify-content:center;overflow:visible;margin:0 auto 3px;position:relative;z-index:5}
 .paperDollEquipImage{display:block;width:72px;height:72px;max-width:72px;max-height:72px;object-fit:contain;margin:0 auto 3px;image-rendering:auto;position:relative;z-index:10;visibility:visible;opacity:1}
 @media(max-width:700px),(pointer:coarse){
-#stats{width:185px!important;padding:5px 6px!important;opacity:1!important;background:rgba(10,10,10,.94)!important;transform:scale(.82);transform-origin:top left}
-#minimap{left:auto!important;right:10px!important;bottom:auto!important;top:72px!important;width:105px!important;height:105px!important;opacity:.48!important}
-#pandaniaMobileControls{display:none!important}#gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
-#pandaniaEquipment{width:100%!important;max-width:94vw!important;padding:10px!important;overflow:visible!important}
-#pandaniaEquipment>div:nth-child(2){display:grid!important;grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr)!important;gap:6px!important;align-items:center!important;width:100%!important;overflow:visible!important}
-#pandaniaEquipment>div:nth-child(2)>#equipWeapon,#pandaniaEquipment>div:nth-child(2)>#equipArmor{min-width:0!important;width:100%!important;padding:6px!important;overflow:visible!important;word-break:break-word!important}
-#pandaniaEquipment>div:nth-child(2)>div:nth-child(2){width:92px!important;min-width:92px!important;height:110px!important;font-size:48px!important;overflow:visible!important}
-.paperDollWeaponArt{height:60px!important;width:100%!important;overflow:visible!important}.paperDollEquipImage{width:60px!important;height:60px!important;max-width:60px!important;max-height:60px!important;display:block!important;visibility:visible!important;opacity:1!important;object-fit:contain!important;z-index:50!important}
+  #stats{width:185px!important;padding:5px 6px!important;opacity:1!important;background:rgba(10,10,10,.94)!important;transform:scale(.82);transform-origin:top left}
+  #minimap{left:auto!important;right:10px!important;bottom:auto!important;top:72px!important;width:105px!important;height:105px!important;opacity:.48!important}
+  #pandaniaMobileControls{display:none!important}
+  #gameWrap.pandaniaStarted #pandaniaMobileControls{display:flex!important}
+
+  /* The original equipment panel uses a 1fr / 130px / 1fr grid. On a
+     phone the 130px center panda can collapse the weapon column. Keep the
+     same paper-doll, but give its existing grid a mobile-safe center width. */
+  #pandaniaEquipment{width:100%!important;max-width:94vw!important;padding:10px!important;overflow:visible!important}
+  #pandaniaEquipment>div:nth-child(2){
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr)!important;
+    gap:6px!important;
+    align-items:center!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+  #pandaniaEquipment>div:nth-child(2)>#equipWeapon,
+  #pandaniaEquipment>div:nth-child(2)>#equipArmor{
+    min-width:0!important;width:100%!important;padding:6px!important;overflow:visible!important;
+    word-break:break-word!important;
+  }
+  #pandaniaEquipment>div:nth-child(2)>div:nth-child(2){
+    width:92px!important;min-width:92px!important;height:110px!important;font-size:48px!important;overflow:visible!important;
+  }
+  .paperDollWeaponArt{height:60px!important;width:100%!important;overflow:visible!important}
+  .paperDollEquipImage{width:60px!important;height:60px!important;max-width:60px!important;max-height:60px!important;display:block!important;visibility:visible!important;opacity:1!important;object-fit:contain!important;z-index:50!important}
 }
 </style>
 <script>
-(function(){'use strict';
-function refreshSameRenderer(){try{if(typeof window.renderBag==='function')window.renderBag();}catch(e){console.warn('Pandania equipment refresh skipped:',e);}}
-window.__pandaniaFixEquippedWeaponV14=refreshSameRenderer;window.__pandaniaFinalFixV11=true;
-document.addEventListener('click',function(e){const t=e.target;if(t&&((t.id==='playButton')||(t.closest&&t.closest('#bagWindow'))))setTimeout(refreshSameRenderer,50);},true);
-window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});})();
+(function(){
+'use strict';
+/* SINGLE RENDERER ONLY: the existing V11/V7 paper-doll renderer owns #equipWeapon. */
+function refreshSameRenderer(){
+  try{ if(typeof window.renderBag==='function') window.renderBag(); }
+  catch(e){ console.warn('Pandania equipment refresh skipped:',e); }
+}
+window.__pandaniaFixEquippedWeaponV14=refreshSameRenderer;
+window.__pandaniaFinalFixV11=true;
+document.addEventListener('click',function(e){
+  const t=e.target;
+  if(t&&((t.id==='playButton')||(t.closest&&t.closest('#bagWindow'))))setTimeout(refreshSameRenderer,50);
+},true);
+window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});
+window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});
+})();
 </script>
 <!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
 
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
+<!-- ===== PANDANIA REQUESTED CONTENT EXPANSION ===== -->
 <script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
+(function(){
+  "use strict";
+
+  /* Load the newly supplied artwork through the same image system. */
+  const newAssets={
+    armor1:IMAGE_FOLDER+"armor1.png", armor2:IMAGE_FOLDER+"armor2.png", armor3:IMAGE_FOLDER+"armor3.png", armor4:IMAGE_FOLDER+"armor4.png",
+    minimartshelf:IMAGE_FOLDER+"minimartshelf.png", lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
+    metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png", metalmonsterminion1:IMAGE_FOLDER+"metalmonsterminion1.png", metalmonsterminion2:IMAGE_FOLDER+"metalmonsterminion2.png",
+    dungeongem:IMAGE_FOLDER+"dungeongem.png", fish:IMAGE_FOLDER+"fish.png", manapotion:IMAGE_FOLDER+"manapotion.png",
+    minimartcandy:IMAGE_FOLDER+"minimartcandy.png", minimartchips:IMAGE_FOLDER+"minimartchips.png", minimartcola:IMAGE_FOLDER+"minimartcola.png", minimartgain:IMAGE_FOLDER+"minimartgain.png", minimartlights:IMAGE_FOLDER+"minimartlights.png", minimartmallows:IMAGE_FOLDER+"minimartmallows.png", lofidisc:IMAGE_FOLDER+"lofidisc.png"
+  };
+  Object.assign(imageFiles,newAssets);
+  Object.entries(newAssets).forEach(([key,src])=>{if(images[key])return;const img=new Image();img.onload=()=>{images[key]=img};img.onerror=()=>console.warn("Could not load new image:",src);img.src=src;});
+
+  /* Four new armors are normal inventory items and can be equipped through the existing paper doll. */
+  Object.assign(inventory,{
+    "Magic Robe":{icon:"🛡️",image:"armor1",count:0,stats:{defense:5,attack:0,magicAttack:10}},
+    "Bruiser Plate":{icon:"🛡️",image:"armor2",count:0,stats:{defense:10,attack:5,magicAttack:0}},
+    "Pda Cloak":{icon:"🛡️",image:"armor3",count:0,stats:{defense:50,attack:0,magicAttack:50}},
+    "Golden Plate":{icon:"🛡️",image:"armor4",count:0,stats:{defense:100,attack:20,magicAttack:0}}
+  });
+
+  /* Every monster can roll an armor drop. Existing drop behavior is preserved. */
+  const originalKillMonster=killMonster;
+  killMonster=function(monster){
+    originalKillMonster(monster);
+    if(monster){
+      const armorNames=["Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"];
+      if(Math.random()<0.20){
+        const name=armorNames[Math.floor(Math.random()*armorNames.length)];
+        const imgKey=inventory[name].image;
+        groundDrops.push({x:monster.x+(Math.random()-.5)*36,y:monster.y+(Math.random()-.5)*28,name,icon:"🛡️",image:imgKey,bob:Math.random()*Math.PI*2});
+      }
     }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
+  };
+
+  /* Extend the existing equipment paper doll to all four new armors. */
+  const armorNames=new Set(["Iron Armor","Magic Robe","Bruiser Plate","Pda Cloak","Golden Plate"]);
+  const oldEquipItem=window.__pandaniaGameplayV11;
+  const equipmentState=window.__pandaniaEquipment;
+  function equipmentImage(name){
+    const item=inventory[name];
+    return item&&item.image&&imageFiles[item.image]?imageFiles[item.image]:"";
+  }
+  function refreshArmorDoll(){
+    const el=document.getElementById("equipArmor");
+    if(!el||!equipmentState)return;
+    const item=equipmentState.armor;
+    const src=equipmentImage(item);
+    el.innerHTML=(item&&src?'<div class="paperDollWeaponArt"><img class="paperDollEquipImage" src="'+src.replace(/"/g,'&quot;')+'" alt="'+item.replace(/"/g,'&quot;')+'"></div>':'')+'🛡️ Armor<br><strong>'+(item||'Empty')+'</strong>'+(item?'<br><button class="pdUnequip" type="button">Unequip</button>':'');
+    const b=el.querySelector('.pdUnequip');
+    if(b)b.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof inventory[item]==='object')inventory[item].count=(inventory[item].count||0)+1;equipmentState.armor=null;renderBag();};
+  }
+  function wireNewArmorCards(){
+    document.querySelectorAll('#bagWindow .itemCard').forEach(card=>{
+      if(card.dataset.pandaniaNewArmor==='1')return;
+      const nameEl=card.querySelector('.itemName');if(!nameEl)return;
+      const name=nameEl.textContent.trim();if(!armorNames.has(name)||/^Iron Armor$/.test(name))return;
+      card.dataset.pandaniaNewArmor='1';
+      const equip=()=>{
+        if(!inventory[name]||inventory[name].count<1)return;
+        if(equipmentState.armor&&inventory[equipmentState.armor])inventory[equipmentState.armor].count++;
+        equipmentState.armor=name;inventory[name].count--;refreshArmorDoll();renderBag();showMessage('✅ '+name+' equipped!');
+      };
+      card.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();equip()},{passive:false});
+      let last=0,lx=0,ly=0;card.addEventListener('pointerup',e=>{const now=performance.now();if(now-last<550&&Math.hypot(e.clientX-lx,e.clientY-ly)<55){e.preventDefault();e.stopPropagation();equip();last=0;return}last=now;lx=e.clientX;ly=e.clientY},{passive:false});
+    });
+  }
+  const oldRenderBag=renderBag;
+  renderBag=function(){oldRenderBag();setTimeout(()=>{wireNewArmorCards();refreshArmorDoll()},0)};
+
+  /* ---------------- MINI MART ---------------- */
+  let inMiniMart=false;
+  window.__pandaniaInMiniMart=()=>inMiniMart;
+  let miniMartReturnX=0,miniMartReturnY=0;
+  const miniMartInterior={width:900,height:600,exitX:450,exitY:535};
+  const miniMartBuilding=environment.buildings.find(b=>b.miniMart);
+  const miniMartShelves=[
+    {x:285,y:165,w:170,h:120},{x:505,y:165,w:170,h:120},{x:725,y:165,w:170,h:120},
+    {x:285,y:350,w:170,h:120},{x:505,y:350,w:170,h:120},{x:725,y:350,w:170,h:120}
+  ];
+  const miniMartShelfHit=miniMartShelves.map(r=>({x:r.x-r.w/2,y:r.y-r.h/2,w:r.w,h:r.h}));
+  const miniMartStoreItems=[
+    {name:"Mini Mart Candy",image:"minimartcandy",price:2},
+    {name:"Mini Mart Chips",image:"minimartchips",price:3},
+    {name:"Mini Mart Cola",image:"minimartcola",price:3},
+    {name:"Mini Mart Gain",image:"minimartgain",price:5},
+    {name:"Mini Mart Lights",image:"minimartlights",price:4},
+    {name:"Mini Mart Mallows",image:"minimartmallows",price:2},
+    {name:"Lofi Disc",image:"lofidisc",price:6}
+  ];
+
+  Object.assign(inventory,Object.fromEntries(miniMartStoreItems.map(i=>[i.name,{icon:"📦",image:i.image,count:0}])));
+
+  function drawMiniMartInterior(){
+    const w=miniMartInterior.width,h=miniMartInterior.height;
+    ctx.fillStyle="#4a3024";ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#b88958";ctx.fillRect(38,38,w-76,h-76);
+    ctx.fillStyle="#e7d0a2";ctx.fillRect(62,62,w-124,h-124);
+    ctx.fillStyle="#6e4931";ctx.fillRect(0,0,w,32);ctx.fillRect(0,h-32,w,32);ctx.fillRect(0,0,32,h);ctx.fillRect(w-32,0,32,h);
+    ctx.fillStyle="#2d1b12";ctx.fillRect(miniMartInterior.exitX-45,h-72,90,72);
+    ctx.fillStyle="#ffe08a";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("EXIT",miniMartInterior.exitX,h-84);
+    ctx.fillStyle="rgba(55,30,18,.7)";ctx.font="bold 28px Georgia";ctx.fillText("PANDANIA MINI MART",w/2,88);
+    miniMartShelves.forEach(r=>{
+      const img=images.minimartshelf;
+      if(img)ctx.drawImage(img,r.x-r.w/2,r.y-r.h/2,r.w,r.h);
+      else{ctx.fillStyle="#7a4d2b";ctx.fillRect(r.x-r.w/2,r.y-r.h/2,r.w,r.h);}
+    });
+    const j=images.lofijukebox;
+    if(j)ctx.drawImage(j,58,72,95,125);else{ctx.fillStyle="#553c2c";ctx.fillRect(58,72,95,125)}
+    ctx.fillStyle="#4a2e1e";ctx.font="bold 11px Arial";ctx.fillText("JUKEBOX",106,207);
+  }
+
+  function miniMartPoint(e){
+    const rect=canvas.getBoundingClientRect();const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);const z=pandaniaMobileZoom();const vw=W/z,vh=H/z;return z!==1?{x:camera.x+vw/2+(sx-W/2)/z,y:camera.y+vh/2+(sy-H/2)/z}:{x:sx+camera.x,y:sy+camera.y};
+  }
+  function closeMiniMartStore(){const el=document.getElementById('miniMartStoreWindow');if(el)el.remove()}
+  function showMiniMartStore(){
+    closeMiniMartStore();closeWindows();
+    const el=document.createElement('div');el.id='miniMartStoreWindow';el.className='window';
+    el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,620px);max-height:82vh;overflow:auto;background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:14px;color:#fff;box-sizing:border-box';
+    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🏪 Pandania Mini Mart</div><div style="color:#d8c29a;font-size:12px;margin-bottom:10px">Purchases are made with PDA only. These items cannot be found anywhere else.</div><div id="miniMartStoreItems" class="itemGrid"></div>';
+    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=closeMiniMartStore;
+    const grid=el.querySelector('#miniMartStoreItems');
+    miniMartStoreItems.forEach(item=>{
+      const card=document.createElement('div');card.className='itemCard';
+      const src=imageFiles[item.image]||'';card.innerHTML=(src?'<img class="itemImage" src="'+src.replace(/"/g,'&quot;')+'" alt="">':'<div class="itemIcon">📦</div>')+'<div class="itemName">'+item.name+'</div><div class="itemCount">'+item.price+' PDA</div><button class="buyBtn" type="button">Buy</button>';
+      card.querySelector('button').onclick=()=>{const pdas=inventory['PDA Coin']?.count||0;if(pdas<item.price){showMessage('Not enough PDA.');return}if(!canAddNewInventoryItem(item.name)){showMessage('🎒 Your bag is full.');return}inventory['PDA Coin'].count-=item.price;inventory[item.name].count++;updateUI();renderBag();showMessage('🛒 Purchased '+item.name+'!');};grid.appendChild(card);
+    });
+  }
+  function showJukebox(){
+    closeMiniMartStore();closeWindows();
+    const el=document.createElement('div');el.id='miniMartJukeboxWindow';el.className='window';el.style.cssText='display:block;position:absolute;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,430px);background:#17120d;border:2px solid #9a7546;border-radius:12px;padding:18px;color:#fff;box-sizing:border-box';
+    el.innerHTML='<button class="closeWindow" type="button" style="float:right">X</button><div class="windowTitle">🎵 Lofi Jukebox</div><div style="color:#d8c29a;font-size:13px;margin-top:12px">No songs have been installed yet. Add your song files later and they can be added here.</div>';
+    gameWrap.appendChild(el);el.querySelector('.closeWindow').onclick=()=>el.remove();
+  }
+
+  function enterMiniMart(){
+    if(!miniMartBuilding)return;
+    miniMartReturnX=player.x;miniMartReturnY=player.y;inMiniMart=true;inDungeon=false;closeWindows();closeMiniMartStore();
+    player.x=miniMartInterior.exitX;player.y=455;player.targetX=null;player.targetY=null;player.targetMonster=null;
+    showMessage('🏪 Welcome to the Pandania Mini Mart!');updateCamera();
+  }
+  function leaveMiniMart(){
+    inMiniMart=false;player.x=miniMartReturnX;player.y=miniMartReturnY+55;player.targetX=null;player.targetY=null;player.targetMonster=null;closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();showMessage('🚪 You left the Mini Mart.');updateCamera();
+  }
+
+  /* Mini Mart is a normal world building; add its door to the existing interaction flow. */
+  const oldInteract=interact;
+  interact=function(){
+    if(inMiniMart){
+      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<100){leaveMiniMart();return;}
+      showMessage('🏪 Browse the shelves or use the jukebox.');return;
+    }
+    if(miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<70){enterMiniMart();return;}
+    return oldInteract();
+  };
+
+  window.__pandaniaMiniMartInterior=miniMartInterior;
+
+  const oldBlocked=blocked;
+  blocked=function(x,y,r=player.r){
+    if(inMiniMart)return x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20;
+    return oldBlocked(x,y,r);
+  };
+  const oldUpdateCamera=updateCamera;
+  updateCamera=function(){
+    if(inMiniMart){const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;camera.x=Math.max(0,Math.min(player.x-vw/2,Math.max(0,miniMartInterior.width-vw)));camera.y=Math.max(0,Math.min(player.y-vh/2,Math.max(0,miniMartInterior.height-vh)));return;}
+    return oldUpdateCamera();
+  };
+  const oldUpdatePlayer=updatePlayer;
+  updatePlayer=function(){
+    /* Never run the overworld/dungeon auto-entry logic while inside the Mini Mart.
+       The interior is its own isolated zone. */
+    if(inMiniMart){
+      let dx=0,dy=0;
+      if(keys["w"]||keys["arrowup"])dy--;
+      if(keys["s"]||keys["arrowdown"])dy++;
+      if(keys["a"]||keys["arrowleft"])dx--;
+      if(keys["d"]||keys["arrowright"])dx++;
+      if(dx||dy){
+        const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+        setPlayerFacing(dx,dy);
+        const sp=player.speed;
+        const nx=player.x+dx*sp,ny=player.y+dy*sp;
+        if(!miniMartBlocked(nx,player.y))player.x=nx;
+        if(!miniMartBlocked(player.x,ny))player.y=ny;
+        player.moving=true;player.walkTime+=.32;
+      }else{player.moving=false;player.walkTime*=.86;}
+      if(player.attackCooldown>0)player.attackCooldown--;
+      if(player.invincible>0)player.invincible--;
+      if(player.swordSwing>0)player.swordSwing--;
+      if(Math.hypot(player.x-miniMartInterior.exitX,player.y-miniMartInterior.exitY)<55)leaveMiniMart();
+      return;
+    }
+    oldUpdatePlayer();
+    if(!inMiniMart&&miniMartBuilding&&Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<58)enterMiniMart();
+  };
+  function miniMartBlocked(x,y,r=player.r){
+    if(x<20||y<20||x>miniMartInterior.width-20||y>miniMartInterior.height-20)return true;
+    for(const rct of miniMartShelfHit){if(circleRectCollision(x,y,r,rct))return true;}
+    const jukeboxRect={x:72,y:76,w:120,h:145};
+    if(circleRectCollision(x,y,r,jukeboxRect))return true;
+    return false;
+  }
+  const oldDraw=draw;
+  draw=function(){
+    if(!inMiniMart)return oldDraw();
+    ctx.clearRect(0,0,W,H);ctx.save();const z=pandaniaMobileZoom(),vw=W/z,vh=H/z;ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);drawMiniMartInterior();drawPlayer();ctx.restore();drawMiniMartMiniMap();
+  };
+  function drawMiniMartMiniMap(){drawMiniMap();}
+
+  /* Capture canvas clicks before the normal world click handler so shelf/jukebox/exit interactions work on desktop and touch devices. */
+  canvas.addEventListener('pointerdown',e=>{
+    if(!gameStarted)return;
+    if(!inMiniMart&&miniMartBuilding){
+      const p=miniMartPoint(e);
+      if(Math.hypot(p.x-miniMartBuilding.doorX,p.y-miniMartBuilding.doorY)<105){if(Math.hypot(player.x-miniMartBuilding.doorX,player.y-miniMartBuilding.doorY)<110){e.preventDefault();e.stopImmediatePropagation();enterMiniMart();}else{player.targetX=miniMartBuilding.doorX;player.targetY=miniMartBuilding.doorY;showMessage('🏪 Walking to the Mini Mart...');e.preventDefault();e.stopImmediatePropagation();}return;}
+    }
+    if(!inMiniMart)return;
+    const p=miniMartPoint(e);
+    if(Math.hypot(p.x-miniMartInterior.exitX,p.y-miniMartInterior.exitY)<90){e.preventDefault();e.stopImmediatePropagation();leaveMiniMart();return;}
+    if(Math.hypot(p.x-132,p.y-150)<95){e.preventDefault();e.stopImmediatePropagation();showJukebox();return;}
+    if(miniMartShelfHit.some(r=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)){e.preventDefault();e.stopImmediatePropagation();showMiniMartStore();return;}
+    player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
+  },true);
+
+  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
+  const level4Gems=[];
+  /* Tons of gems concentrated around Metal Monster's Level 4 boss arena only. */
+  for(let i=0;i<70;i++){
+    const a=Math.random()*Math.PI*2;
+    const radius=90+Math.random()*470;
+    level4Gems.push([Math.max(55,Math.min(dungeon.width-55,750+Math.cos(a)*radius)),Math.max(55,Math.min(dungeon.height-55,350+Math.sin(a)*radius*.78))]);
+  }
+  const oldDrawDungeon=drawDungeon;
+  drawDungeon=function(){
+    oldDrawDungeon();
+    if(dungeonLevel!==4)return;
+    const gem=images.dungeongem;
+    if(gem){for(const [x,y] of level4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,x-18,y-30,36,60);ctx.restore();}}
+  };
+
+  const metalMeteorShots=window.__pandaniaMetalMeteorShots=[];
+  const oldUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    oldUpdateMonsters();
+    if(!inDungeon)return;
+    for(const m of monsters){
+      if(m.type!=='boss4')continue;
+      if(m.metalMeteorCooldown==null)m.metalMeteorCooldown=300;
+      m.metalMeteorCooldown--;
+      if(m.metalMeteorCooldown<=0){
+        const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;
+        metalMeteorShots.push({x:m.x,y:m.y,tx:player.x,ty:player.y,vx:dx/len*7.5,vy:dy/len*7.5,life:150,damage:48});
+        m.metalMeteorCooldown=300;
+        if(typeof bossSound==='function')bossSound();
+        showMessage('☄️ Metal Monster uses METAL METEOR!');
+      }
+    }
+    for(let i=metalMeteorShots.length-1;i>=0;i--){const q=metalMeteorShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;if(Math.hypot(q.x-q.tx,q.y-q.ty)<18||q.life<=0){if(Math.hypot(player.x-q.x,player.y-q.y)<38&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;hitSound();if(player.hp<=0)respawnPlayer();}metalMeteorShots.splice(i,1);}}
+  };
+  const oldDrawWithMeteor=draw;
+  draw=function(){
+    oldDrawWithMeteor();
+    if(!inDungeon)return;
+    for(const q of metalMeteorShots){
+      const img=images.metalmonsterspecialattack;if(!img)continue;
+      const pulse=0.72+Math.sin(Date.now()/90)*0.22;ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#b13cff';ctx.shadowBlur=28+Math.sin(Date.now()/100)*10;ctx.drawImage(img,q.x-34,q.y-34,68,68);ctx.restore();
+    }
+  };
+
+  /* Mini Mart building and interior state do not interfere with existing houses. */
+  const originalCloseWindows=closeWindows;
+  closeWindows=function(){originalCloseWindows();closeMiniMartStore();const j=document.getElementById('miniMartJukeboxWindow');if(j)j.remove();};
+
+  const miniMartNames=new Set(miniMartStoreItems.map(i=>i.name));
+  const originalCreateListing=createListing;
+  createListing=function(){
+    const name=(document.getElementById('sellItem')?.value||'').trim();
+    if(miniMartNames.has(name)){showMessage('🏪 Mini Mart items cannot be sold or purchased through the Grand Exchange.');return;}
+    return originalCreateListing();
+  };
+  const originalBuyListing=buyListing;
+  buyListing=function(index){
+    if(listings[index]&&miniMartNames.has(listings[index].item)){showMessage('🏪 Mini Mart items can only be purchased with PDA at the Mini Mart.');return;}
+    return originalBuyListing(index);
+  };
+
+  /* Make fish and mana potion use their new image assets everywhere the bag renderer displays them. */
+  if(inventory.Fish)inventory.Fish.image='fish';
+  if(inventory['Mana Potion'])inventory['Mana Potion'].image='manapotion';
+
+  window.__pandaniaRequestedContentExpansion=true;
 })();
 </script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
+<!-- ===== PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
+<script>
+(function(){
+  "use strict";
+
+  /* Armor stats are applied only while the corresponding armor is equipped. */
+  window.getEquippedArmorStats=function(){
+    const state=window.__pandaniaEquipment;
+    const name=state&&state.armor;
+    const item=name&&inventory[name];
+    return item&&item.stats?item.stats:{defense:0,attack:0,magicAttack:0};
+  };
+
+  /* Stop all monster AI, attacks and special attacks while the player is inside
+     the Mini Mart. This is an isolated interior, not a dungeon state. */
+  const previousUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    if(inDungeon&&Array.isArray(monsters)){
+      for(const m of monsters){
+        if(m.type==='boss4')m.metalMeteorCooldown=999999;
+      }
+    }
+
+    previousUpdateMonsters();
+
+    if(!inDungeon||typeof dungeonLevel==='undefined'||dungeonLevel!==4)return;
+
+    for(const m of monsters){
+      if(m.type!=='boss4')continue;
+      if(m.__stableMeteorCooldown==null)m.__stableMeteorCooldown=300;
+
+      m.__stableMeteorCooldown--;
+
+      /* At 4 seconds, warn with a subtle earthquake for one second. */
+      if(m.__stableMeteorCooldown===60){
+        window.__boss4Earthquake=60;
+        if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');
+      }
+
+      /* Exactly every 5 seconds: spawn the attack from above the dungeon. */
+      if(m.__stableMeteorCooldown<=0){
+        const count=7;
+        for(let i=0;i<count;i++){
+          const tx=140+Math.random()*(dungeon.width-280);
+          const ty=190+Math.random()*(dungeon.height-300);
+          window.__stableMetalMeteors.push({
+            x:tx,
+            y:-130-Math.random()*80,
+            targetY:ty,
+            life:120,
+            damage:48,
+            phase:Math.random()*Math.PI*2
+          });
+        }
+        m.__stableMeteorCooldown=300;
+        if(typeof bossSound==='function')bossSound();
+        if(typeof showMessage==='function')showMessage('☄️ Metal Monster unleashes METAL METEOR!');
+      }
+    }
+
+    if(window.__boss4Earthquake>0)window.__boss4Earthquake--;
+
+    for(let i=window.__stableMetalMeteors.length-1;i>=0;i--){
+      const q=window.__stableMetalMeteors[i];
+      q.y+=9.5;
+      q.life--;
+
+      if(q.y>=q.targetY){
+        if(Math.hypot(player.x-q.x,player.y-q.targetY)<48&&player.invincible<=0){
+          player.hp-=q.damage;
+          addDamageNumber(player.x,player.y-48,q.damage,'#fff');
+          player.invincible=30;
+          if(typeof hitSound==='function')hitSound();
+          if(player.hp<=0)respawnPlayer();
+        }
+        q.y=q.targetY;
+        q.life=9;
+      }
+
+      if(q.life<=0)window.__stableMetalMeteors.splice(i,1);
+    }
+  };
+
+  /* Keep DegenHooper inside Panden Town while roaming. */
+  let degenX=1040,degenY=560;
+  for(let attempt=0;attempt<300;attempt++){
+    const tx=townBounds.x+55+Math.random()*(townBounds.w-110);
+    const ty=townBounds.y+55+Math.random()*(townBounds.h-110);
+    const occupied=environment.buildings.some(b=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},b,20))||environment.ponds.some(w=>overlapsRect({x:tx-28,y:ty-28,w:56,h:56},w,20));
+    if(!occupied){degenX=tx;degenY=ty;break;}
+  }
+  const degen={
+    x:degenX,y:degenY,name:"DegenHooper",image:"npc4",wander:true,townOnly:true,quest:true,
+    specialQuest:"Dropped the Ball"
+  };
+  degen.homeX=degen.x;degen.homeY=degen.y;degen.targetX=degen.x;degen.targetY=degen.y;degen.walkTimer=0;
+  if(!npcs.some(n=>n.name==="DegenHooper"))npcs.push(degen);
+
+  const previousUpdateNPCs=updateNPCs;
+  updateNPCs=function(){
+    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    previousUpdateNPCs();
+    const n=npcs.find(n=>n.name==="DegenHooper");
+    if(n){
+      n.x=Math.max(townBounds.x+45,Math.min(townBounds.x+townBounds.w-45,n.x));
+      n.y=Math.max(townBounds.y+45,Math.min(townBounds.y+townBounds.h-45,n.y));
+    }
+  };
+
+  /* DegenHooper's special quest has its own quest state and does not alter
+     the existing Captain Panda quest progression. */
+  let droppedTheBallStarted=false;
+  const previousTalkToNPC=talkToNPC;
+  talkToNPC=function(n){
+    if(n&&n.specialQuest==="Dropped the Ball"){
+      if(!droppedTheBallStarted){
+        droppedTheBallStarted=true;
+        setQuest("Dropped the Ball","Special quest from DegenHooper.");
+        openDialogue("DegenHooper","Yo! You dropped the ball. I've got a special quest for you: Dropped the Ball.");
+      }else{
+        openDialogue("DegenHooper","You accepted the special quest: Dropped the Ball.");
+      }
+      return;
+    }
+    return previousTalkToNPC(n);
+  };
+
+  /* Only one Panden Town building carries the Your House identity. */
+  const playerHouse=environment.buildings.find(b=>b.type==="house1"&&b.playerHouse);
+  if(playerHouse)playerHouse.name="Your House";
+  environment.buildings.forEach(b=>{
+    if(b!==playerHouse&&b.name==="Your House")b.name="Panden Town House";
+  });
+
+  /* The updated shelf artwork is the exact lowercase filename supplied. */
+  if(imageFiles.minimartshelf){}
+
+  /* Armor combat bonuses. */
+  const armorStats=window.getEquippedArmorStats;
+  const originalSwordAttack=swordAttack;
+  swordAttack=function(target=null){
+    const before=player.__pandaniaArmorAttackBonus||0;
+    const stats=armorStats();
+    player.__pandaniaArmorAttackBonus=stats.attack||0;
+    try{return originalSwordAttack(target);}finally{player.__pandaniaArmorAttackBonus=before;}
+  };
+
+  /* The original melee/spell routines read these temporary bonuses when they
+     execute; this keeps all existing weapon and spell behavior intact. */
+  const originalCastFire=castFire;
+  castFire=function(){
+    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
+    try{return originalCastFire();}finally{player.__pandaniaArmorMagicBonus=old;}
+  };
+  const originalCastLightning=castLightning;
+  castLightning=function(){
+    const old=player.__pandaniaArmorMagicBonus||0;player.__pandaniaArmorMagicBonus=armorStats().magicAttack||0;
+    try{return originalCastLightning();}finally{player.__pandaniaArmorMagicBonus=old;}
+  };
+
+  /* Final armor-aware damage hooks. */
+  const oldUpdateMonstersArmor=updateMonsters;
+  updateMonsters=function(){
+    if(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    return oldUpdateMonstersArmor();
+  };
+
+  /* Correct the existing routines' numeric formulas without replacing their
+     renderers or other game systems. */
+  window.__pandaniaFollowupFixes=true;
+})();
+</script>
+<!-- ===== END PANDANIA REQUESTED FOLLOW-UP FIXES ===== -->
+<!-- ===== END PANDANIA REQUESTED CONTENT EXPANSION ===== -->
+<script>
+(function(){
+  "use strict";
+  /* Final corrective pass: keep Panden buildings separated without changing
+     their identities, and guarantee all quest NPCs are interactable. */
+  try{
+    const pad=38;
+    const bs=environment.buildings.filter(b=>b.x>=townBounds.x-250&&b.x<=townBounds.x+townBounds.w+250&&b.y>=townBounds.y-250&&b.y<=townBounds.y+townBounds.h+250);
+    for(let pass=0;pass<80;pass++){
+      let moved=false;
+      for(let i=0;i<bs.length;i++){
+        for(let j=i+1;j<bs.length;j++){
+          const a=bs[i],b=bs[j];
+          if(!overlapsRect(a,b,pad))continue;
+          const ax=a.x+a.w/2,ay=a.y+a.h/2,bx=b.x+b.w/2,by=b.y+b.h/2;
+          const dx=ax-bx,dy=ay-by;
+          if(Math.abs(dx)>=Math.abs(dy)){
+            const push=(a.w+b.w)/2+pad-Math.abs(dx);
+            const dir=dx>=0?1:-1; a.x+=dir*push*.55; b.x-=dir*push*.45;
+          }else{
+            const push=(a.h+b.h)/2+pad-Math.abs(dy);
+            const dir=dy>=0?1:-1; a.y+=dir*push*.55; b.y-=dir*push*.45;
+          }
+          moved=true;
+        }
+      }
+      bs.forEach(b=>{
+        b.x=Math.max(townBounds.x+20,Math.min(townBounds.x+townBounds.w-b.w-20,b.x));
+        b.y=Math.max(townBounds.y+20,Math.min(townBounds.y+townBounds.h-b.h-20,b.y));
+        b.doorX=b.x+b.w/2;b.doorY=b.y+b.h+8;
+      });
+      if(!moved)break;
+    }
+    const ge=environment.buildings.find(b=>b.grandExchange);
+    if(ge&&typeof grandExchangeLocation!=="undefined"){grandExchangeLocation.x=ge.doorX;grandExchangeLocation.y=ge.doorY;}
+  }catch(e){console.warn('Panden building spacing fix',e);}
+
+  /* Yellow quest marker above DegenHooper and reliable NPC tap/click handling. */
+  const degen=npcs.find(n=>n.name==='DegenHooper');
+  if(degen)degen.quest=true;
+
+  canvas.addEventListener('pointerdown',function(e){
+    if(!gameStarted||inDungeon||inHouse||window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart())return;
+    const p=(typeof zoomAwareWorldPoint==='function')?zoomAwareWorldPoint(e):getWorldMousePosition(e);
+    const npc=npcs.find(n=>Math.hypot(p.x-n.x,p.y-n.y)<72);
+    if(!npc)return;
+    if(Math.hypot(player.x-npc.x,player.y-npc.y)<115){
+      talkToNPC(npc);
+    }else{
+      player.targetX=npc.x;player.targetY=npc.y;player.targetMonster=null;
+      showMessage('💬 Walking to '+npc.name+'...');
+    }
+    e.preventDefault();e.stopImmediatePropagation();
+  },true);
+
+  const style=document.createElement('style');
+  style.textContent='.pandaniaArmorStat{color:#ffd84d!important;font-weight:bold;text-shadow:0 0 4px rgba(255,216,77,.25)}';
+  document.head.appendChild(style);
+})();
+</script>
+<!-- ===== PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
+<script>
+(function(){
+  'use strict';
+
+  /* ---------------------------------------------------------
+     PANDEN TOWN BUILDING LAYOUT
+     Replace the random/over-tight final positions with a deterministic
+     layout that leaves clear walking lanes in front of every door.
+     The Mini Mart remains in town and is given its own larger footprint.
+  --------------------------------------------------------- */
+  try{
+    const townBuildings=environment.buildings.filter(b=>
+      b.type==='house1'||b.type==='house2'||b.miniMart
+    );
+    const mart=townBuildings.find(b=>b.miniMart);
+    const housesOnly=townBuildings.filter(b=>!b.miniMart);
+
+    /* Four staggered rows keep doors facing into open lanes rather than
+       directly into another building. */
+    const positions=[
+      [535,350],[745,350],[955,350],[1165,350],
+      [535,525],[745,525],[955,525],[1165,525],
+      [535,700],[745,700],[955,700],[1165,700],
+      [535,855],[745,855],[955,855],[1165,855]
+    ];
+
+    housesOnly.forEach((b,i)=>{
+      const p=positions[i];
+      if(!p)return;
+      /* Slightly compact the town houses only where necessary so all four
+         rows fit while preserving their artwork and identity. */
+      const isH1=b.type==='house1';
+      b.w=isH1?155:125;
+      b.h=isH1?128:105;
+      b.x=p[0]-b.w/2;
+      b.y=p[1]-b.h;
+      b.doorX=b.x+b.w/2;
+      b.doorY=b.y+b.h+12;
+    });
+
+    if(mart){
+      mart.w=205;mart.h=160;
+      mart.x=townBounds.x+townBounds.w-mart.w-24;
+      mart.y=townBounds.y+townBounds.h-mart.h-24;
+      mart.doorX=mart.x+mart.w/2;
+      mart.doorY=mart.y+mart.h+14;
+    }
+
+    /* Move any house whose doorway is too close to another building's body.
+       Re-run a few small horizontal shifts rather than allowing a door to
+       become trapped behind a neighboring wall. */
+    const townAll=environment.buildings.filter(b=>
+      b.type==='house1'||b.type==='house2'||b.miniMart
+    );
+    for(let pass=0;pass<20;pass++){
+      let changed=false;
+      for(const a of townAll){
+        for(const b of townAll){
+          if(a===b)continue;
+          const door={x:a.doorX-28,y:a.doorY-18,w:56,h:55};
+          const body={x:b.x-12,y:b.y-12,w:b.w+24,h:b.h+24};
+          if(overlapsRect(door,body,0)){
+            /* Prefer shifting the building sideways inside town. */
+            const left=Math.max(townBounds.x+18,a.w+18);
+            const right=townBounds.x+townBounds.w-a.w-18;
+            const dir=(a.x+a.w/2)<(b.x+b.w/2)?-1:1;
+            a.x=Math.max(left,Math.min(right,a.x+dir*22));
+            a.doorX=a.x+a.w/2;
+            a.doorY=a.y+a.h+12;
+            changed=true;
+          }
+        }
+      }
+      if(!changed)break;
+    }
+
+    if(typeof grandExchangeBuilding!=='undefined'&&grandExchangeBuilding){
+      grandExchangeLocation.x=grandExchangeBuilding.doorX;
+      grandExchangeLocation.y=grandExchangeBuilding.doorY;
+    }
+  }catch(e){console.warn('Panden town arrangement fix:',e)}
+
+  /* ---------------------------------------------------------
+     STABLE DUNGEON RENDERER
+     The previous draw() stack has accumulated several wrappers. When one
+     of those throws, safeDraw clears the canvas and leaves only the brown
+     fallback floor. For dungeon scenes, use one isolated renderer so the
+     floor, lamps, enemies and boss are always drawn together.
+  --------------------------------------------------------- */
+  const previousDraw=draw;
+  function stableDungeonSprite(key,x,y,w,h){
+    const img=images[key];
+    if(img){
+      ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(img,x-w/2,y-h,w,h);ctx.restore();
+      return true;
+    }
+    return false;
+  }
+
+  function drawStableDungeon(){
+    const dw=dungeon.width,dh=dungeon.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
+    const vw=W/z,vh=H/z;
+    ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
+
+    /* Small earthquake warning only on Metal Monster Level 4. */
+    if(inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&window.__boss4Earthquake>0){
+      const intensity=4;
+      ctx.translate((Math.random()-.5)*intensity,(Math.random()-.5)*intensity);
+    }
+
+    /* Floor */
+    ctx.fillStyle='#5b4635';ctx.fillRect(0,0,dw,dh);
+    for(let x=0;x<dw;x+=26){for(let y=0;y<dh;y+=26){const n=Math.sin(x*3.7+y*8.1);if(n>.15){ctx.fillStyle=n>.65?'rgba(165,130,88,.28)':'rgba(30,20,15,.25)';const s=2+Math.abs(n)*3;ctx.beginPath();ctx.arc(x+n*9,y+n*7,s,0,Math.PI*2);ctx.fill();}}}
+
+    /* Walls and jagged rock edge */
+    ctx.fillStyle='#33271f';ctx.fillRect(0,0,dw,85);ctx.fillRect(0,dh-85,dw,85);ctx.fillRect(0,0,80,dh);ctx.fillRect(dw-80,0,80,dh);
+    ctx.fillStyle='#4a382b';
+    for(let x=0;x<dw;x+=70){
+      ctx.beginPath();ctx.moveTo(x,85);ctx.lineTo(x+30,55);ctx.lineTo(x+55,85);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(x,dh-85);ctx.lineTo(x+30,dh-55);ctx.lineTo(x+55,dh-85);ctx.closePath();ctx.fill();
+    }
+
+    /* Lamps: draw the complete warm glow and fixture, not just a floor. */
+    for(let x=160;x<dw-120;x+=180){drawStableLamp(x,105);drawStableLamp(x+90,dh-110)}
+    for(let y=190;y<dh-180;y+=190){drawStableLamp(105,y);drawStableLamp(dw-105,y+70)}
+
+    /* Level 4 gems only around Metal Monster's arena. */
+    if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4&&Array.isArray(window.__stableLevel4Gems)){
+      const gem=images.dungeongem;
+      if(gem){for(const g of window.__stableLevel4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,g.x-18,g.y-30,36,60);ctx.restore()}}
+    }
+
+    /* Stair and exit */
+    if(typeof dungeonExit!=='undefined')drawStableExit(dungeonExit.x,dungeonExit.y);
+    if(typeof dungeonStair!=='undefined'&&typeof dungeonStairOpen!=='undefined'&&dungeonStairOpen)drawStableStair(dungeonStair.x,dungeonStair.y);
+
+    /* Drops */
+    if(Array.isArray(groundDrops)){
+      for(const d of groundDrops){
+        const img=d.image&&images[d.image];
+        if(img){ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(img,d.x-22,d.y-22,44,44);ctx.restore()}
+        else if(d.name==='Gold Coin'){
+          ctx.save();ctx.shadowColor='#ffd84d';ctx.shadowBlur=14;ctx.fillStyle='#ffd43b';ctx.beginPath();ctx.arc(d.x,d.y,11,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#fff2a8';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff8c7';ctx.beginPath();ctx.arc(d.x-3,d.y-4,3,0,Math.PI*2);ctx.fill();
+          for(let s=0;s<4;s++){const a=Date.now()/350+s*Math.PI/2,sx=d.x+Math.cos(a)*17,sy=d.y+Math.sin(a)*17;ctx.fillStyle='rgba(255,246,150,.9)';ctx.fillRect(sx-1,sy-3,2,6);ctx.fillRect(sx-3,sy-1,6,2)}ctx.restore();
+        }else {ctx.fillStyle='#ffd43b';ctx.beginPath();ctx.arc(d.x,d.y,10,0,Math.PI*2);ctx.fill()}
+        ctx.fillStyle='#fff';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText(d.name,d.x,d.y-30);
+      }
+    }
+
+    /* Monsters and bosses */
+    if(Array.isArray(monsters)){
+      for(const m of monsters)drawStableMonster(m);
+    }
+
+    /* Keep the opened descending stairs visible above the scene. */
+    if(typeof dungeonStair!=='undefined'&&typeof dungeonStairOpen!=='undefined'&&dungeonStairOpen){
+      drawStableStair(dungeonStair.x,dungeonStair.y);
+    }
+
+    /* Metal Meteor visual layer */
+    if(Array.isArray(window.__stableMetalMeteors)){
+      const img=images.metalmonsterspecialattack;
+      for(const q of window.__stableMetalMeteors){
+        const pulse=.72+Math.sin(Date.now()/85)*.22;
+        ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#a735ff';ctx.shadowBlur=30+Math.sin(Date.now()/100)*12;
+        if(img)ctx.drawImage(img,q.x-36,q.y-72,72,72);
+        else{ctx.fillStyle='#a735ff';ctx.beginPath();ctx.arc(q.x,q.y-35,18,0,Math.PI*2);ctx.fill()}
+        ctx.restore();
+      }
+    }
+
+    /* Restore the original dungeon spell visuals that the stable renderer
+       previously omitted. */
+    drawSpellEffects();
+    if(inDungeon)drawBossFireShots();
+
+    drawPlayer();
+    drawDamageNumbers();
+    ctx.restore();
+    drawMiniMap();
+  }
+
+  function drawStableLamp(x,y){
+    ctx.save();
+    const glow=34+Math.sin(Date.now()/180+x)*5;
+    const g=ctx.createRadialGradient(x,y,2,x,y,glow);g.addColorStop(0,'rgba(255,210,70,.58)');g.addColorStop(1,'rgba(255,110,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,glow,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#5a3820';ctx.fillRect(x-5,y,10,30);ctx.fillStyle='#ffad24';ctx.beginPath();ctx.arc(x,y-5,9,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff1a0';ctx.beginPath();ctx.arc(x,y-7,4,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  function drawStableExit(x,y){
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.5)';ctx.beginPath();ctx.ellipse(x,y+20,75,38,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#2d241e';ctx.beginPath();ctx.ellipse(x,y,48,62,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#090807';ctx.beginPath();ctx.ellipse(x,y+5,33,47,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffd36b';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText('EXIT',x,y+85);ctx.restore();
+  }
+  function drawStableStair(x,y){
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.95)';ctx.shadowBlur=22;ctx.fillStyle='#070604';ctx.beginPath();ctx.ellipse(x,y+8,78,58,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#9b7b58';ctx.lineWidth=5;ctx.stroke();for(let i=0;i<7;i++){const w=70-i*8,yy=y-30+i*10;ctx.fillStyle='#b08a60';ctx.fillRect(x-w/2,yy,w,8);ctx.fillStyle='#654a32';ctx.fillRect(x-w/2,yy+8,w,5)}ctx.fillStyle='#d7b17c';ctx.font='bold 13px Georgia';ctx.textAlign='center';ctx.fillText('DESCEND',x,y+82);ctx.restore();
+  }
+  function drawStableMonster(m){
+    const keepFloating=(m.type==='roamer1'||m.type==='boss3');
+    const groundOffset=keepFloating?0:10;
+    const drawY=m.y+groundOffset;
+    const size=m.boss?120:65;
+
+    if(keepFloating){
+      ctx.save();
+      ctx.fillStyle='rgba(0,0,0,.35)';
+      ctx.beginPath();
+      ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    const drawn=stableDungeonSprite(m.image,m.x,drawY,size,size);
+    if(!drawn){
+      ctx.save();
+      ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';
+      ctx.beginPath();
+      ctx.arc(m.x,drawY-25,m.boss?40:22,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    const bw=m.boss?130:58;
+    ctx.fillStyle='#191919';
+    ctx.fillRect(m.x-bw/2,drawY-size-10,bw,8);
+    ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';
+    ctx.fillRect(m.x-bw/2,drawY-size-10,bw*Math.max(0,m.hp/m.maxHp),8);
+    ctx.fillStyle='#fff';
+    ctx.font=m.boss?'bold 14px Arial':'bold 10px Arial';
+    ctx.textAlign='center';
+    ctx.fillText(m.name,m.x,drawY-size-14);
+    if(m.boss){
+      ctx.fillStyle='#ffd36b';
+      ctx.font='bold 11px Arial';
+      ctx.fillText('BOSS',m.x,drawY-size-29);
+    }
+  }
+
+  if(!Array.isArray(window.__stableLevel4Gems)){
+    window.__stableLevel4Gems=[];
+    for(let i=0;i<85;i++){
+      const a=Math.random()*Math.PI*2,r=75+Math.random()*500;
+      window.__stableLevel4Gems.push({x:Math.max(105,Math.min(dungeon.width-105,750+Math.cos(a)*r)),y:Math.max(125,Math.min(dungeon.height-125,350+Math.sin(a)*r*.72))});
+    }
+  }
+  /* Keep the supplied Level 4 gem asset available even if the first preload
+     completed after the dungeon renderer was installed. */
+  function ensureDungeonGemImage(){
+    if(images.dungeongem) return images.dungeongem;
+    const src=IMAGE_FOLDER+'dungeongem.png';
+    const img=new Image();
+    img.onload=()=>{images.dungeongem=img};
+    img.src=src;
+    return null;
+  }
+  ensureDungeonGemImage();
+  window.__stableMetalMeteors=window.__stableMetalMeteors||[];
+  window.__boss4Earthquake=0;
+
+  /* Dedicated loader for the supplied Metal Monster attack artwork. */
+  function ensureMetalMeteorImage(){
+    if(images.metalmonsterspecialattack)return images.metalmonsterspecialattack;
+    const src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
+    const img=new Image();
+    img.onload=()=>{images.metalmonsterspecialattack=img};
+    img.onerror=()=>console.warn('Could not load Metal Monster special attack:',src);
+    img.src=src;
+    return null;
+  }
+  ensureMetalMeteorImage();
+
+  window.draw=draw=function(){
+    if(inDungeon){drawStableDungeon();return;}
+    return previousDraw.apply(this,arguments);
+  };
+
+  /* ---------------------------------------------------------
+     METAL METEOR — every 5 seconds, multiple impact locations.
+     Suppress the older single-projectile Boss4 attack while preserving
+     all other monster AI and attacks.
+  --------------------------------------------------------- */
+  const previousUpdateMonsters=updateMonsters;
+  updateMonsters=function(){
+    if(inDungeon&&Array.isArray(monsters)){
+      for(const m of monsters){if(m.type==='boss4')m.metalMeteorCooldown=999999;}
+    }
+    previousUpdateMonsters();
+    if(!inDungeon||typeof dungeonLevel==='undefined'||dungeonLevel!==4)return;
+    for(const m of monsters){
+      if(m.type!=='boss4')continue;
+      if(m.__stableMeteorCooldown==null)m.__stableMeteorCooldown=300;
+      m.__stableMeteorCooldown--;
+      if(m.__stableMeteorCooldown<=0){
+        const count=7;
+        for(let i=0;i<count;i++){
+          const tx=140+Math.random()*(dungeon.width-280);
+          const ty=190+Math.random()*(dungeon.height-300);
+          window.__stableMetalMeteors.push({x:tx,y:-80-Math.random()*100,targetY:ty,life:95,damage:48,phase:Math.random()*Math.PI*2});
+        }
+        m.__stableMeteorCooldown=300;
+        if(typeof bossSound==='function')bossSound();
+        if(typeof showMessage==='function')showMessage('☄️ Metal Monster unleashes METAL METEOR!');
+      }
+    }
+    for(let i=window.__stableMetalMeteors.length-1;i>=0;i--){
+      const q=window.__stableMetalMeteors[i];
+      q.y+=9.5;
+      q.life--;
+      if(q.y>=q.targetY){
+        if(Math.hypot(player.x-q.x,player.y-q.targetY)<48&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==='function')hitSound();if(player.hp<=0)respawnPlayer();}
+        q.y=q.targetY;q.life=9;
+      }
+      if(q.life<=0)window.__stableMetalMeteors.splice(i,1);
+    }
+  };
+
+  window.__pandaniaFinalDungeonTownFix=true;
+})();
+</script>
+<!-- ===== END PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
+
 </body>
 </html>

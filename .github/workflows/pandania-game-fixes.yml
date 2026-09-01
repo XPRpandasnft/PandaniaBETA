@@ -10,6 +10,7 @@ on:
       - '.github/pandania_v14_combat_input_patch.py'
       - '.github/pandania_v14_polish_patch.py'
       - '.github/pandania_v14_fixes.py'
+      - '.github/boss4_meteor_telegraph.py'
 permissions:
   contents: write
 jobs:
@@ -29,6 +30,8 @@ jobs:
         run: python3 .github/pandania_v14_polish_patch.py
       - name: Apply final V14 mana, paper-doll, and minimap fixes
         run: python3 .github/pandania_v14_fixes.py
+      - name: Apply final Boss4 meteor telegraph and image timing layer
+        run: python3 .github/boss4_meteor_telegraph.py
       - name: Validate final HTML
         run: |
           python3 - <<'PY'
@@ -39,11 +42,12 @@ jobs:
             'PANDANIA V14 POLISH PATCH','PANDANIA V14 FINAL FIXES','__pandaniaWeaponCritStatsV13',
             'pandaniaWeaponGreenStats','critChance','critDamage','CRITICAL!','safePickupAt','fishDoubleClick',
             'attackRange=m.boss','cleanUnequippedWeaponSlots','pandaniaFixEquippedWeaponV14',
-            'paperDollWeaponArt','paperDollEquipImage','__pandaniaFinalFixV11'
+            'paperDollWeaponArt','paperDollEquipImage','__pandaniaFinalFixV11',
+            'BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER'
           ]
           for check in checks: assert check in s, f'Missing validation target: {check}'
           assert len(s)>150000,'Game source unexpectedly truncated'
-          print('Pandania final V14 validation passed')
+          print('Pandania final Boss4 telegraph validation passed')
           PY
       - name: Commit final game
         run: |

@@ -54,10 +54,12 @@ window.__finalBoss4DrawWorld=function(){
     }
     ctx.restore();
   }
-};
+}
 })();
 </script>
 <!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
 '''
 s=s.replace("</body>",patch+"\n</body>",1)
 p.write_text(s,encoding="utf-8")
+# trigger the gameplay-fixes workflow after the authoritative Boss4 layer was added
+# workflow marker: 2026-09-01 Boss4 telegraph v2

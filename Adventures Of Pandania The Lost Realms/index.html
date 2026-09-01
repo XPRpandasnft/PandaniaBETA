@@ -2764,7 +2764,6 @@ function updatePlayer(){
         if(dungeonLevel<4){
             dungeonLevel++;
             dungeonStairOpen=false;
-            window.__boss4SpecialAttack=[];
             bossFireShots=[];
             player.x=750;
             player.y=650;
@@ -3366,7 +3365,6 @@ function leaveDungeon(){
     stopDungeonMusic();
     bossFireShots=[];
     spellEffects=[];
-    window.__boss4SpecialAttack=[];
     window.__boss4Earthquake=0;
 
     /* Resume the normal overworld music after leaving the dungeon. */
@@ -7412,7 +7410,6 @@ requestAnimationFrame(
     groundDrops=[];
     spellEffects=[];
     bossFireShots=[];
-    window.__boss4SpecialAttack=[];
     window.__boss4Earthquake=0;
 
     spawnDungeonLevel(dungeonLevel);
@@ -7583,8 +7580,6 @@ requestAnimationFrame(
   window.__pandaniaFinalFixV11=true;
 })();
 /* ===== END PANDANIA FINAL EQUIPMENT/MOBILE FIX v11 ===== */
-
-
 
 
 
@@ -8532,7 +8527,7 @@ requestAnimationFrame(
     player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
   },true);
 
-  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
+  /* ---------------- LEVEL 4 DECORATION ---------------- */
   const level4Gems=[];
   /* Tons of gems concentrated around Metal Monster's Level 4 boss arena only. */
   for(let i=0;i<70;i++){
@@ -8931,181 +8926,105 @@ requestAnimationFrame(
 
 
     /* =========================================================
-       LEVEL 4 BOSS4 — AUTHORITATIVE SPECIAL ATTACK
-       This is intentionally part of drawStableDungeon(), the real dungeon
-       renderer. There is no second canvas, draw() wrapper, interval, or RAF.
-       ========================================================= */
-    if(!Array.isArray(window.__boss4SpecialAttack)) window.__boss4SpecialAttack=[];
-    const boss4SpecialState=window.__boss4SpecialAttack;
-    const boss4Now=Date.now();
+       BOSS4 SPECIAL ATTACK — SINGLE AUTHORITATIVE SYSTEM
+       Level 4 only. 3 targets -> 48x48 warnings for 1 second ->
+       visible falling attacks -> existing 48-damage behavior -> cleanup.
+       This is updated and rendered only inside the authoritative dungeon
+       renderer. There is no second canvas, draw wrapper, or update wrapper.
+    ========================================================= */
+    const boss4Now=performance.now();
+    if(!window.__pandaniaBoss4Attack){
+      window.__pandaniaBoss4Attack={nextVolley:0,shots:[],image:null};
+    }
+    const boss4Attack=window.__pandaniaBoss4Attack;
+    const boss4Alive=inDungeon && dungeonLevel===4 && Array.isArray(monsters) &&
+      monsters.some(m=>m.type==='boss4' && m.hp>0);
 
-    /* Detect the actual Level 4 Metal Monster robustly. */
-    const boss4Active=
-      !!inDungeon &&
-      typeof dungeonLevel!=="undefined" &&
-      dungeonLevel===4 &&
-      Array.isArray(monsters) &&
-      monsters.some(m=>
-        m && m.hp>0 &&
-        (m.type==="boss4" || m.image==="boss4" || m.name==="Metal Monster") &&
-        (m.dungeonLevel===4 || dungeonLevel===4)
-      );
-
-    if(!boss4Active){
-      boss4SpecialState.length=0;
-      window.__boss4SpecialNext=0;
+    if(!boss4Alive){
+      boss4Attack.nextVolley=0;
+      boss4Attack.shots.length=0;
     }else{
-      if(typeof window.__boss4SpecialNext!=="number" || !window.__boss4SpecialNext){
-        /* Start the first attack after a short, visible setup period. */
-        window.__boss4SpecialNext=boss4Now+1500;
+      if(!boss4Attack.image){
+        boss4Attack.image=new Image();
+        boss4Attack.image.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
       }
+      if(!boss4Attack.nextVolley)boss4Attack.nextVolley=boss4Now;
 
-      /* Only create a new volley after the previous three attacks are gone. */
-      if(boss4Now>=window.__boss4SpecialNext && boss4SpecialState.length===0){
-        const px=Math.max(100,Math.min(dw-100,Number(player.x)||dw/2));
-        const py=Math.max(120,Math.min(dh-120,Number(player.y)||dh/2));
-
-        /* Three distinct valid positions around the player's current location.
-           These exact coordinates are saved and never recalculated during fall. */
-        const targets=[
-          [px,py],
-          [px-64,py-42],
-          [px+64,py-42]
-        ];
-
-        for(let i=0;i<3;i++){
-          const tx=Math.max(100,Math.min(dw-100,targets[i][0]));
-          const ty=Math.max(120,Math.min(dh-120,targets[i][1]));
-          boss4SpecialState.push({
-            x:tx,
-            targetY:ty,
-            startY:Math.max(45,ty-560),
-            y:Math.max(45,ty-560),
-            warningUntil:boss4Now+1000,
-            active:false,
-            impacted:false,
-            impactUntil:0,
-            damage:48,
-            radius:24
+      /* Start immediately, then repeat every 2.5 seconds. */
+      if(boss4Now>=boss4Attack.nextVolley && boss4Attack.shots.length===0){
+        const minX=105,maxX=dungeon.width-105,minY=125,maxY=dungeon.height-125;
+        const px=Math.max(minX,Math.min(maxX,player.x));
+        const py=Math.max(minY,Math.min(maxY,player.y));
+        const targets=[];
+        const addTarget=(x,y)=>{
+          x=Math.max(minX,Math.min(maxX,x));
+          y=Math.max(minY,Math.min(maxY,y));
+          if(targets.every(t=>Math.hypot(t.x-x,t.y-y)>=48))targets.push({x,y});
+        };
+        addTarget(px,py);
+        addTarget(px+78,py);
+        addTarget(px-78,py);
+        if(targets.length<3)addTarget(px,py+78);
+        if(targets.length<3)addTarget(px,py-78);
+        for(const t of [[750,350],[672,350],[828,350],[750,428],[750,272]]){
+          if(targets.length>=3)break;
+          addTarget(t[0],t[1]);
+        }
+        for(const t of targets.slice(0,3)){
+          boss4Attack.shots.push({
+            x:t.x,targetY:t.y,y:t.y-500,
+            warningUntil:boss4Now+1000,active:false,impacted:false,
+            impactUntil:0,damageApplied:false
           });
         }
-
-        window.__boss4SpecialNext=boss4Now+2500;
-        if(typeof bossSound==="function") bossSound();
+        boss4Attack.nextVolley=boss4Now+2500;
       }
 
-      /* Update all three attacks from the saved target coordinates. */
-      for(let i=boss4SpecialState.length-1;i>=0;i--){
-        const q=boss4SpecialState[i];
-
-        if(!q.active && !q.impacted && boss4Now>=q.warningUntil){
-          q.active=true;
-        }
-
-        if(q.active){
-          /* ~0.65–0.9 sec visible fall depending on target height. */
-          const distance=Math.max(1,q.targetY-q.startY);
-          const step=Math.max(9,distance/42);
-          q.y=Math.min(q.targetY,q.y+step);
-
-          if(q.y>=q.targetY){
-            q.y=q.targetY;
-            q.active=false;
-            q.impacted=true;
-            q.impactUntil=boss4Now+180;
-
-            /* Existing-style direct player damage: exactly 48 once per impact. */
-            if(
-              Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius &&
-              player.invincible<=0
-            ){
+      for(let i=boss4Attack.shots.length-1;i>=0;i--){
+        const shot=boss4Attack.shots[i];
+        if(!shot.active && !shot.impacted && boss4Now>=shot.warningUntil)shot.active=true;
+        if(shot.active){
+          /* 12 world pixels/frame makes the fall visibly take time. */
+          shot.y+=12;
+          if(shot.y>=shot.targetY){
+            shot.y=shot.targetY;
+            shot.active=false;
+            shot.impacted=true;
+            shot.impactUntil=boss4Now+120;
+            if(!shot.damageApplied && Math.hypot(player.x-shot.x,player.y-shot.targetY)<=24 && player.invincible<=0){
+              shot.damageApplied=true;
               player.hp-=48;
-              addDamageNumber(player.x,player.y-48,48,"#fff");
+              addDamageNumber(player.x,player.y-48,48,'#f33');
               player.invincible=30;
-              if(typeof hitSound==="function") hitSound();
-              if(player.hp<=0 && typeof respawnPlayer==="function") respawnPlayer();
+              if(typeof hitSound==='function')hitSound();
+              if(player.hp<=0)respawnPlayer();
             }
           }
-        }else if(q.impacted && boss4Now>=q.impactUntil){
-          boss4SpecialState.splice(i,1);
         }
+        if(shot.impacted && boss4Now>=shot.impactUntil)boss4Attack.shots.splice(i,1);
       }
 
-      /* Load the supplied artwork without ever making rendering depend on load
-         completion. A visible fallback remains until the PNG is ready. */
-      let boss4AttackImage=images.metalmonsterspecialattack;
-      if(!boss4AttackImage){
-        boss4AttackImage=new Image();
-        boss4AttackImage.onload=function(){
-          images.metalmonsterspecialattack=boss4AttackImage;
-        };
-        boss4AttackImage.onerror=function(){
-          console.warn("Boss4 attack image failed:",IMAGE_FOLDER+"metalmonsterspecialattack.png");
-        };
-        boss4AttackImage.src=IMAGE_FOLDER+"metalmonsterspecialattack.png";
-      }
-
-      /* Warning + falling attack are drawn in THIS dungeon renderer. */
-      for(const q of boss4SpecialState){
+      for(const shot of boss4Attack.shots){
         ctx.save();
-
-        if(!q.impacted && boss4Now<q.warningUntil){
-          const pulse=.78+Math.sin(boss4Now/90)*.10;
-          ctx.globalAlpha=pulse;
-          ctx.fillStyle="rgba(0,0,0,.72)";
-          ctx.beginPath();
-          ctx.arc(q.x,q.targetY,24,0,Math.PI*2);
-          ctx.fill();
-
-          ctx.globalAlpha=.95;
-          ctx.strokeStyle="rgba(255,255,255,.75)";
-          ctx.lineWidth=2;
-          ctx.beginPath();
-          ctx.arc(q.x,q.targetY,23,0,Math.PI*2);
-          ctx.stroke();
+        /* Warning: exact 48x48 footprint (24px radius), for exactly 1 second. */
+        if(!shot.active && !shot.impacted){
+          ctx.globalAlpha=.78+Math.sin(boss4Now/80)*.12;
+          ctx.fillStyle='rgba(0,0,0,.72)';
+          ctx.beginPath();ctx.arc(shot.x,shot.targetY,24,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle='rgba(255,255,255,.65)';ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(shot.x,shot.targetY,23,0,Math.PI*2);ctx.stroke();
         }
-
-        if(q.active){
-          /* The bottom of the 48x48 sprite reaches the target point. */
+        /* Falling artwork is exactly 48x48 and ends at the saved target. */
+        if(shot.active && boss4Attack.image && boss4Attack.image.complete && boss4Attack.image.naturalWidth>0){
           ctx.globalAlpha=1;
-          ctx.shadowColor="#b13cff";
-          ctx.shadowBlur=30;
-          if(
-            boss4AttackImage &&
-            boss4AttackImage.complete &&
-            boss4AttackImage.naturalWidth>0
-          ){
-            ctx.drawImage(boss4AttackImage,q.x-24,q.y-48,48,48);
-          }else{
-            /* Guaranteed visible falling indicator while PNG loads. */
-            ctx.fillStyle="#a735ff";
-            ctx.beginPath();
-            ctx.arc(q.x,q.y-24,15,0,Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle="#f0c8ff";
-            ctx.lineWidth=3;
-            ctx.stroke();
-          }
+          ctx.imageSmoothingEnabled=false;
+          ctx.drawImage(boss4Attack.image,shot.x-24,shot.y-48,48,48);
         }
-
-        if(q.impacted && boss4Now<q.impactUntil){
-          ctx.globalAlpha=.95;
-          ctx.shadowColor="#b13cff";
-          ctx.shadowBlur=32;
-          if(
-            boss4AttackImage &&
-            boss4AttackImage.complete &&
-            boss4AttackImage.naturalWidth>0
-          ){
-            ctx.drawImage(boss4AttackImage,q.x-24,q.y-24,48,48);
-          }else{
-            ctx.fillStyle="#d77aff";
-            ctx.beginPath();
-            ctx.arc(q.x,q.y,20,0,Math.PI*2);
-            ctx.fill();
-          }
+        if(shot.impacted && boss4Now<shot.impactUntil && boss4Attack.image && boss4Attack.image.complete && boss4Attack.image.naturalWidth>0){
+          ctx.globalAlpha=.9;
+          ctx.imageSmoothingEnabled=false;
+          ctx.drawImage(boss4Attack.image,shot.x-24,shot.targetY-24,48,48);
         }
-
         ctx.restore();
       }
     }
@@ -9198,224 +9117,11 @@ requestAnimationFrame(
     if(inDungeon){drawStableDungeon();return;}
     return previousDraw.apply(this,arguments);
   };
-
-  /* ---------------------------------------------------------
-     METAL METEOR — legacy Boss4 meteor layer disabled.
-     The final targeted Boss4 system below owns this attack so there is
-     exactly one source for the three 2.5-second meteors.
-  --------------------------------------------------------- */
-  const previousUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    previousUpdateMonsters();
-    /* Discard any legacy Boss4 meteor objects before they can render or
-       apply duplicate damage. The final Boss4 system below is authoritative. */
-    if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;
-  };
-
-  window.__pandaniaFinalDungeonTownFix=true;
+window.__pandaniaFinalDungeonTownFix=true;
 })();
 </script>
 <!-- ===== END PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
 
-
-<!-- ===== FINAL TARGETED FIX: BACK WEAPON + BOSS4 METEORS ===== -->
-<script>
-(function(){
-  'use strict';
-
-  /* ---------------------------------------------------------
-     BACK WEAPON — final authoritative renderer
-     Only renders while the player is actually moving upward.
-  --------------------------------------------------------- */
-  pdDrawBackWeapon=function(){
-    if(!player || !player.moving)return;
-    const fy=Number(player.facingY)||0;
-    if(fy>=-0.01)return;
-
-    const name=pdCurrentWeaponName();
-    const key=pdWeaponVisualKeys[name];
-    const img=key?pdWeaponImage(key):null;
-    const bob=Math.abs(Math.sin(player.walkTime))*3;
-
-    ctx.save();
-    ctx.translate(player.x,player.y+bob-55);
-    ctx.rotate(-Math.PI/2);
-    ctx.globalAlpha=.98;
-    ctx.imageSmoothingEnabled=false;
-
-    if(img){
-      ctx.drawImage(img,-24,-24,48,48);
-    }else{
-      ctx.fillStyle='#79542d';ctx.fillRect(-3,-5,6,18);
-      ctx.fillStyle='#dedede';ctx.fillRect(-4,-24,8,20);
-      ctx.fillStyle='#d39a4f';ctx.fillRect(-9,-8,18,4);
-    }
-    ctx.restore();
-  };
-
-
-  window.__pandaniaFinalTargetedFix=true;
-})();
-</script>
-<!-- ===== END FINAL TARGETED FIX ===== -->
-
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return;}
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return;}
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return;}
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return;}
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__boss4SpecialAttack))window.__boss4SpecialAttack.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
 
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
@@ -9829,144 +9535,6 @@ document.addEventListener('click',function(e){const t=e.target;if(t&&((t.id==='p
 window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});})();
 </script>
 <!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
-      }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
-  }
-};
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-}
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
 
 </body>
 </html>

@@ -2764,7 +2764,6 @@ function updatePlayer(){
         if(dungeonLevel<4){
             dungeonLevel++;
             dungeonStairOpen=false;
-            window.__stableMetalMeteors=[];
             bossFireShots=[];
             player.x=750;
             player.y=650;
@@ -3366,8 +3365,6 @@ function leaveDungeon(){
     stopDungeonMusic();
     bossFireShots=[];
     spellEffects=[];
-    window.__stableMetalMeteors=[];
-    window.__boss4Earthquake=0;
 
     /* Resume the normal overworld music after leaving the dungeon. */
     if(gameStarted) resumeOverworldMusic();
@@ -7309,6 +7306,7 @@ requestAnimationFrame(
   };
 
   function spawnDungeonLevel(level){
+    if(typeof window.__resetBoss4SpecialAttack==='function')window.__resetBoss4SpecialAttack();
     monsters=[];
 
     if(level===1){
@@ -7412,8 +7410,7 @@ requestAnimationFrame(
     groundDrops=[];
     spellEffects=[];
     bossFireShots=[];
-    window.__stableMetalMeteors=[];
-    window.__boss4Earthquake=0;
+    if(typeof window.__resetBoss4SpecialAttack==='function')window.__resetBoss4SpecialAttack();
 
     spawnDungeonLevel(dungeonLevel);
     setZoneLabel("🕯️ THE LOST CAVE — LEVEL "+dungeonLevel);
@@ -8530,9 +8527,9 @@ requestAnimationFrame(
     player.targetX=p.x;player.targetY=p.y;player.targetMonster=null;e.preventDefault();e.stopImmediatePropagation();
   },true);
 
-  /* ---------------- LEVEL 4 DECORATION + METAL METEOR ---------------- */
+  /* ---------------- LEVEL 4 DECORATION ---------------- */
   const level4Gems=[];
-  /* Tons of gems concentrated around Metal Monster's Level 4 boss arena only. */
+  /* Keep the existing Level 4 gem decoration unchanged. */
   for(let i=0;i<70;i++){
     const a=Math.random()*Math.PI*2;
     const radius=90+Math.random()*470;
@@ -8544,35 +8541,6 @@ requestAnimationFrame(
     if(dungeonLevel!==4)return;
     const gem=images.dungeongem;
     if(gem){for(const [x,y] of level4Gems){ctx.save();ctx.globalAlpha=.9;ctx.drawImage(gem,x-18,y-30,36,60);ctx.restore();}}
-  };
-
-  const metalMeteorShots=window.__pandaniaMetalMeteorShots=[];
-  const oldUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    oldUpdateMonsters();
-    if(!inDungeon)return;
-    for(const m of monsters){
-      if(m.type!=='boss4')continue;
-      if(m.metalMeteorCooldown==null)m.metalMeteorCooldown=300;
-      m.metalMeteorCooldown--;
-      if(m.metalMeteorCooldown<=0){
-        const dx=player.x-m.x,dy=player.y-m.y,len=Math.hypot(dx,dy)||1;
-        metalMeteorShots.push({x:m.x,y:m.y,tx:player.x,ty:player.y,vx:dx/len*7.5,vy:dy/len*7.5,life:150,damage:48});
-        m.metalMeteorCooldown=300;
-        if(typeof bossSound==='function')bossSound();
-        showMessage('☄️ Metal Monster uses METAL METEOR!');
-      }
-    }
-    for(let i=metalMeteorShots.length-1;i>=0;i--){const q=metalMeteorShots[i];q.x+=q.vx;q.y+=q.vy;q.life--;if(Math.hypot(q.x-q.tx,q.y-q.ty)<18||q.life<=0){if(Math.hypot(player.x-q.x,player.y-q.y)<38&&player.invincible<=0){player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#f33');player.invincible=30;hitSound();if(player.hp<=0)respawnPlayer();}metalMeteorShots.splice(i,1);}}
-  };
-  const oldDrawWithMeteor=draw;
-  draw=function(){
-    oldDrawWithMeteor();
-    if(!inDungeon)return;
-    for(const q of metalMeteorShots){
-      const img=images.metalmonsterspecialattack;if(!img)continue;
-      const pulse=0.72+Math.sin(Date.now()/90)*0.22;ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#b13cff';ctx.shadowBlur=28+Math.sin(Date.now()/100)*10;ctx.drawImage(img,q.x-34,q.y-34,68,68);ctx.restore();
-    }
   };
 
   /* Mini Mart building and interior state do not interfere with existing houses. */
@@ -8610,14 +8578,6 @@ requestAnimationFrame(
     const name=state&&state.armor;
     const item=name&&inventory[name];
     return item&&item.stats?item.stats:{defense:0,attack:0,magicAttack:0};
-  };
-
-  /* Legacy Boss4 meteor attack disabled. The final targeted Boss4 system
-     below is the only source of the Metal Monster special attack. */
-  const previousUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    previousUpdateMonsters();
-    if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
   };
 
   /* Keep DegenHooper inside Panden Town while roaming. */
@@ -8871,6 +8831,142 @@ requestAnimationFrame(
     return false;
   }
 
+  const boss4SpecialAttacks=[];
+  let boss4SpecialNextAt=0;
+  let boss4SpecialImage=null;
+
+  function boss4SpecialBossActive(){
+    return inDungeon && typeof dungeonLevel!=='undefined' && dungeonLevel===4 &&
+      Array.isArray(monsters) && monsters.some(m=>m.type==='boss4' && m.hp>0);
+  }
+
+  function ensureBoss4SpecialImage(){
+    if(boss4SpecialImage && boss4SpecialImage.complete && boss4SpecialImage.naturalWidth>0) return boss4SpecialImage;
+    if(boss4SpecialImage) return boss4SpecialImage;
+    const img=new Image();
+    img.onload=()=>{boss4SpecialImage=img;};
+    img.onerror=()=>console.warn('Could not load Boss4 special attack:',IMAGE_FOLDER+'metalmonsterspecialattack.png');
+    img.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
+    boss4SpecialImage=img;
+    return img;
+  }
+
+  function boss4SpecialTargetPositions(){
+    const minX=105,maxX=dungeon.width-105,minY=125,maxY=dungeon.height-125;
+    const px=Math.max(minX,Math.min(maxX,player.x));
+    const py=Math.max(minY,Math.min(maxY,player.y));
+    const targets=[];
+    const add=(x,y)=>{
+      x=Math.max(minX,Math.min(maxX,x));
+      y=Math.max(minY,Math.min(maxY,y));
+      if(targets.every(t=>Math.hypot(t.x-x,t.y-y)>=48))targets.push({x,y});
+    };
+    /* Target the player's current area with three distinct, valid positions. */
+    for(let attempt=0;attempt<80 && targets.length<3;attempt++){
+      const angle=(Math.PI*2/3)*attempt + (Math.random()-.5)*.55;
+      const radius=72+Math.random()*72;
+      add(px+Math.cos(angle)*radius,py+Math.sin(angle)*radius);
+    }
+    /* Deterministic fallbacks guarantee exactly three valid targets. */
+    const fallbacks=[[px,py],[px+72,py],[px-72,py],[px,py+72],[px,py-72],[750,350],[650,350],[850,350]];
+    for(const p of fallbacks){if(targets.length>=3)break;add(p[0],p[1]);}
+    return targets.slice(0,3);
+  }
+
+  function updateBoss4SpecialAttack(){
+    if(!boss4SpecialBossActive()){
+      boss4SpecialAttacks.length=0;
+      boss4SpecialNextAt=0;
+      return;
+    }
+
+    const now=performance.now();
+    if(!boss4SpecialNextAt)boss4SpecialNextAt=now;
+
+    if(now>=boss4SpecialNextAt){
+      const targets=boss4SpecialTargetPositions();
+      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
+      const visibleH=H/Math.max(.1,z);
+      const spawnY=camera.y-visibleH/2-120;
+      for(const target of targets){
+        boss4SpecialAttacks.push({
+          x:target.x,
+          targetY:target.y,
+          y:spawnY,
+          vy:10.5,
+          warningUntil:now+1000,
+          active:false,
+          impacted:false,
+          impactUntil:0,
+          damage:48,
+          radius:24
+        });
+      }
+      boss4SpecialNextAt=now+2500;
+      if(typeof bossSound==='function')bossSound();
+    }
+
+    for(let i=boss4SpecialAttacks.length-1;i>=0;i--){
+      const attack=boss4SpecialAttacks[i];
+      if(!attack.active && !attack.impacted && now>=attack.warningUntil) attack.active=true;
+      if(attack.active){
+        attack.y+=attack.vy;
+        if(attack.y>=attack.targetY){
+          attack.y=attack.targetY;
+          attack.active=false;
+          attack.impacted=true;
+          attack.impactUntil=now+180;
+          if(Math.hypot(player.x-attack.x,player.y-attack.targetY)<=attack.radius && player.invincible<=0){
+            player.hp-=attack.damage;
+            addDamageNumber(player.x,player.y-48,attack.damage,'#f33');
+            player.invincible=30;
+            if(typeof hitSound==='function')hitSound();
+            if(player.hp<=0)respawnPlayer();
+          }
+        }
+      }
+      if(attack.impacted && now>=attack.impactUntil)boss4SpecialAttacks.splice(i,1);
+    }
+  }
+
+  function drawBoss4SpecialAttack(){
+    if(!boss4SpecialBossActive())return;
+    const img=ensureBoss4SpecialImage();
+    const now=performance.now();
+    for(const attack of boss4SpecialAttacks){
+      ctx.save();
+      if(!attack.impacted && now<attack.warningUntil){
+        /* Exactly 48x48 ground telegraph. */
+        ctx.globalAlpha=.72+Math.sin(now/90)*.12;
+        ctx.fillStyle='rgba(0,0,0,.62)';
+        ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
+        ctx.beginPath();ctx.arc(attack.x,attack.targetY,24,0,Math.PI*2);ctx.fill();
+        ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(attack.x,attack.targetY,23,0,Math.PI*2);ctx.stroke();
+      }
+      if(attack.active && img && img.complete && img.naturalWidth>0){
+        ctx.globalAlpha=.96;
+        ctx.shadowColor='#b13cff';ctx.shadowBlur=32;
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(img,attack.x-42,attack.y-84,84,84);
+      }else if(attack.impacted && now<attack.impactUntil && img && img.complete && img.naturalWidth>0){
+        const scale=1+(1-(attack.impactUntil-now)/180)*.35;
+        const size=84*scale;
+        ctx.globalAlpha=.95;
+        ctx.shadowColor='#b13cff';ctx.shadowBlur=36;
+        ctx.drawImage(img,attack.x-size/2,attack.y-size/2,size,size);
+      }
+      ctx.restore();
+    }
+  }
+
+  function resetBoss4SpecialAttack(){
+    boss4SpecialAttacks.length=0;
+    boss4SpecialNextAt=0;
+  }
+  window.__resetBoss4SpecialAttack=resetBoss4SpecialAttack;
+
   function drawStableDungeon(){
     const dw=dungeon.width,dh=dungeon.height;
     ctx.clearRect(0,0,W,H);
@@ -8878,12 +8974,6 @@ requestAnimationFrame(
     const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
     const vw=W/z,vh=H/z;
     ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
-
-    /* Small earthquake warning only on Metal Monster Level 4. */
-    if(inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&window.__boss4Earthquake>0){
-      const intensity=4;
-      ctx.translate((Math.random()-.5)*intensity,(Math.random()-.5)*intensity);
-    }
 
     /* Floor */
     ctx.fillStyle='#5b4635';ctx.fillRect(0,0,dw,dh);
@@ -8961,48 +9051,19 @@ requestAnimationFrame(
       }
     }
 
-    /* Metal Meteor visual layer */
-    if(Array.isArray(window.__finalBoss4Meteors) && typeof window.__finalBoss4Tick==='function'){
-      window.__finalBoss4Tick();
-      const img=images.metalmonsterspecialattack;
-      for(const q of window.__finalBoss4Meteors){
-        ctx.save();
-        ctx.globalAlpha=.95;
-        ctx.shadowColor='#b13cff';
-        ctx.shadowBlur=32;
-        if(q.active){
-          if(img && img.complete && img.naturalWidth>0) ctx.drawImage(img,q.x-42,q.y-84,84,84);
-        }else if(performance.now()<q.impactUntil){
-          if(img && img.complete && img.naturalWidth>0){
-            const scale=1.2;
-            ctx.drawImage(img,q.x-42*scale,q.y-42*scale,84*scale,84*scale);
-          }
-        }
-        ctx.restore();
-      }
-    }
 
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const img=images.metalmonsterspecialattack;
-      for(const q of window.__stableMetalMeteors){
-        const pulse=.72+Math.sin(Date.now()/85)*.22;
-        ctx.save();ctx.globalAlpha=Math.max(.25,pulse);ctx.shadowColor='#a735ff';ctx.shadowBlur=30+Math.sin(Date.now()/100)*12;
-        if(img)ctx.drawImage(img,q.x-36,q.y-72,72,72);
-        else{ctx.fillStyle='#a735ff';ctx.beginPath();ctx.arc(q.x,q.y-35,18,0,Math.PI*2);ctx.fill()}
-        ctx.restore();
-      }
-    }
+    /* =========================================================
+       BOSS4 SPECIAL ATTACK — ONE AUTHORITATIVE LEVEL 4 SYSTEM
+       Targets -> 48x48 warning -> 1s -> falling attack -> impact -> cleanup.
+       This runs directly inside the stable Level 4 dungeon renderer.
+    ========================================================= */
+    if(typeof updateBoss4SpecialAttack==='function') updateBoss4SpecialAttack();
+    if(typeof drawBoss4SpecialAttack==='function') drawBoss4SpecialAttack();
 
     /* Restore the original dungeon spell visuals that the stable renderer
        previously omitted. */
     drawSpellEffects();
     if(inDungeon)drawBossFireShots();
-
-    /* Final Boss4 meteor layer is drawn here because this is the renderer that
-       actually owns Level 4 dungeon frames. */
-    if(inDungeon && typeof window.__finalBoss4DrawWorld==='function'){
-      window.__finalBoss4DrawWorld();
-    }
 
     drawPlayer();
     drawDamageNumbers();
@@ -9081,39 +9142,6 @@ requestAnimationFrame(
     return null;
   }
   ensureDungeonGemImage();
-  window.__stableMetalMeteors=window.__stableMetalMeteors||[];
-  window.__boss4Earthquake=0;
-
-  /* Dedicated loader for the supplied Metal Monster attack artwork. */
-  function ensureMetalMeteorImage(){
-    if(images.metalmonsterspecialattack)return images.metalmonsterspecialattack;
-    const src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
-    const img=new Image();
-    img.onload=()=>{images.metalmonsterspecialattack=img};
-    img.onerror=()=>console.warn('Could not load Metal Monster special attack:',src);
-    img.src=src;
-    return null;
-  }
-  ensureMetalMeteorImage();
-
-  window.draw=draw=function(){
-    if(inDungeon){drawStableDungeon();return;}
-    return previousDraw.apply(this,arguments);
-  };
-
-  /* ---------------------------------------------------------
-     METAL METEOR — legacy Boss4 meteor layer disabled.
-     The final targeted Boss4 system below owns this attack so there is
-     exactly one source for the three 2.5-second meteors.
-  --------------------------------------------------------- */
-  const previousUpdateMonsters=updateMonsters;
-  updateMonsters=function(){
-    previousUpdateMonsters();
-    /* Discard any legacy Boss4 meteor objects before they can render or
-       apply duplicate damage. The final Boss4 system below is authoritative. */
-    if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  };
-
   window.__pandaniaFinalDungeonTownFix=true;
 })();
 </script>
@@ -9155,139 +9183,6 @@ requestAnimationFrame(
     ctx.restore();
   };
 
-  /* ---------------------------------------------------------
-     BOSS4 / METAL MONSTER — independent meteor system
-     This intentionally does NOT use the existing Boss4 cooldown variables.
-     It runs from the final draw loop so it cannot be suppressed by one of the
-     older updateMonsters wrappers.
-  --------------------------------------------------------- */
-  window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-  window.__finalBoss4Next=window.__finalBoss4Next||0;
-  window.__finalBoss4HitUntil=window.__finalBoss4HitUntil||0;
-
-  window.__finalBoss4Image=window.__finalBoss4Image||null;
-  function finalBoss4Image(){
-    if(window.__finalBoss4Image)return window.__finalBoss4Image;
-    const img=new Image();
-    img.onload=function(){window.__finalBoss4Image=img;};
-    img.onerror=function(){console.error('Boss4 special attack image failed to load:',IMAGE_FOLDER+'metalmonsterspecialattack.png');};
-    img.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
-    return img;
-  }
-
-  function finalBoss4HasBoss(){
-    return inDungeon && typeof dungeonLevel!=='undefined' && dungeonLevel===4 &&
-      Array.isArray(monsters) && monsters.some(m=>m.type==='boss4' && m.hp>0);
-  }
-
-  function finalBoss4Tick(){
-    if(!finalBoss4HasBoss()){
-      window.__finalBoss4Meteors.length=0;
-      window.__finalBoss4Next=0;
-      return;
-    }
-
-    const now=performance.now();
-    if(!window.__finalBoss4Next)window.__finalBoss4Next=now+2500;
-
-    if(now>=window.__finalBoss4Next){
-      const count=3;
-      for(let i=0;i<count;i++){
-        const x=140+Math.random()*Math.max(1,dungeon.width-280);
-        const targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-        window.__finalBoss4Meteors.push({
-          x:x,
-          y:-120-Math.random()*80,
-          targetY:targetY,
-          vy:10.5,
-          radius:42,
-          damage:48,
-          active:true,
-          impactUntil:0
-        });
-      }
-      window.__finalBoss4Next=now+2500;
-      if(typeof bossSound==='function')bossSound();
-    }
-
-    for(let i=window.__finalBoss4Meteors.length-1;i>=0;i--){
-      const q=window.__finalBoss4Meteors[i];
-      if(q.active){
-        q.y+=q.vy;
-        if(q.y>=q.targetY){
-          q.y=q.targetY;
-          q.active=false;
-          q.impactUntil=now+220;
-
-          if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius && player.invincible<=0){
-            player.hp-=q.damage;
-            addDamageNumber(player.x,player.y-48,q.damage,'#fff');
-            player.invincible=30;
-            if(typeof hitSound==='function')hitSound();
-            if(player.hp<=0)respawnPlayer();
-          }
-        }
-      }else if(now>q.impactUntil){
-        window.__finalBoss4Meteors.splice(i,1);
-      }
-    }
-  }
-
-  function finalBoss4DrawWorld(){
-    if(!finalBoss4HasBoss())return;
-    finalBoss4Tick();
-
-    const img=finalBoss4Image();
-    for(const q of window.__finalBoss4Meteors){
-      const pulse=.82+Math.sin(performance.now()/80)*.18;
-      ctx.save();
-      ctx.globalAlpha=Math.max(.35,pulse);
-      ctx.shadowColor='#b13cff';
-      ctx.shadowBlur=32;
-
-      if(q.active){
-        /* Large, clearly visible falling meteor. */
-        if(img && img.complete && img.naturalWidth>0){
-          ctx.drawImage(img,q.x-42,q.y-84,84,84);
-        }else{
-          ctx.fillStyle='#a735ff';
-          ctx.beginPath();ctx.arc(q.x,q.y-42,22,0,Math.PI*2);ctx.fill();
-        }
-      }else{
-        /* Brief impact flash using the same supplied attack artwork. */
-        const scale=1.0+(1-(q.impactUntil-performance.now())/220)*.35;
-        if(img && img.complete && img.naturalWidth>0){
-          const w=84*scale;
-          ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);
-        }
-      }
-      ctx.restore();
-    }
-  }
-
-  /* Expose only the timing/update function to the stable dungeon renderer.
-     The renderer itself draws the supplied image directly so it cannot be
-     hidden by the older draw() wrapper stack. */
-  window.__finalBoss4Tick=finalBoss4Tick;
-  window.__finalBoss4DrawWorld=finalBoss4DrawWorld;
-
-  /* Wrap the final draw function. The stable dungeon renderer owns the Level 4
-     meteor visuals, so do not draw a second copy there. */
-  const previousFinalDraw=draw;
-  draw=function(){
-    previousFinalDraw.apply(this,arguments);
-    if(inDungeon || !finalBoss4HasBoss())return;
-
-    const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
-    const vw=W/z,vh=H/z;
-    ctx.save();
-    ctx.translate(W/2,H/2);
-    ctx.scale(z,z);
-    ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
-    finalBoss4DrawWorld();
-    ctx.restore();
-  };
-
   window.__pandaniaFinalTargetedFix=true;
 })();
 </script>
@@ -9298,274 +9193,14 @@ requestAnimationFrame(
 
 
 
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
 
 
 
 
 
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
 
 
 
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
-      }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
-  }
-};
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
 
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
@@ -9983,23 +9618,9 @@ window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},
 <!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
 <script>
 (function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
 window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
 const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
+spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;return priorSpawnDungeonLevel(level);};
 const priorPlayerUpdate=updatePlayer;
 updatePlayer=function(){
   priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
@@ -10013,110 +9634,11 @@ function renderGroundedMonster(m){
   const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
 }
 drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
 window.__pandaniaFinalBoss4DungeonFix=true;
 })();
 </script>
 <!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
-      }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
-  }
-};
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-}
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
+
 
 </body>
 </html>

@@ -76,3 +76,47 @@ window.__pandaniaFinalBoss4DungeonFix=true;
 
 s=s.replace('</body>',patch+'\n</body>',1) if '</body>' in s else s+'\n'+patch
 p.write_text(s,encoding='utf-8')
+
+# Final Boss4 telegraph override: preserve existing game systems but make the
+# authoritative meteor layer show a 1-second warning at the exact impact point.
+telegraph=r'''<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
+<script>
+(function(){'use strict';
+if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
+window.__boss4TelegraphVersion='v2';
+const oldFinalBoss4Tick=window.__finalBoss4Tick;
+if(typeof oldFinalBoss4Tick!=='function')return;
+window.__finalBoss4Tick=function(){
+  const now=performance.now();
+  oldFinalBoss4Tick();
+  const list=window.__finalBoss4Meteors;
+  for(const q of list){
+    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
+  }
+};
+const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
+window.__finalBoss4DrawWorld=function(){
+  if(typeof oldFinalBoss4DrawWorld!=='function')return;
+  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
+  const now=performance.now();
+  const list=window.__finalBoss4Meteors||[];
+  for(const q of list){
+    if(q.warningUntil!==undefined&&now<q.warningUntil){
+      ctx.save();
+      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
+      ctx.fillStyle='rgba(0,0,0,.62)';
+      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
+      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+  }
+  oldFinalBoss4DrawWorld();
+};
+})();
+</script>
+<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->'''
+s=s.replace('</body>',telegraph+'\n</body>',1) if '</body>' in s else s+'\n'+telegraph
+p.write_text(s,encoding='utf-8')

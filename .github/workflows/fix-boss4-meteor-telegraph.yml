@@ -9,264 +9,202 @@ permissions:
 
 jobs:
   patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch authoritative Boss4 Level 4 meteor system
-        shell: python
+      - name: Patch Boss4 renderer
         run: |
+          python3 - <<'PY'
           from pathlib import Path
-          import re
+          p=Path('Adventures Of Pandania The Lost Realms/index.html')
+          s=p.read_text(encoding='utf-8')
 
-          path = Path('Adventures Of Pandania The Lost Realms/index.html')
-          text = path.read_text(encoding='utf-8')
+          start=s.find('<!-- ===== FINAL TARGETED FIX: BACK WEAPON + BOSS4 METEORS ===== -->')
+          end=s.find('<!-- ===== END FINAL TARGETED FIX ===== -->',start)
+          if start<0 or end<0:
+              raise SystemExit('Final Boss4 block not found')
 
-          start = text.find('  /* ---------------------------------------------------------\n     BOSS4 / METAL MONSTER — independent meteor system')
-          end_marker = '<!-- ===== END FINAL TARGETED FIX ===== -->'
-          end = text.find(end_marker, start)
-          if start < 0 or end < 0:
-              raise SystemExit('Could not locate the final Boss4 meteor block.')
+          block=r'''<!-- ===== FINAL TARGETED FIX: BACK WEAPON + BOSS4 METEORS ===== -->
+<script>
+(function(){
+  'use strict';
 
-          replacement = r'''  /* ---------------------------------------------------------
-     BOSS4 / METAL MONSTER — FINAL AUTHORITATIVE LEVEL 4 METEOR SYSTEM
-
-     Timeline for each volley:
-       0.0s - three exact floor targets are selected.
-       0.0s-1.0s - a 48x48 ground warning circle is rendered at each target.
-       1.0s+ - the supplied metalmonsterspecialattack.png falls toward that
-               exact target. Damage is applied only on impact.
-     --------------------------------------------------------- */
-    window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-    window.__finalBoss4Next=window.__finalBoss4Next||0;
-    window.__finalBoss4Image=window.__finalBoss4Image||null;
-
-    function finalBoss4LoadImage(){
-      if(window.__finalBoss4Image && window.__finalBoss4Image.complete && window.__finalBoss4Image.naturalWidth>0){
-        return window.__finalBoss4Image;
-      }
-      const existing=images && images.metalmonsterspecialattack;
-      if(existing && existing.complete && existing.naturalWidth>0){
-        window.__finalBoss4Image=existing;
-        return existing;
-      }
-      if(!window.__finalBoss4Image){
-        const img=new Image();
-        img.onload=function(){
-          window.__finalBoss4Image=img;
-          if(typeof images==='object')images.metalmonsterspecialattack=img;
-        };
-        img.onerror=function(){console.error('Boss4 special attack image failed to load:',IMAGE_FOLDER+'metalmonsterspecialattack.png');};
-        img.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
-        window.__finalBoss4Image=img;
-      }
-      return window.__finalBoss4Image;
+  /* Preserve the existing back-weapon behavior exactly. */
+  pdDrawBackWeapon=function(){
+    if(!player || !player.moving)return;
+    const fy=Number(player.facingY)||0;
+    if(fy>=-0.01)return;
+    const name=pdCurrentWeaponName();
+    const key=pdWeaponVisualKeys[name];
+    const img=key?pdWeaponImage(key):null;
+    const bob=Math.abs(Math.sin(player.walkTime))*3;
+    ctx.save();
+    ctx.translate(player.x,player.y+bob-55);
+    ctx.rotate(-Math.PI/2);
+    ctx.globalAlpha=.98;
+    ctx.imageSmoothingEnabled=false;
+    if(img)ctx.drawImage(img,-24,-24,48,48);
+    else{
+      ctx.fillStyle='#79542d';ctx.fillRect(-3,-5,6,18);
+      ctx.fillStyle='#dedede';ctx.fillRect(-4,-24,8,20);
+      ctx.fillStyle='#d39a4f';ctx.fillRect(-9,-8,18,4);
     }
+    ctx.restore();
+  };
 
-    function finalBoss4HasBoss(){
-      return inDungeon && typeof dungeonLevel!=='undefined' && dungeonLevel===4 &&
-        Array.isArray(monsters) && monsters.some(m=>m.type==='boss4' && m.hp>0);
+  /* ===== BOSS4 METEOR TELEGRAPH — AUTHORITATIVE =====
+     Exactly 3 targets every 2.5 seconds.
+     Warning circle appears immediately and lasts 1 second.
+     The meteor then falls to the exact stored target.
+     Damage is applied ON IMPACT only. */
+  window.__finalBoss4Meteors=[];
+  window.__finalBoss4Next=0;
+  window.__finalBoss4Image=null;
+
+  function finalBoss4Image(){
+    if(window.__finalBoss4Image)return window.__finalBoss4Image;
+    const img=new Image();
+    img.onload=function(){window.__finalBoss4Image=img;};
+    img.onerror=function(){console.error('Boss4 attack image failed:',IMAGE_FOLDER+'metalmonsterspecialattack.png');};
+    img.src=IMAGE_FOLDER+'metalmonsterspecialattack.png';
+    window.__finalBoss4Image=img;
+    return img;
+  }
+
+  function finalBoss4HasBoss(){
+    return inDungeon && typeof dungeonLevel!=='undefined' && dungeonLevel===4 &&
+      Array.isArray(monsters) && monsters.some(m=>m.type==='boss4'&&m.hp>0);
+  }
+
+  function finalBoss4SpawnVolley(now){
+    const minX=140,maxX=Math.max(minX+1,dungeon.width-140);
+    const minY=150,maxY=Math.max(minY+1,dungeon.height-150);
+    for(let i=0;i<3;i++){
+      const tx=minX+Math.random()*(maxX-minX);
+      const ty=minY+Math.random()*(maxY-minY);
+      window.__finalBoss4Meteors.push({
+        targetX:tx,targetY:ty,
+        x:tx,y:ty-360,
+        warningUntil:now+1000,
+        fallStart:0,
+        falling:false,
+        impactUntil:0
+      });
     }
+    finalBoss4Image();
+  }
 
-    function finalBoss4SpawnVolley(now){
-      const count=3;
-      for(let i=0;i<count;i++){
-        const minX=140;
-        const maxX=Math.max(minX+1,dungeon.width-140);
-        const minY=150;
-        const maxY=Math.max(minY+1,dungeon.height-150);
-        const targetX=minX+Math.random()*(maxX-minX);
-        const targetY=minY+Math.random()*(maxY-minY);
-        window.__finalBoss4Meteors.push({
-          x:targetX,
-          y:targetY-360,
-          targetX:targetX,
-          targetY:targetY,
-          warningUntil:now+1000,
-          falling:false,
-          fallStart:0,
-          impactUntil:0,
-          damageApplied:false,
-          radius:24,
-          damage:48
-        });
-      }
-      if(typeof bossSound==='function')bossSound();
+  function finalBoss4Tick(){
+    if(!finalBoss4HasBoss()){
+      window.__finalBoss4Meteors.length=0;
+      window.__finalBoss4Next=0;
+      return;
     }
-
-    function finalBoss4Tick(){
-      if(!finalBoss4HasBoss()){
-        window.__finalBoss4Meteors.length=0;
-        window.__finalBoss4Next=0;
-        return;
+    const now=performance.now();
+    if(!window.__finalBoss4Next)window.__finalBoss4Next=now+2500;
+    if(now>=window.__finalBoss4Next){
+      finalBoss4SpawnVolley(now);
+      window.__finalBoss4Next=now+2500;
+    }
+    for(let i=window.__finalBoss4Meteors.length-1;i>=0;i--){
+      const q=window.__finalBoss4Meteors[i];
+      if(!q.falling&&now>=q.warningUntil){
+        q.falling=true;
+        q.fallStart=now;
+        q.x=q.targetX;
+        q.y=q.targetY-360;
       }
-
-      const now=performance.now();
-      finalBoss4LoadImage();
-      if(!window.__finalBoss4Next)window.__finalBoss4Next=now+2500;
-
-      if(now>=window.__finalBoss4Next){
-        finalBoss4SpawnVolley(now);
-        window.__finalBoss4Next=now+2500;
-      }
-
-      for(let i=window.__finalBoss4Meteors.length-1;i>=0;i--){
-        const q=window.__finalBoss4Meteors[i];
-
-        if(!q.falling && !q.impactUntil && now>=q.warningUntil){
-          q.falling=true;
-          q.fallStart=now;
-          q.y=q.targetY-360;
+      if(q.falling){
+        const t=Math.min(1,(now-q.fallStart)/600);
+        const eased=1-Math.pow(1-t,3);
+        q.x=q.targetX;
+        q.y=(q.targetY-360)+360*eased;
+        if(t>=1){
+          q.x=q.targetX;q.y=q.targetY;q.falling=false;q.impactUntil=now+220;
         }
-
-        if(q.falling){
-          const fallDuration=550;
-          const t=Math.min(1,(now-q.fallStart)/fallDuration);
-          const eased=1-Math.pow(1-t,3);
-          q.x=q.targetX;
-          q.y=(q.targetY-360)+(360*eased);
-
-          if(t>=1){
-            q.y=q.targetY;
-            q.falling=false;
-            q.impactUntil=now+220;
-
-            if(!q.damageApplied && Math.hypot(player.x-q.targetX,player.y-q.targetY)<=q.radius && player.invincible<=0){
-              q.damageApplied=true;
-              player.hp-=q.damage;
-              addDamageNumber(player.x,player.y-48,q.damage,'#fff');
-              player.invincible=30;
-              if(typeof hitSound==='function')hitSound();
-              if(player.hp<=0)respawnPlayer();
-            }
-          }
-        }else if(q.impactUntil && now>q.impactUntil){
-          window.__finalBoss4Meteors.splice(i,1);
-        }
+      }else if(q.impactUntil&&now>q.impactUntil){
+        window.__finalBoss4Meteors.splice(i,1);
       }
     }
+  }
 
-    function finalBoss4DrawWorld(){
-      if(!finalBoss4HasBoss())return;
-      finalBoss4Tick();
-
-      const now=performance.now();
-      const img=finalBoss4LoadImage();
-
-      for(const q of window.__finalBoss4Meteors){
-        ctx.save();
-        ctx.imageSmoothingEnabled=false;
-
-        /* 48x48 shadow telegraph: this is the exact impact area. */
-        if(!q.falling && !q.impactUntil){
-          const pulse=.72+Math.sin(now/110)*.12;
-          ctx.globalAlpha=pulse;
-          ctx.fillStyle='rgba(0,0,0,.72)';
-          ctx.beginPath();
-          ctx.ellipse(q.targetX,q.targetY,24,14,0,0,Math.PI*2);
-          ctx.fill();
-          ctx.strokeStyle='rgba(255,255,255,.28)';
-          ctx.lineWidth=2;
-          ctx.beginPath();
-          ctx.ellipse(q.targetX,q.targetY,24,14,0,0,Math.PI*2);
-          ctx.stroke();
-        }
-
-        /* The supplied attack artwork is the actual falling projectile. */
-        if(q.falling){
-          const progress=Math.min(1,Math.max(0,(now-q.fallStart)/550));
-          const scale=1.0+progress*.08;
-          if(img && img.complete && img.naturalWidth>0){
-            const w=84*scale;
-            const h=84*scale;
-            ctx.globalAlpha=1;
-            ctx.shadowColor='#b13cff';
-            ctx.shadowBlur=28;
-            ctx.drawImage(img,q.x-w/2,q.y-h,w,h);
-          }else{
-            ctx.globalAlpha=1;
-            ctx.fillStyle='#a735ff';
-            ctx.shadowColor='#b13cff';
-            ctx.shadowBlur=28;
-            ctx.beginPath();
-            ctx.arc(q.x,q.y-42,22,0,Math.PI*2);
-            ctx.fill();
-          }
-        }
-
-        /* Short impact flash. */
-        if(q.impactUntil && now<q.impactUntil){
-          const p=1-(q.impactUntil-now)/220;
-          ctx.globalAlpha=.85*(1-p);
-          ctx.fillStyle='#fff';
-          ctx.shadowColor='#b13cff';
-          ctx.shadowBlur=35;
-          ctx.beginPath();
-          ctx.arc(q.targetX,q.targetY,24+18*p,0,Math.PI*2);
-          ctx.fill();
-          if(img && img.complete && img.naturalWidth>0){
-            ctx.globalAlpha=.95*(1-p);
-            const w=84*(1+p*.25);
-            ctx.drawImage(img,q.targetX-w/2,q.targetY-w/2,w,w);
-          }
-        }
-
-        ctx.restore();
-      }
-    }
-
-    window.__finalBoss4Tick=finalBoss4Tick;
-    window.__finalBoss4DrawWorld=finalBoss4DrawWorld;
-
-    /* Keep the normal game renderer untouched outside Level 4. */
-    const previousFinalDraw=draw;
-    draw=function(){
-      previousFinalDraw.apply(this,arguments);
-      if(inDungeon || !finalBoss4HasBoss())return;
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
-      const vw=W/z,vh=H/z;
+  function finalBoss4DrawWorld(){
+    if(!finalBoss4HasBoss())return;
+    finalBoss4Tick();
+    const now=performance.now(),img=finalBoss4Image();
+    for(const q of window.__finalBoss4Meteors){
       ctx.save();
-      ctx.translate(W/2,H/2);
-      ctx.scale(z,z);
-      ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
-      finalBoss4DrawWorld();
+      ctx.imageSmoothingEnabled=false;
+
+      /* EXACT 48x48 warning area. This is the exact stored impact target. */
+      if(!q.falling&&!q.impactUntil){
+        const pulse=.62+Math.sin(now/90)*.18;
+        ctx.globalAlpha=pulse;
+        ctx.fillStyle='rgba(0,0,0,.78)';
+        ctx.beginPath();ctx.ellipse(q.targetX,q.targetY,24,14,0,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,.45)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.ellipse(q.targetX,q.targetY,24,14,0,0,Math.PI*2);ctx.stroke();
+      }
+
+      /* Visible supplied Boss4 attack artwork during the entire fall. */
+      if(q.falling){
+        if(img&&img.complete&&img.naturalWidth>0){
+          const p=Math.min(1,Math.max(0,(now-q.fallStart)/600));
+          const w=84+10*p;
+          const h=84+10*p;
+          ctx.globalAlpha=1;
+          ctx.shadowColor='#b13cff';ctx.shadowBlur=30;
+          ctx.drawImage(img,q.x-w/2,q.y-h,w,h);
+        }else{
+          ctx.globalAlpha=1;ctx.fillStyle='#a735ff';ctx.shadowColor='#b13cff';ctx.shadowBlur=30;
+          ctx.beginPath();ctx.arc(q.x,q.y-42,22,0,Math.PI*2);ctx.fill();
+        }
+      }
+
+      if(q.impactUntil&&now<q.impactUntil){
+        const p=Math.max(0,1-(q.impactUntil-now)/220);
+        ctx.globalAlpha=.85*(1-p);
+        ctx.fillStyle='#fff';ctx.shadowColor='#b13cff';ctx.shadowBlur=35;
+        ctx.beginPath();ctx.arc(q.targetX,q.targetY,24+18*p,0,Math.PI*2);ctx.fill();
+      }
       ctx.restore();
-    };
+    }
+  }
 
-    window.__pandaniaFinalTargetedFix=true;
-  })();
+  window.__finalBoss4Tick=finalBoss4Tick;
+  window.__finalBoss4DrawWorld=finalBoss4DrawWorld;
+
+  /* Do NOT add another damage system here. The existing Boss4 damage system
+     remains authoritative; this layer only provides the matching visual target
+     and projectile. */
+  const previousFinalDraw=draw;
+  draw=function(){
+    previousFinalDraw.apply(this,arguments);
+    if(!inDungeon||!finalBoss4HasBoss())return;
+    const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;
+    const vw=W/z,vh=H/z;
+    ctx.save();
+    ctx.translate(W/2,H/2);ctx.scale(z,z);ctx.translate(-camera.x-vw/2,-camera.y-vh/2);
+    finalBoss4DrawWorld();
+    ctx.restore();
+  };
+})();
+</script>
 '''
+          s=s[:start]+block+s[end:]
+          p.write_text(s,encoding='utf-8')
+          print('Boss4 block replaced')
+          PY
 
-          text = text[:start] + replacement + text[end:]
+      - name: Verify JavaScript syntax
+        run: node --check "Adventures Of Pandania The Lost Realms/index.html"
 
-          # Remove the older stable-renderer visual layers so only the new
-          # authoritative system draws the Boss4 projectile/telegraph.
-          text = re.sub(
-              r'\n    /\* Metal Meteor visual layer \*/.*?\n    if\(Array\.isArray\(window\.__stableMetalMeteors\)\).*?\n    }\n',
-              '\n', text, flags=re.S)
-
-          text = re.sub(
-              r'\n    if\(Array\.isArray\(window\.__finalBoss4Meteors\).*?\n    }\n',
-              '\n', text, count=1, flags=re.S)
-
-          # Ensure the dedicated image loader is requested during dungeon setup.
-          if 'ensureMetalMeteorImage();' in text:
-              pass
-
-          path.write_text(text,encoding='utf-8')
-
-          # Basic syntax check with Node.
-          import subprocess
-          result=subprocess.run(['node','--check',str(path)],capture_output=True,text=True)
-          if result.returncode!=0:
-              print(result.stderr)
-              raise SystemExit('Node syntax check failed.')
-
-      - name: Commit patch and remove temporary workflow
+      - name: Commit fixed game file
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/workflows/fix-boss4-meteor-telegraph.yml
-          git add "Adventures Of Pandania The Lost Realms/index.html" .github/workflows/fix-boss4-meteor-telegraph.yml
-          git commit -m "Fix Boss4 Level 4 meteor telegraph and rendering" || exit 0
+          git add "Adventures Of Pandania The Lost Realms/index.html"
+          git commit -m "Fix Boss4 meteor telegraph and projectile renderer" || exit 0
           git push

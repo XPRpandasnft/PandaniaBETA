@@ -5723,89 +5723,79 @@ const pdDirectionalWeaponVisuals={
     }
 };
 
-/* Cache of generated equipment-only canvases. */
+/*
+   EQUIPMENT SPRITE COMPOSITING
+
+   The directional PDA Cloak and XPR Lens source files are complete
+   player+equipment sprites. Therefore they must NOT be drawn over the
+   normal panda sprite by themselves: doing that creates the smaller
+   duplicate panda that was appearing on top.
+
+   Rules:
+     - Nothing equipped -> draw the normal 48x48 directional panda.
+     - One item equipped -> draw that item's complete directional sprite.
+     - Both equipped -> draw the complete cloak sprite, then add only the
+       Lens pixels that differ from the same-direction base panda.
+
+   This keeps one, and only one, panda body visible while allowing both
+   equipment sets to appear together.
+*/
 const pdEquipmentOverlayCache=Object.create(null);
 
 function pdLoadImage(key){
     if(!key)return null;
-    if(images[key])return images[key];
+    if(images[key]&&images[key].complete&&images[key].naturalWidth>0)return images[key];
     const src=imageFiles[key];
     if(!src)return null;
     const img=new Image();
-    img.onload=()=>{
-        images[key]=img;
-        /* Rebuild the directional overlay as soon as the source arrives. */
-        pdEquipmentOverlayCache[key]=null;
-    };
-    img.onerror=()=>console.warn("Could not load Pandania sprite:",src);
+    img.onload=()=>{images[key]=img;};
+    img.onerror=()=>console.warn("Could not load directional sprite:",src);
     img.src=src;
     return null;
 }
 
-/*
-   Turn a complete player+equipment sprite into an equipment-only layer.
-   This works with both the 192x192 source artwork and any future
-   transparent equipment-only artwork. The comparison happens after both
-   images are normalized to the game's exact 48x48 footprint.
-*/
 function pdBuildEquipmentOverlay(equipmentKey,baseKey){
+    const cacheKey=equipmentKey+"|"+baseKey;
+    if(pdEquipmentOverlayCache[cacheKey])return pdEquipmentOverlayCache[cacheKey];
+
     const equipmentImg=pdLoadImage(equipmentKey);
     const baseImg=pdLoadImage(baseKey);
     if(!equipmentImg||!baseImg)return null;
 
-    const cached=pdEquipmentOverlayCache[equipmentKey];
-    if(cached && cached.baseKey===baseKey)return cached.canvas;
-
     const size=PLAYER_SPRITE_SIZE;
-    const combined=document.createElement("canvas");
-    combined.width=size;combined.height=size;
-    const base=document.createElement("canvas");
-    base.width=size;base.height=size;
+    const equipmentCanvas=document.createElement("canvas");
+    const baseCanvas=document.createElement("canvas");
     const out=document.createElement("canvas");
-    out.width=size;out.height=size;
+    equipmentCanvas.width=baseCanvas.width=out.width=size;
+    equipmentCanvas.height=baseCanvas.height=out.height=size;
 
-    const cc=combined.getContext("2d",{willReadFrequently:true});
-    const bc=base.getContext("2d",{willReadFrequently:true});
+    const ec=equipmentCanvas.getContext("2d",{willReadFrequently:true});
+    const bc=baseCanvas.getContext("2d",{willReadFrequently:true});
     const oc=out.getContext("2d");
-
-    cc.clearRect(0,0,size,size);
-    bc.clearRect(0,0,size,size);
-    cc.imageSmoothingEnabled=false;
+    ec.imageSmoothingEnabled=false;
     bc.imageSmoothingEnabled=false;
-    cc.drawImage(equipmentImg,0,0,size,size);
+    ec.drawImage(equipmentImg,0,0,size,size);
     bc.drawImage(baseImg,0,0,size,size);
 
-    const cd=cc.getImageData(0,0,size,size);
+    const ed=ec.getImageData(0,0,size,size);
     const bd=bc.getImageData(0,0,size,size);
+    const e=ed.data,b=bd.data;
 
     /*
-       Remove pixels that belong to the unchanged panda. A small color
-       tolerance prevents harmless antialiasing differences from creating
-       a faint duplicate panda around the equipment.
+       Remove the panda/body pixels from the complete equipment sprite.
+       A moderate tolerance handles tiny resampling/anti-aliasing changes
+       without deleting the visibly different Lens artwork.
     */
-    const data=cd.data;
-    const baseData=bd.data;
-    for(let i=0;i<data.length;i+=4){
-        const ca=data[i+3];
-        const ba=baseData[i+3];
-        if(ca===0){
-            data[i+3]=0;
-            continue;
-        }
-        if(ba===0){
-            continue;
-        }
-        const dr=data[i]-baseData[i];
-        const dg=data[i+1]-baseData[i+1];
-        const db=data[i+2]-baseData[i+2];
+    for(let i=0;i<e.length;i+=4){
+        if(e[i+3]===0)continue;
+        if(b[i+3]===0)continue;
+        const dr=e[i]-b[i], dg=e[i+1]-b[i+1], db=e[i+2]-b[i+2];
         const distance=Math.sqrt(dr*dr+dg*dg+db*db);
-        if(distance<30){
-            data[i+3]=0;
-        }
+        if(distance<34)e[i+3]=0;
     }
 
-    oc.putImageData(cd,0,0);
-    pdEquipmentOverlayCache[equipmentKey]={baseKey,canvas:out};
+    oc.putImageData(ed,0,0);
+    pdEquipmentOverlayCache[cacheKey]=out;
     return out;
 }
 
@@ -5815,6 +5805,20 @@ function pdEquipmentOverlay(visualMap,equipmentName,direction,baseKey){
     const key=map[direction];
     if(!key)return null;
     return pdBuildEquipmentOverlay(key,baseKey);
+}
+
+function pdDrawCompleteEquipmentSprite(visualMap,equipmentName,direction,x,y,width,height,alpha){
+    const map=visualMap[equipmentName];
+    if(!map)return false;
+    const key=map[direction];
+    const img=pdLoadImage(key);
+    if(!img)return false;
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(img,x-width/2,y-height,width,height);
+    ctx.restore();
+    return true;
 }
 
 function pdDrawEquipmentLayer(visualMap,equipmentName,direction,x,y,width,height,alpha,baseKey){
@@ -5891,11 +5895,7 @@ function drawPlayer(){
     const alpha=player.invincible>0 && Math.floor(player.invincible/4)%2===0
         ?0.25:1;
 
-    /*
-       The four base panda sprites are always exactly 48x48 in-game.
-       Direction is taken from the actual player facing vector, so keyboard,
-       mouse movement, D-pad and joystick all select the same directional art.
-    */
+    /* Always use the four real 48x48 base panda images for direction. */
     const direction=pdFacingCardinal();
     const movementSprite={
         down:"player1",
@@ -5910,52 +5910,99 @@ function drawPlayer(){
 
     const playerDrawX=player.x;
     const playerDrawY=player.y+bob;
-    const playerDrawW=PLAYER_SPRITE_SIZE;
-    const playerDrawH=PLAYER_SPRITE_SIZE;
-
-    /* Base panda is drawn exactly once. */
-    const drawn=drawSprite(
-        movementSprite,
-        playerDrawX,
-        playerDrawY,
-        playerDrawW,
-        playerDrawH,
-        false,
-        alpha
-    );
-
-    if(!drawn)drawFallbackPlayer();
-
+    const playerDrawW=48;
+    const playerDrawH=48;
     const equipmentState=window.__pandaniaEquipment||{};
+    const hasCloak=equipmentState.armor==="Pda Cloak";
+    const hasLens=equipmentState.weapon==="XPR Lens";
 
     /*
-       Armor and weapon sprites are complete player sprites in the source
-       artwork. pdDrawEquipmentLayer strips the unchanged panda pixels and
-       leaves only the actual equipment, preventing the second-panda bug.
+       IMPORTANT:
+       The equipped directional files are complete player sprites, not
+       transparent equipment-only overlays. Never draw the normal panda
+       underneath a complete equipped sprite.
     */
-    pdDrawEquipmentLayer(
-        pdDirectionalArmorVisuals,
-        equipmentState.armor,
-        direction,
-        playerDrawX,
-        playerDrawY,
-        playerDrawW,
-        playerDrawH,
-        alpha,
-        movementSprite
-    );
+    if(!hasCloak && !hasLens){
+        const drawn=drawSprite(
+            movementSprite,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            false,
+            alpha
+        );
+        if(!drawn)drawFallbackPlayer();
+    }else if(hasCloak && !hasLens){
+        /* PDA Cloak completely replaces the base panda sprite. */
+        const drawn=pdDrawCompleteEquipmentSprite(
+            pdDirectionalArmorVisuals,
+            "Pda Cloak",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            alpha
+        );
+        if(!drawn)drawFallbackPlayer();
+    }else if(!hasCloak && hasLens){
+        /* XPR Lens completely replaces the base panda sprite. */
+        const drawn=pdDrawCompleteEquipmentSprite(
+            pdDirectionalWeaponVisuals,
+            "XPR Lens",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            alpha
+        );
+        if(!drawn)drawFallbackPlayer();
+    }else{
+        /*
+           Both equipped:
+           1. Draw the complete PDA Cloak sprite as the body/base.
+           2. Extract only the XPR Lens pixels relative to the same base panda
+              and place those pixels on top of the cloak.
+           This combines both outfits without ever drawing a second panda.
+        */
+        const cloakDrawn=pdDrawCompleteEquipmentSprite(
+            pdDirectionalArmorVisuals,
+            "Pda Cloak",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            alpha
+        );
 
-    pdDrawEquipmentLayer(
-        pdDirectionalWeaponVisuals,
-        equipmentState.weapon,
-        direction,
-        playerDrawX,
-        playerDrawY,
-        playerDrawW,
-        playerDrawH,
-        alpha,
-        movementSprite
-    );
+        if(!cloakDrawn){
+            const fallback=drawSprite(
+                movementSprite,
+                playerDrawX,
+                playerDrawY,
+                playerDrawW,
+                playerDrawH,
+                false,
+                alpha
+            );
+            if(!fallback)drawFallbackPlayer();
+        }
+
+        pdDrawEquipmentLayer(
+            pdDirectionalWeaponVisuals,
+            "XPR Lens",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            alpha,
+            movementSprite
+        );
+    }
 
     ctx.save();
     ctx.fillStyle="rgba(255,255,255,.95)";
@@ -7739,8 +7786,6 @@ requestAnimationFrame(
 
 
 
-
-
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -9280,149 +9325,6 @@ requestAnimationFrame(
 
 
 
-
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
-      }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
-  }
-};
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-}
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
 
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>

@@ -5666,12 +5666,26 @@ function drawMonsters(){
 ========================================================= */
 
 /* =========================================================
-   EQUIPPED WEAPON VISUALS
-   Idle weapons are mounted behind the player. The weapon image is
-   rotated from the player's facing vector so its blade/staff end
-   changes direction on all four cardinal directions. During an
-   attack it moves from the hand in the same direction and swings.
+   EQUIPMENT VISUALS / DIRECTIONAL PAPER-DOLL
+
+   IMPORTANT:
+   The new 192x192 PDA Cloak and XPR Lens artwork is a COMPLETE
+   player+equipment sprite, not a transparent equipment-only layer.
+   Rendering that artwork directly on top of the 48x48 panda creates
+   the duplicate-panda bug.  We therefore convert each complete
+   directional sprite into an equipment-only overlay at runtime by
+   comparing it with the matching base panda sprite.
+
+   Resulting render order:
+       1. 48x48 base panda
+       2. PDA Cloak equipment-only overlay
+       3. XPR Lens equipment-only overlay
+
+   The source artwork may remain 192x192. Everything is rendered on
+   the same 48x48 player footprint and the same player anchor.
 ========================================================= */
+const PLAYER_SPRITE_SIZE=48;
+
 const pdWeaponVisualKeys={
     "Wooden Sword":null,
     "Bamboo Sword":"weapon1",
@@ -5685,17 +5699,12 @@ const pdWeaponVisualKeys={
     "Golden Beacon Staff":"weapon9",
     "Purplereign":"weapon10"
 };
+
 function pdCurrentWeaponName(){
     const st=window.__pandaniaEquipment;
     return st&&st.weapon?st.weapon:"Wooden Sword";
 }
 
-/* ---------------------------------------------------------
-   DIRECTIONAL EQUIPMENT LAYERING
-   The base panda, armor, and directional weapon artwork all use
-   the exact same 48x48 canvas footprint and the same player anchor.
-   This keeps every layer locked to the character while walking.
---------------------------------------------------------- */
 const pdDirectionalArmorVisuals={
     "Pda Cloak":{
         down:"armor3down",
@@ -5704,6 +5713,7 @@ const pdDirectionalArmorVisuals={
         up:"armor3up"
     }
 };
+
 const pdDirectionalWeaponVisuals={
     "XPR Lens":{
         down:"weapon4down",
@@ -5712,45 +5722,124 @@ const pdDirectionalWeaponVisuals={
         up:"weapon4up"
     }
 };
-function pdDirectionalImage(key){
+
+/* Cache of generated equipment-only canvases. */
+const pdEquipmentOverlayCache=Object.create(null);
+
+function pdLoadImage(key){
     if(!key)return null;
     if(images[key])return images[key];
     const src=imageFiles[key];
     if(!src)return null;
     const img=new Image();
-    img.onload=()=>{images[key]=img;};
-    img.onerror=()=>console.warn("Could not load directional equipment sprite:",src);
+    img.onload=()=>{
+        images[key]=img;
+        /* Rebuild the directional overlay as soon as the source arrives. */
+        pdEquipmentOverlayCache[key]=null;
+    };
+    img.onerror=()=>console.warn("Could not load Pandania sprite:",src);
     img.src=src;
     return null;
 }
-function pdDrawEquipmentLayer(visualMap, equipmentName, direction, x, y, width, height, alpha){
+
+/*
+   Turn a complete player+equipment sprite into an equipment-only layer.
+   This works with both the 192x192 source artwork and any future
+   transparent equipment-only artwork. The comparison happens after both
+   images are normalized to the game's exact 48x48 footprint.
+*/
+function pdBuildEquipmentOverlay(equipmentKey,baseKey){
+    const equipmentImg=pdLoadImage(equipmentKey);
+    const baseImg=pdLoadImage(baseKey);
+    if(!equipmentImg||!baseImg)return null;
+
+    const cached=pdEquipmentOverlayCache[equipmentKey];
+    if(cached && cached.baseKey===baseKey)return cached.canvas;
+
+    const size=PLAYER_SPRITE_SIZE;
+    const combined=document.createElement("canvas");
+    combined.width=size;combined.height=size;
+    const base=document.createElement("canvas");
+    base.width=size;base.height=size;
+    const out=document.createElement("canvas");
+    out.width=size;out.height=size;
+
+    const cc=combined.getContext("2d",{willReadFrequently:true});
+    const bc=base.getContext("2d",{willReadFrequently:true});
+    const oc=out.getContext("2d");
+
+    cc.clearRect(0,0,size,size);
+    bc.clearRect(0,0,size,size);
+    cc.imageSmoothingEnabled=false;
+    bc.imageSmoothingEnabled=false;
+    cc.drawImage(equipmentImg,0,0,size,size);
+    bc.drawImage(baseImg,0,0,size,size);
+
+    const cd=cc.getImageData(0,0,size,size);
+    const bd=bc.getImageData(0,0,size,size);
+
+    /*
+       Remove pixels that belong to the unchanged panda. A small color
+       tolerance prevents harmless antialiasing differences from creating
+       a faint duplicate panda around the equipment.
+    */
+    const data=cd.data;
+    const baseData=bd.data;
+    for(let i=0;i<data.length;i+=4){
+        const ca=data[i+3];
+        const ba=baseData[i+3];
+        if(ca===0){
+            data[i+3]=0;
+            continue;
+        }
+        if(ba===0){
+            continue;
+        }
+        const dr=data[i]-baseData[i];
+        const dg=data[i+1]-baseData[i+1];
+        const db=data[i+2]-baseData[i+2];
+        const distance=Math.sqrt(dr*dr+dg*dg+db*db);
+        if(distance<30){
+            data[i+3]=0;
+        }
+    }
+
+    oc.putImageData(cd,0,0);
+    pdEquipmentOverlayCache[equipmentKey]={baseKey,canvas:out};
+    return out;
+}
+
+function pdEquipmentOverlay(visualMap,equipmentName,direction,baseKey){
     const map=visualMap[equipmentName];
-    if(!map)return false;
+    if(!map)return null;
     const key=map[direction];
-    const img=pdDirectionalImage(key);
-    if(!img)return false;
+    if(!key)return null;
+    return pdBuildEquipmentOverlay(key,baseKey);
+}
+
+function pdDrawEquipmentLayer(visualMap,equipmentName,direction,x,y,width,height,alpha,baseKey){
+    const overlay=pdEquipmentOverlay(visualMap,equipmentName,direction,baseKey);
+    if(!overlay)return false;
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(img,x-width/2,y-height,width,height);
+    ctx.drawImage(overlay,x-width/2,y-height,width,height);
     ctx.restore();
     return true;
 }
+
 function pdWeaponImage(key){
-    if(!key)return null;
-    if(images[key])return images[key];
-    const src=imageFiles[key];
-    if(!src)return null;
-    const img=new Image();
-    img.onload=()=>{images[key]=img;};
-    img.src=src;
-    return null;
+    return pdLoadImage(key);
 }
+
 function pdFacingCardinal(){
-    const fx=Number(player.facingX)||1, fy=Number(player.facingY)||0;
-    if(Math.abs(fx)>=Math.abs(fy)) return fx<0?"left":"right";
-    return fy<0?"up":"down";
+    const fx=Number(player.facingX)||0;
+    const fy=Number(player.facingY)||0;
+    if(Math.abs(fy)>Math.abs(fx))return fy<0?"up":"down";
+    if(Math.abs(fx)>0)return fx<0?"left":"right";
+    return "down";
 }
+
 function pdWeaponAngle(){
     switch(pdFacingCardinal()){
         case "left": return Math.PI;
@@ -5759,39 +5848,14 @@ function pdWeaponAngle(){
         default: return 0;
     }
 }
-function pdDrawBackWeapon(){
-    /* The equipped weapon is strapped to the player's back only while the
-       player is actually moving upward. It is drawn first so the player sprite
-       naturally covers the front of the weapon. */
-    const fy=Number(player.facingY)||0;
-    if(!player.moving || fy>=0 || Number(player.swordSwing||0)>0)return;
 
-    const name=pdCurrentWeaponName();
-    const key=pdWeaponVisualKeys[name];
-    const img=key?pdWeaponImage(key):null;
-    const bob=Math.abs(Math.sin(player.walkTime))*3;
+/*
+   Deliberately NO back-mounted weapon renderer.
+   The old pdDrawBackWeapon() system has been removed completely.
+   Up-facing movement must use the normal directional player/equipment
+   sprites only; no separate weapon is placed behind the panda.
+*/
 
-    /* Center it on the upper-middle of the back so it reads as strapped to
-       the character rather than floating beside the sprite. */
-    const bx=player.x;
-    const by=player.y+bob-55;
-
-    ctx.save();
-    ctx.translate(bx,by);
-    ctx.rotate(-Math.PI/2);
-    ctx.globalAlpha=.98;
-    ctx.imageSmoothingEnabled=false;
-
-    if(img){
-        const w=48,h=48;
-        ctx.drawImage(img,-w/2,-h/2,w,h);
-    }else{
-        ctx.fillStyle="#79542d";ctx.fillRect(-3,-5,6,18);
-        ctx.fillStyle="#dedede";ctx.fillRect(-4,-24,8,20);
-        ctx.fillStyle="#d39a4f";ctx.fillRect(-9,-8,18,4);
-    }
-    ctx.restore();
-}
 function pdDrawAttackWeapon(){
     const name=pdCurrentWeaponName();
     const key=pdWeaponVisualKeys[name];
@@ -5801,8 +5865,6 @@ function pdDrawAttackWeapon(){
     const swing=Number(player.swordSwing)||0;
     if(swing<=0)return;
     const progress=1-swing/12;
-    /* Tight hand pivot. The weapon begins beside the hand/body rather
-       than several pixels in front of the character. */
     const side=(dir==="right"||dir==="left")?(dir==="right"?13:-13):8;
     const hx=player.x+(dir==="right"?side:dir==="left"?side:0);
     const hy=player.y-47+(dir==="up"?4:dir==="down"?9:0);
@@ -5822,52 +5884,36 @@ function pdDrawAttackWeapon(){
 }
 
 function drawPlayer(){
+    const bob=player.moving
+        ?Math.abs(Math.sin(player.walkTime))*3
+        :Math.sin(Date.now()/700)*.35;
 
-    const bob=
-        player.moving
-        ?Math.abs(
-            Math.sin(
-                player.walkTime
-            )
-        )*3
-        :Math.sin(
-            Date.now()/700
-        )*.35;
+    const alpha=player.invincible>0 && Math.floor(player.invincible/4)%2===0
+        ?0.25:1;
 
-    const alpha=
-        player.invincible>0 &&
-        Math.floor(
-            player.invincible/4
-        )%2===0
-        ?0.25
-        :1;
+    /*
+       The four base panda sprites are always exactly 48x48 in-game.
+       Direction is taken from the actual player facing vector, so keyboard,
+       mouse movement, D-pad and joystick all select the same directional art.
+    */
+    const direction=pdFacingCardinal();
+    const movementSprite={
+        down:"player1",
+        left:"player1left",
+        right:"player1right",
+        up:"player1up"
+    }[direction];
 
-    /* Directional player sprites are selected from the actual movement/facing
-       vector, not only from keyboard keys. This makes keyboard, mouse-target,
-       and mobile joystick movement all use the same four player images. */
-    let movementSprite="player1";
-    const fx=Number(player.facingX)||0;
-    const fy=Number(player.facingY)||0;
-    if(Math.abs(fy)>=Math.abs(fx)){
-        if(fy<0) movementSprite="player1up";
-        else if(fy>0) movementSprite="player1";
-    }else{
-        movementSprite=fx<0 ? "player1left" : "player1right";
-    }
+    player.directionalSprite=movementSprite;
+    player.spriteName=movementSprite;
+    player.imageName=movementSprite;
 
-    /* ---------------------------------------------------------
-       PLAYER LAYERS
-       1) Base directional panda
-       2) Directional armor overlay
-       3) Directional weapon overlay
-       All three use the identical 48x48 footprint and player anchor.
-       XPR Lens / PDA Cloak use their dedicated directional artwork.
-    --------------------------------------------------------- */
     const playerDrawX=player.x;
     const playerDrawY=player.y+bob;
-    const playerDrawW=48;
-    const playerDrawH=48;
+    const playerDrawW=PLAYER_SPRITE_SIZE;
+    const playerDrawH=PLAYER_SPRITE_SIZE;
 
+    /* Base panda is drawn exactly once. */
     const drawn=drawSprite(
         movementSprite,
         playerDrawX,
@@ -5878,15 +5924,16 @@ function drawPlayer(){
         alpha
     );
 
-    if(!drawn){
-        drawFallbackPlayer();
-    }
+    if(!drawn)drawFallbackPlayer();
 
     const equipmentState=window.__pandaniaEquipment||{};
-    const direction=pdFacingCardinal();
 
-    /* Armor is always above the base player and below the weapon. */
-    const armorLayerDrawn=pdDrawEquipmentLayer(
+    /*
+       Armor and weapon sprites are complete player sprites in the source
+       artwork. pdDrawEquipmentLayer strips the unchanged panda pixels and
+       leaves only the actual equipment, preventing the second-panda bug.
+    */
+    pdDrawEquipmentLayer(
         pdDirectionalArmorVisuals,
         equipmentState.armor,
         direction,
@@ -5894,12 +5941,11 @@ function drawPlayer(){
         playerDrawY,
         playerDrawW,
         playerDrawH,
-        alpha
+        alpha,
+        movementSprite
     );
 
-    /* XPR Lens is rendered as the top layer using its matching direction.
-       If another weapon is equipped, preserve the existing weapon system. */
-    const weaponLayerDrawn=pdDrawEquipmentLayer(
+    pdDrawEquipmentLayer(
         pdDirectionalWeaponVisuals,
         equipmentState.weapon,
         direction,
@@ -5907,33 +5953,15 @@ function drawPlayer(){
         playerDrawY,
         playerDrawW,
         playerDrawH,
-        alpha
+        alpha,
+        movementSprite
     );
-
-    /* Existing weapon behavior remains for weapons without dedicated
-       directional overlay sprites. XPR Lens is handled exclusively above. */
-    if(!weaponLayerDrawn){
-        pdDrawBackWeapon();
-    }
-
-    /*
-       Player name.
-    */
 
     ctx.save();
-
     ctx.fillStyle="rgba(255,255,255,.95)";
-
     ctx.font="bold 10px Arial";
-
     ctx.textAlign="center";
-
-    ctx.fillText(
-        "Pandee",
-        player.x,
-        player.y-108
-    );
-
+    ctx.fillText("Pandee",player.x,player.y-108);
     ctx.restore();
 
     drawPlayerEffects();
@@ -7711,8 +7739,6 @@ requestAnimationFrame(
 
 
 
-
-
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -7901,52 +7927,7 @@ requestAnimationFrame(
 
 <script>window.addEventListener("beforeunload",stopDungeonMusic);</script>
 
-<script>
-/* ===== PLAYER DIRECTIONAL SPRITES — JOYSTICK ONLY ===== */
-(function(){
-  "use strict";
-  function direction(){
-    let dx=0,dy=0;
-    if(typeof keys!=="undefined"){
-      if(keys.w || keys.arrowup) dy--;
-      if(keys.s || keys.arrowdown) dy++;
-      if(keys.a || keys.arrowleft) dx--;
-      if(keys.d || keys.arrowright) dx++;
-    }
-    if(!dx&&!dy) return "player1";
-    if(Math.abs(dy)>=Math.abs(dx)) return dy<0 ? "player1up" : "player1";
-    return dx<0 ? "player1left" : "player1right";
-  }
 
-  /* The existing renderer uses player.facing/facingX/facingY. Add a
-     direction-specific image field that can be consumed by that renderer. */
-  function sync(){
-    if(typeof player==="undefined") return;
-    const name=direction();
-    player.directionalSprite=name;
-    player.spriteName=name;
-    player.imageName=name;
-    if(typeof images!=="undefined" && images[name]){
-      player.directionalImage=images[name];
-    }
-  }
-
-  setInterval(sync,16);
-  sync();
-
-  /* If drawPlayer exists, temporarily expose the selected image through the
-     player object while its existing renderer runs. No movement physics or
-     other game systems are changed. */
-  if(typeof drawPlayer==="function"){
-    const original=drawPlayer;
-    window.drawPlayer=function(){
-      sync();
-      return original.apply(this,arguments);
-    };
-    drawPlayer=window.drawPlayer;
-  }
-})();
-</script>
 
 
 <script>
@@ -9297,149 +9278,6 @@ requestAnimationFrame(
 
 
 
-
-
-
-
-
-
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
-};
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
-updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
-  }
-};
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-  }
-  oldFinalBoss4DrawWorld();
-};
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
-      }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
-  }
-};
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-}
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
 
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>

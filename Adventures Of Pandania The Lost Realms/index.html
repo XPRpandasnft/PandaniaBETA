@@ -1239,6 +1239,17 @@ const imageFiles={
     armor2:IMAGE_FOLDER+"armor2.png",
     armor3:IMAGE_FOLDER+"armor3.png",
     armor4:IMAGE_FOLDER+"armor4.png",
+
+    /* Directional equipment overlays */
+    armor3down:IMAGE_FOLDER+"../armorsprites/downpdarobesprite.png",
+    armor3left:IMAGE_FOLDER+"../armorsprites/leftpdarobesprite.png",
+    armor3right:IMAGE_FOLDER+"../armorsprites/rightpdarobesprite.png",
+    armor3up:IMAGE_FOLDER+"../armorsprites/uppdarobesprite.png",
+    weapon4down:IMAGE_FOLDER+"../weaponsprites/downlenssprite.png",
+    weapon4left:IMAGE_FOLDER+"../weaponsprites/leftlenssprite.png",
+    weapon4right:IMAGE_FOLDER+"../weaponsprites/rightlenssprite.png",
+    weapon4up:IMAGE_FOLDER+"../weaponsprites/uplenssprite.png",
+
     minimartshelf:IMAGE_FOLDER+"minimartshelf.png",
     lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
     metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png",
@@ -5678,6 +5689,53 @@ function pdCurrentWeaponName(){
     const st=window.__pandaniaEquipment;
     return st&&st.weapon?st.weapon:"Wooden Sword";
 }
+
+/* ---------------------------------------------------------
+   DIRECTIONAL EQUIPMENT LAYERING
+   The base panda, armor, and directional weapon artwork all use
+   the exact same 48x48 canvas footprint and the same player anchor.
+   This keeps every layer locked to the character while walking.
+--------------------------------------------------------- */
+const pdDirectionalArmorVisuals={
+    "Pda Cloak":{
+        down:"armor3down",
+        left:"armor3left",
+        right:"armor3right",
+        up:"armor3up"
+    }
+};
+const pdDirectionalWeaponVisuals={
+    "XPR Lens":{
+        down:"weapon4down",
+        left:"weapon4left",
+        right:"weapon4right",
+        up:"weapon4up"
+    }
+};
+function pdDirectionalImage(key){
+    if(!key)return null;
+    if(images[key])return images[key];
+    const src=imageFiles[key];
+    if(!src)return null;
+    const img=new Image();
+    img.onload=()=>{images[key]=img;};
+    img.onerror=()=>console.warn("Could not load directional equipment sprite:",src);
+    img.src=src;
+    return null;
+}
+function pdDrawEquipmentLayer(visualMap, equipmentName, direction, x, y, width, height, alpha){
+    const map=visualMap[equipmentName];
+    if(!map)return false;
+    const key=map[direction];
+    const img=pdDirectionalImage(key);
+    if(!img)return false;
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(img,x-width/2,y-height,width,height);
+    ctx.restore();
+    return true;
+}
 function pdWeaponImage(key){
     if(!key)return null;
     if(images[key])return images[key];
@@ -5797,27 +5855,66 @@ function drawPlayer(){
         movementSprite=fx<0 ? "player1left" : "player1right";
     }
 
-    const drawn=
-        drawSprite(
-            movementSprite,
-            player.x,
-            player.y+bob,
-            76,
-            100,
-            false,
-            alpha
-        );
+    /* ---------------------------------------------------------
+       PLAYER LAYERS
+       1) Base directional panda
+       2) Directional armor overlay
+       3) Directional weapon overlay
+       All three use the identical 48x48 footprint and player anchor.
+       XPR Lens / PDA Cloak use their dedicated directional artwork.
+    --------------------------------------------------------- */
+    const playerDrawX=player.x;
+    const playerDrawY=player.y+bob;
+    const playerDrawW=48;
+    const playerDrawH=48;
+
+    const drawn=drawSprite(
+        movementSprite,
+        playerDrawX,
+        playerDrawY,
+        playerDrawW,
+        playerDrawH,
+        false,
+        alpha
+    );
 
     if(!drawn){
-
         drawFallbackPlayer();
     }
 
-    /* Draw the strapped back weapon only after the upward-facing player sprite
-       is rendered. This keeps it visibly attached to the back instead of being
-       intermittently hidden by the character sprite. Attack rendering still
-       happens afterward and therefore takes priority. */
-    pdDrawBackWeapon();
+    const equipmentState=window.__pandaniaEquipment||{};
+    const direction=pdFacingCardinal();
+
+    /* Armor is always above the base player and below the weapon. */
+    const armorLayerDrawn=pdDrawEquipmentLayer(
+        pdDirectionalArmorVisuals,
+        equipmentState.armor,
+        direction,
+        playerDrawX,
+        playerDrawY,
+        playerDrawW,
+        playerDrawH,
+        alpha
+    );
+
+    /* XPR Lens is rendered as the top layer using its matching direction.
+       If another weapon is equipped, preserve the existing weapon system. */
+    const weaponLayerDrawn=pdDrawEquipmentLayer(
+        pdDirectionalWeaponVisuals,
+        equipmentState.weapon,
+        direction,
+        playerDrawX,
+        playerDrawY,
+        playerDrawW,
+        playerDrawH,
+        alpha
+    );
+
+    /* Existing weapon behavior remains for weapons without dedicated
+       directional overlay sprites. XPR Lens is handled exclusively above. */
+    if(!weaponLayerDrawn){
+        pdDrawBackWeapon();
+    }
 
     /*
        Player name.

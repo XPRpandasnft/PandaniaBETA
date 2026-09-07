@@ -1250,6 +1250,22 @@ const imageFiles={
     weapon4right:IMAGE_FOLDER+"../weaponsprites/rightlenssprite.png",
     weapon4up:IMAGE_FOLDER+"../weaponsprites/uplenssprite.png",
 
+    /* Golden Plate directional complete player sprites */
+    goldenPlateDown:IMAGE_FOLDER+"../armorsprites/downgoldenplatesprite.png",
+    goldenPlateLeft:IMAGE_FOLDER+"../armorsprites/leftgoldenplatesprite.png",
+    goldenPlateRight:IMAGE_FOLDER+"../armorsprites/rightgoldenplatesprite.png",
+    goldenPlateUp:IMAGE_FOLDER+"../armorsprites/upgoldenplatesprite.png",
+
+    /* Dedicated complete player sprites for exact armor + XPR Lens combinations */
+    comboPdaRobeLensUp:IMAGE_FOLDER+"../combinationsprites/uppdarobelenssprite.png",
+    comboPdaRobeLensDown:IMAGE_FOLDER+"../combinationsprites/downpdarobelenssprite.png",
+    comboPdaRobeLensLeft:IMAGE_FOLDER+"../combinationsprites/leftpdarobelenssprite.png",
+    comboPdaRobeLensRight:IMAGE_FOLDER+"../combinationsprites/rightpdarobelenssprite.png",
+    comboGoldenPlateLensDown:IMAGE_FOLDER+"../combinationsprites/downgoldenplatelenssprite.png",
+    comboGoldenPlateLensUp:IMAGE_FOLDER+"../combinationsprites/upgoldenplatelenssprite.png",
+    comboGoldenPlateLensLeft:IMAGE_FOLDER+"../combinationsprites/leftgoldenplatelenssprite.png",
+    comboGoldenPlateLensRight:IMAGE_FOLDER+"../combinationsprites/rightgoldenplatelenssprite.png",
+
     minimartshelf:IMAGE_FOLDER+"minimartshelf.png",
     lofijukebox:IMAGE_FOLDER+"lofijukebox.png",
     metalmonsterspecialattack:IMAGE_FOLDER+"metalmonsterspecialattack.png",
@@ -5713,6 +5729,12 @@ const pdDirectionalArmorVisuals={
         left:"armor3left",
         right:"armor3right",
         up:"armor3up"
+    },
+    "Golden Plate":{
+        down:"goldenPlateDown",
+        left:"goldenPlateLeft",
+        right:"goldenPlateRight",
+        up:"goldenPlateUp"
     }
 };
 
@@ -5726,23 +5748,23 @@ const pdDirectionalWeaponVisuals={
 };
 
 /*
-   EQUIPMENT SPRITE COMPOSITING
+   EQUIPMENT SPRITE SYSTEM
 
-   The directional PDA Cloak and XPR Lens source files are complete
-   player+equipment sprites. Therefore they must NOT be drawn over the
-   normal panda sprite by themselves: doing that creates the smaller
-   duplicate panda that was appearing on top.
+   The directional armor/weapon artwork is a COMPLETE player+equipment
+   sprite. A complete sprite replaces the normal panda; it is never drawn
+   over the normal panda and it is never pixel-extracted at runtime.
 
-   Rules:
-     - Nothing equipped -> draw the normal 48x48 directional panda.
-     - One item equipped -> draw that item's complete directional sprite.
-     - Both equipped -> draw the complete cloak sprite, then add only the
-       Lens pixels that differ from the same-direction base panda.
+   Dedicated combination sprites are also COMPLETE player sprites. When an
+   exact armor + weapon combination exists, that one sprite is used directly.
 
-   This keeps one, and only one, panda body visible while allowing both
-   equipment sets to appear together.
+   Priority:
+     1. Golden Plate + XPR Lens combination
+     2. PDA Cloak + XPR Lens combination
+     3. Golden Plate by itself
+     4. PDA Cloak by itself
+     5. XPR Lens by itself
+     6. Normal panda fallback
 */
-const pdEquipmentOverlayCache=Object.create(null);
 
 function pdLoadImage(key){
     if(!key)return null;
@@ -5756,109 +5778,75 @@ function pdLoadImage(key){
     return null;
 }
 
-/*
-   Build an equipment-ONLY image from the complete XPR Lens sprite.
-   The Lens files contain the panda too, so comparing them with the matching
-   base panda is necessary. The important extra rule here is that the Lens is
-   a hand-held item: only pixels in the appropriate hand/weapon area are ever
-   allowed into the overlay. This makes it impossible for a second panda body
-   to survive the extraction and appear over the PDA Cloak.
-*/
-function pdLensHandZone(direction,px,py,size){
-    const nx=px/size, ny=py/size;
-    if(direction==="left")  return nx>=0.00 && nx<=0.68 && ny>=0.22 && ny<=0.96;
-    if(direction==="right") return nx>=0.32 && nx<=1.00 && ny>=0.22 && ny<=0.96;
-    if(direction==="up")    return nx>=0.18 && nx<=0.82 && ny>=0.18 && ny<=0.90;
-    return nx>=0.18 && nx<=0.82 && ny>=0.20 && ny<=0.98;
-}
-
-function pdBuildEquipmentOverlay(equipmentKey,baseKey,direction){
-    const cacheKey=equipmentKey+"|"+baseKey+"|"+direction;
-    if(pdEquipmentOverlayCache[cacheKey])return pdEquipmentOverlayCache[cacheKey];
-
-    const equipmentImg=pdLoadImage(equipmentKey);
-    const baseImg=pdLoadImage(baseKey);
-    if(!equipmentImg||!baseImg)return null;
-
-    const size=PLAYER_SPRITE_SIZE;
-    const equipmentCanvas=document.createElement("canvas");
-    const baseCanvas=document.createElement("canvas");
-    const out=document.createElement("canvas");
-    equipmentCanvas.width=baseCanvas.width=out.width=size;
-    equipmentCanvas.height=baseCanvas.height=out.height=size;
-
-    const ec=equipmentCanvas.getContext("2d",{willReadFrequently:true});
-    const bc=baseCanvas.getContext("2d",{willReadFrequently:true});
-    const oc=out.getContext("2d");
-    ec.imageSmoothingEnabled=false;
-    bc.imageSmoothingEnabled=false;
-    ec.drawImage(equipmentImg,0,0,size,size);
-    bc.drawImage(baseImg,0,0,size,size);
-
-    const ed=ec.getImageData(0,0,size,size);
-    const bd=bc.getImageData(0,0,size,size);
-    const e=ed.data,b=bd.data;
-
-    for(let y=0;y<size;y++){
-        for(let x=0;x<size;x++){
-            const i=(y*size+x)*4;
-            if(e[i+3]===0){continue;}
-
-            /* Never allow pixels outside the hand/weapon region. */
-            if(!pdLensHandZone(direction,x,y,size)){
-                e[i+3]=0;
-                continue;
-            }
-
-            if(b[i+3]===0){continue;}
-
-            const dr=e[i]-b[i], dg=e[i+1]-b[i+1], db=e[i+2]-b[i+2];
-            const distance=Math.sqrt(dr*dr+dg*dg+db*db);
-
-            /* Remove the underlying panda even when anti-aliasing differs. */
-            if(distance<115)e[i+3]=0;
-        }
+const pdCombinationVisuals={
+    "Pda Cloak|XPR Lens":{
+        down:"comboPdaRobeLensDown",
+        left:"comboPdaRobeLensLeft",
+        right:"comboPdaRobeLensRight",
+        up:"comboPdaRobeLensUp"
+    },
+    "Golden Plate|XPR Lens":{
+        down:"comboGoldenPlateLensDown",
+        left:"comboGoldenPlateLensLeft",
+        right:"comboGoldenPlateLensRight",
+        up:"comboGoldenPlateLensUp"
     }
+};
 
-    oc.putImageData(ed,0,0);
-    pdEquipmentOverlayCache[cacheKey]=out;
-    return out;
-}
-
-function pdEquipmentOverlay(visualMap,equipmentName,direction,baseKey){
-    const map=visualMap[equipmentName];
-    if(!map)return null;
-    const key=map[direction];
-    if(!key)return null;
-    return pdBuildEquipmentOverlay(key,baseKey,direction);
+function pdEquipmentCombinationKey(armor,weapon){
+    if(!armor||!weapon)return null;
+    const direct=armor+"|"+weapon;
+    if(pdCombinationVisuals[direct])return direct;
+    const reverse=weapon+"|"+armor;
+    if(pdCombinationVisuals[reverse])return reverse;
+    return null;
 }
 
 function pdDrawCompleteEquipmentSprite(visualMap,equipmentName,direction,x,y,width,height,alpha){
-    const map=visualMap[equipmentName];
-    if(!map)return false;
-    const key=map[direction];
-    const img=pdLoadImage(key);
-    if(!img)return false;
-    ctx.save();
-    ctx.globalAlpha=alpha;
-    ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(img,x-width/2,y-height,width,height);
-    ctx.restore();
-    return true;
+    try{
+        const map=visualMap&&visualMap[equipmentName];
+        if(!map)return false;
+        const key=map[direction];
+        const img=pdLoadImage(key);
+        if(!img || !img.complete || img.naturalWidth<=0)return false;
+        if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(width)||!Number.isFinite(height))return false;
+        ctx.save();
+        ctx.globalAlpha=Number.isFinite(alpha)?alpha:1;
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(img,x-width/2,y-height,width,height);
+        ctx.restore();
+        return true;
+    }catch(err){
+        try{ctx.restore();}catch(e){}
+        console.warn("Equipment sprite draw skipped:",equipmentName,direction,err);
+        return false;
+    }
 }
 
-function pdDrawEquipmentLayer(visualMap,equipmentName,direction,x,y,width,height,alpha,baseKey){
-    const overlay=pdEquipmentOverlay(visualMap,equipmentName,direction,baseKey);
-    if(!overlay)return false;
-    ctx.save();
-    ctx.globalAlpha=alpha;
-    ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(overlay,x-width/2,y-height,width,height);
-    ctx.restore();
-    return true;
+function pdDrawCombinationSprite(armor,weapon,direction,x,y,width,height,alpha){
+    try{
+        const comboKey=pdEquipmentCombinationKey(armor,weapon);
+        if(!comboKey)return false;
+        const map=pdCombinationVisuals[comboKey];
+        const key=map&&map[direction];
+        const img=pdLoadImage(key);
+        if(!img || !img.complete || img.naturalWidth<=0)return false;
+        if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(width)||!Number.isFinite(height))return false;
+        ctx.save();
+        ctx.globalAlpha=Number.isFinite(alpha)?alpha:1;
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(img,x-width/2,y-height,width,height);
+        ctx.restore();
+        return true;
+    }catch(err){
+        try{ctx.restore();}catch(e){}
+        console.warn("Combination sprite draw skipped:",armor,weapon,direction,err);
+        return false;
+    }
 }
 
 function pdWeaponImage(key){
+
     return pdLoadImage(key);
 }
 
@@ -5943,24 +5931,47 @@ function drawPlayer(){
     const hasLens=equipmentState.weapon==="XPR Lens";
 
     /*
-       IMPORTANT:
-       The equipped directional files are complete player sprites, not
-       transparent equipment-only overlays. Never draw the normal panda
-       underneath a complete equipped sprite.
+       Equipment rendering uses complete directional sprites.
+       If a dedicated armor+weapon combination exists, that sprite takes
+       priority and replaces the entire player sprite for this frame.
     */
-    if(!hasCloak && !hasLens){
-        const drawn=drawSprite(
-            movementSprite,
+    if(hasCloak && hasLens){
+        const comboDrawn=pdDrawCombinationSprite(
+            "Pda Cloak",
+            "XPR Lens",
+            direction,
             playerDrawX,
             playerDrawY,
             playerDrawW,
             playerDrawH,
-            false,
+            alpha
+        );
+        if(!comboDrawn)drawFallbackPlayer();
+    }else if(equipmentState.armor==="Golden Plate" && hasLens){
+        const comboDrawn=pdDrawCombinationSprite(
+            "Golden Plate",
+            "XPR Lens",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
+            alpha
+        );
+        if(!comboDrawn)drawFallbackPlayer();
+    }else if(equipmentState.armor==="Golden Plate"){
+        const drawn=pdDrawCompleteEquipmentSprite(
+            pdDirectionalArmorVisuals,
+            "Golden Plate",
+            direction,
+            playerDrawX,
+            playerDrawY,
+            playerDrawW,
+            playerDrawH,
             alpha
         );
         if(!drawn)drawFallbackPlayer();
-    }else if(hasCloak && !hasLens){
-        /* PDA Cloak completely replaces the base panda sprite. */
+    }else if(hasCloak){
         const drawn=pdDrawCompleteEquipmentSprite(
             pdDirectionalArmorVisuals,
             "Pda Cloak",
@@ -5972,8 +5983,7 @@ function drawPlayer(){
             alpha
         );
         if(!drawn)drawFallbackPlayer();
-    }else if(!hasCloak && hasLens){
-        /* XPR Lens completely replaces the base panda sprite. */
+    }else if(hasLens){
         const drawn=pdDrawCompleteEquipmentSprite(
             pdDirectionalWeaponVisuals,
             "XPR Lens",
@@ -5986,48 +5996,16 @@ function drawPlayer(){
         );
         if(!drawn)drawFallbackPlayer();
     }else{
-        /*
-           Both equipped:
-           1. Draw the complete PDA Cloak sprite as the body/base.
-           2. Extract only the XPR Lens pixels relative to the same base panda
-              and place those pixels on top of the cloak.
-           This combines both outfits without ever drawing a second panda.
-        */
-        const cloakDrawn=pdDrawCompleteEquipmentSprite(
-            pdDirectionalArmorVisuals,
-            "Pda Cloak",
-            direction,
+        const drawn=drawSprite(
+            movementSprite,
             playerDrawX,
             playerDrawY,
             playerDrawW,
             playerDrawH,
+            false,
             alpha
         );
-
-        if(!cloakDrawn){
-            const fallback=drawSprite(
-                movementSprite,
-                playerDrawX,
-                playerDrawY,
-                playerDrawW,
-                playerDrawH,
-                false,
-                alpha
-            );
-            if(!fallback)drawFallbackPlayer();
-        }
-
-        pdDrawEquipmentLayer(
-            pdDirectionalWeaponVisuals,
-            "XPR Lens",
-            direction,
-            playerDrawX,
-            playerDrawY,
-            playerDrawW,
-            playerDrawH,
-            alpha,
-            movementSprite
-        );
+        if(!drawn)drawFallbackPlayer();
     }
 
     ctx.save();

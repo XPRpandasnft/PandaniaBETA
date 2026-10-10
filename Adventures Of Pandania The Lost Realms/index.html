@@ -8194,8 +8194,6 @@ requestAnimationFrame(
 
 
 
-
-
 /* ===== PANDANIA FINAL STABLE PATCH v11 ===== */
 (function(){
   'use strict';
@@ -8431,18 +8429,30 @@ requestAnimationFrame(
 <script>
 (function(){
   const wrap=document.getElementById("gameWrap");
-  if(!wrap||document.getElementById("pandaniaAttackRestore"))return;
-  const b=document.createElement("button");
-  b.id="pandaniaAttackRestore";
-  b.type="button";
-  b.setAttribute("aria-label","Sword attack");
-  b.textContent="⚔️";
-  b.style.display="none";
-  wrap.appendChild(b);
-  b.addEventListener("pointerdown",e=>{
-    e.preventDefault();e.stopPropagation();
-    swordAttack();
-  },{passive:false});
+  if(!wrap)return;
+  /* Reuse the button already present in the page; the old early return
+     skipped its attack listener on mobile. */
+  let b=document.getElementById("pandaniaAttackRestore");
+  if(!b){
+    b=document.createElement("button");
+    b.id="pandaniaAttackRestore";
+    b.type="button";
+    b.setAttribute("aria-label","Sword attack");
+    b.textContent="⚔️";
+    b.style.display="none";
+    wrap.appendChild(b);
+  }
+  if(!b.dataset.attackHandlerBound){
+    b.dataset.attackHandlerBound="1";
+    const attack=e=>{
+      if(e){e.preventDefault();e.stopPropagation();}
+      if(typeof window.swordAttack==="function")window.swordAttack();
+    };
+    b.addEventListener("pointerdown",attack,{passive:false});
+    /* Fallback for mobile browsers that do not dispatch Pointer Events reliably. */
+    b.addEventListener("touchstart",attack,{passive:false});
+    b.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();},false);
+  }
   function sync(){
     const mob=matchMedia("(pointer:coarse)").matches||matchMedia("(max-width:700px)").matches;
     const started=typeof gameStarted!=="undefined"&&gameStarted;
@@ -9720,227 +9730,6 @@ requestAnimationFrame(
 })();
 </script>
 <!-- ===== END PANDANIA FINAL DUNGEON / TOWN ARRANGEMENT FIX ===== -->
-
-
-
-
-<!-- ===== PANDANIA DUNGEON / TOWN ACCESS UPDATE ===== -->
-<script>
-(function(){
-'use strict';
-
-/* Requested assets live in images/environments/; fall back to images/ if needed. */
-['dungeongem','metalmonsterspecialattack'].forEach(function(key){
-  const paths=[IMAGE_FOLDER+'environments/'+key+'.png',IMAGE_FOLDER+key+'.png'];
-  (function tryLoad(i){
-    if(i>=paths.length)return;
-    const img=new Image();
-    img.onload=function(){images[key]=img;imageFiles[key]=paths[i];};
-    img.onerror=function(){tryLoad(i+1);};
-    img.src=paths[i];
-  })(0);
-});
-
-function inMart(){return !!(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart());}
-function zoomFactor(){return typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;}
-function canvasWorldPoint(e){
-  const rect=canvas.getBoundingClientRect();
-  const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);
-  const z=zoomFactor();
-  return {x:camera.x+sx/z,y:camera.y+sy/z};
-}
-function rectDistance(x,y,r){
-  const cx=Math.max(r.x,Math.min(x,r.x+r.w)),cy=Math.max(r.y,Math.min(y,r.y+r.h));
-  return Math.hypot(x-cx,y-cy);
-}
-
-/* Floating messages drawn next to a world object (plus the normal message bar). */
-const worldNotes=[];
-const noteTimes={};
-function noteAt(id,text,x,y){
-  const now=performance.now();
-  if(noteTimes[id]&&now-noteTimes[id]<1500)return;
-  noteTimes[id]=now;
-  showMessage(text);
-  for(let i=worldNotes.length-1;i>=0;i--)if(worldNotes[i].id===id)worldNotes.splice(i,1);
-  worldNotes.push({id,text,x,y,until:now+2600});
-}
-
-/* ---------- Solid dungeon boundary: no walking along the outer rock ---------- */
-const prevBlocked=blocked;
-blocked=function(x,y,r=player.r){
-  if(inDungeon&&!inHouse&&!inMart()){
-    if(x-r<80||x+r>dungeon.width-80||y-r<85||y+r>dungeon.height-85)return true;
-  }
-  return prevBlocked(x,y,r);
-};
-
-/* ---------- Second dungeon entrance is closed ---------- */
-const lockedEntrance=dungeonEntrances.find(e=>e.image==='dungeonentrance2');
-function refuseLockedEntrance(){
-  noteAt('pk','PK is off limits for now!',lockedEntrance.x,lockedEntrance.y-80);
-  const dx=player.x-lockedEntrance.x,dy=player.y-lockedEntrance.y,d=Math.hypot(dx,dy)||1;
-  if(d<75){
-    const nx=lockedEntrance.x+dx/d*76,ny=lockedEntrance.y+(d<1?76:dy/d*76);
-    if(!blocked(nx,ny)){player.x=nx;player.y=ny;}
-  }
-  player.targetX=null;player.targetY=null;
-}
-const prevEnterDungeon=enterDungeon;
-enterDungeon=function(entrance){
-  if(lockedEntrance&&entrance===lockedEntrance){refuseLockedEntrance();return;}
-  return prevEnterDungeon.apply(this,arguments);
-};
-
-/* ---------- Grand Exchange is closed ---------- */
-const geBuilding=environment.buildings.find(b=>b.grandExchange);
-function geClosed(){
-  const x=geBuilding?geBuilding.x+geBuilding.w/2:grandExchangeLocation.x;
-  const y=geBuilding?geBuilding.y-18:grandExchangeLocation.y-120;
-  noteAt('ge','Currently Closed!',x,y);
-}
-openExchange=function(){geClosed();};
-const prevEnterHouse=enterHouse;
-enterHouse=function(h){
-  if(h&&h.grandExchange){geClosed();return;}
-  return prevEnterHouse.apply(this,arguments);
-};
-
-/* ---------- Your House: walk-in, click/tap and walk-out ---------- */
-const myHouse=environment.buildings.find(b=>b.playerHouse);
-let houseDoorArmed=true,houseExitArmed=false;
-const prevLeaveHouse=leaveHouse;
-leaveHouse=function(){
-  const was=activeHouse;
-  const r=prevLeaveHouse.apply(this,arguments);
-  if(was&&was.playerHouse&&blocked(player.x,player.y)){player.x=was.doorX;player.y=was.doorY+30;}
-  houseDoorArmed=false;
-  return r;
-};
-
-/* Standing right at the door, E enters the house even if an NPC is wandering nearby. */
-const prevInteract=interact;
-interact=function(){
-  if(!inDungeon&&!inHouse&&!inMart()&&myHouse&&Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY)<50){houseExitArmed=false;enterHouse(myHouse);return;}
-  return prevInteract.apply(this,arguments);
-};
-
-/* ---------- Gems: walk over (or click) to collect through the normal pickup system ---------- */
-function collectGem(i){
-  const gems=window.__pandaniaDungeonGems||[];
-  const g=gems[i];if(!g)return;
-  if(!inventory['Dungeon Gem'])inventory['Dungeon Gem']={icon:'💎',image:'dungeongem',count:0};
-  if(collectDrop({name:'Dungeon Gem',icon:'💎',image:'dungeongem',x:g.x,y:g.y}))gems.splice(i,1);
-}
-
-const prevLeaveDungeon=leaveDungeon;
-leaveDungeon=function(){
-  const r=prevLeaveDungeon.apply(this,arguments);
-  if(!inDungeon){window.__pandaniaDungeonGems=[];window.__pandaniaBossArena=null;window.__boss4SpecialAttacks&&(window.__boss4SpecialAttacks.length=0);}
-  return r;
-};
-
-const prevUpdatePlayer=updatePlayer;
-updatePlayer=function(){
-  prevUpdatePlayer();
-  if(inMart())return;
-  if(inDungeon){
-    const gems=window.__pandaniaDungeonGems||[];
-    for(let i=gems.length-1;i>=0;i--){
-      if(Math.hypot(player.x-gems[i].x,player.y-(gems[i].y-8))<34){collectGem(i);break;}
-    }
-    return;
-  }
-  if(inHouse){
-    const d=Math.hypot(player.x-houseInterior.exitX,player.y-houseInterior.exitY);
-    if(d>90)houseExitArmed=true;
-    if(houseExitArmed&&d<48){houseExitArmed=false;leaveHouse();}
-    return;
-  }
-  if(myHouse){
-    const d=Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY);
-    if(d>45)houseDoorArmed=true;
-    if(houseDoorArmed&&d<34&&player.moving){houseDoorArmed=false;houseExitArmed=false;enterHouse(myHouse);return;}
-  }
-  if(geBuilding&&player.moving&&rectDistance(player.x,player.y,geBuilding)<player.r+6)geClosed();
-};
-
-/* ---------- Monsters: bosses stay in their arenas; floors 3-4 attack faster ---------- */
-const prevUpdateMonsters=updateMonsters;
-updateMonsters=function(){
-  prevUpdateMonsters();
-  if(!inDungeon||!Array.isArray(monsters))return;
-  const level=window.__pandaniaDungeonLevel||1,a=window.__pandaniaBossArena;
-  for(const m of monsters){
-    if(m.boss&&level>=2&&a){
-      m.x=Math.max(a.x+m.r,Math.min(a.x+a.w-m.r,m.x));
-      m.y=Math.max(a.y+m.r,Math.min(a.y+a.h-m.r,m.y));
-    }
-    if(level>=3&&!m.boss){
-      const cd=m.attackCooldown||0;
-      if(cd>(m.__pandaniaLastCd||0)+1)m.attackCooldown=Math.max(12,Math.round(cd*.6));
-      m.__pandaniaLastCd=m.attackCooldown;
-    }
-  }
-};
-
-/* ---------- Clicks / taps (captured before the movement blocker) ---------- */
-document.addEventListener('pointerdown',function(e){
-  if(e.target!==canvas||!gameStarted||inMart())return;
-  const p=canvasWorldPoint(e);
-  let handled=false;
-  if(inDungeon){
-    const gems=window.__pandaniaDungeonGems||[];
-    for(let i=gems.length-1;i>=0;i--){
-      if(Math.hypot(p.x-gems[i].x,p.y-(gems[i].y-20))<40){
-        if(Math.hypot(player.x-gems[i].x,player.y-gems[i].y)<130)collectGem(i);
-        else showMessage('💎 Move closer to pick up the gem.');
-        handled=true;break;
-      }
-    }
-  }else if(inHouse){
-    if(Math.hypot(p.x-houseInterior.exitX,p.y-houseInterior.exitY)<85){leaveHouse();handled=true;}
-  }else{
-    if(lockedEntrance&&Math.hypot(p.x-lockedEntrance.x,p.y-lockedEntrance.y)<100){refuseLockedEntrance();handled=true;}
-    else if(geBuilding&&(rectDistance(p.x,p.y,geBuilding)<12||Math.hypot(p.x-geBuilding.doorX,p.y-geBuilding.doorY)<60)){geClosed();handled=true;}
-    else if(myHouse&&(rectDistance(p.x,p.y,myHouse)<12||Math.hypot(p.x-myHouse.doorX,p.y-myHouse.doorY)<60)){
-      if(Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY)<140){houseExitArmed=false;enterHouse(myHouse);}
-      else showMessage('🏠 Walk up to the door of Your House to go inside.');
-      handled=true;
-    }
-  }
-  if(handled){e.preventDefault();e.stopImmediatePropagation();}
-},true);
-
-/* ---------- Draw floating notes in the overworld ---------- */
-const prevDraw=draw;
-window.draw=draw=function(){
-  const r=prevDraw.apply(this,arguments);
-  if(inDungeon||inHouse||inMart()||!worldNotes.length)return r;
-  const now=performance.now(),z=zoomFactor();
-  ctx.save();ctx.setTransform(1,0,0,1,0,0);
-  for(let i=worldNotes.length-1;i>=0;i--){
-    const n=worldNotes[i];
-    if(now>n.until){worldNotes.splice(i,1);continue;}
-    const x=(n.x-camera.x)*z,y=(n.y-camera.y)*z;
-    ctx.globalAlpha=Math.min(1,(n.until-now)/400);
-    ctx.font='bold 20px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';
-    const w=ctx.measureText(n.text).width+28;
-    ctx.fillStyle='rgba(20,14,10,.85)';ctx.fillRect(x-w/2,y-18,w,36);
-    ctx.strokeStyle='#d7b17c';ctx.lineWidth=2;ctx.strokeRect(x-w/2,y-18,w,36);
-    ctx.fillStyle='#fff';ctx.fillText(n.text,x,y+1);
-  }
-  ctx.restore();
-  return r;
-};
-
-window.__pandaniaAccessUpdate=true;
-})();
-</script>
-<!-- ===== END PANDANIA DUNGEON / TOWN ACCESS UPDATE ===== -->
-<script type="module" src="./Adventures Of Pandania The Lost Realms_files/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;7f7b0fd8732c4326aae4b9d58d5c514a&quot;,&quot;spa&quot;:2}" crossorigin="anonymous"></script>
-
-
 <!-- ===== PANDANIA MOBILE CRIT/ZOOM PATCH v12 ===== -->
 <script>
 (function(){
@@ -10353,143 +10142,221 @@ document.addEventListener('click',function(e){const t=e.target;if(t&&((t.id==='p
 window.addEventListener('resize',function(){setTimeout(refreshSameRenderer,50)},{passive:true});window.addEventListener('orientationchange',function(){setTimeout(refreshSameRenderer,100)},{passive:true});})();
 </script>
 <!-- ===== END PANDANIA V14 FINAL FIXES ===== -->
+<!-- ===== PANDANIA DUNGEON / TOWN ACCESS UPDATE ===== -->
+<script>
+(function(){
+'use strict';
 
-<!-- ===== PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<script>
-(function(){'use strict';
-window.__boss4EarthquakeFrames=window.__boss4EarthquakeFrames||0;window.__boss4EarthquakeStrength=4.5;
-const priorMonsterUpdate=updateMonsters;
-updateMonsters=function(){
-  priorMonsterUpdate();
-  if(!inDungeon){window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return;}
-  if(typeof dungeonLevel!=='undefined'&&dungeonLevel===4){
-    for(const m of monsters){if(m.type!=='boss4')continue;const cd=m.__stableMeteorCooldown;if(typeof cd==='number'&&cd>0&&cd<=60&&!m.__boss4ShakeWarned){m.__boss4ShakeWarned=true;window.__boss4EarthquakeFrames=24;if(typeof showMessage==='function')showMessage('🌋 The dungeon begins to shake...');}if(typeof cd==='number'&&cd>60)m.__boss4ShakeWarned=false;}
-    if(Array.isArray(window.__stableMetalMeteors)){
-      const z=typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1,visibleH=H/Math.max(.1,z),ceilingY=Math.max(90,(camera.y-visibleH/2)-110);
-      for(const q of window.__stableMetalMeteors){if(!q.__ceilingSpawnFixed){q.__ceilingSpawnFixed=true;q.x=Math.max(95,Math.min(dungeon.width-95,q.x));q.y=ceilingY-Math.random()*80;q.life=220;q.dropSpeed=12.5;}if(q.dropSpeed)q.y+=q.dropSpeed-9.5;}
-    }
-  }else if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;
-  if(window.__boss4EarthquakeFrames>0)window.__boss4EarthquakeFrames--;
+/* Requested assets live in images/environments/; fall back to images/ if needed. */
+['dungeongem','metalmonsterspecialattack'].forEach(function(key){
+  const paths=[IMAGE_FOLDER+'environments/'+key+'.png',IMAGE_FOLDER+key+'.png'];
+  (function tryLoad(i){
+    if(i>=paths.length)return;
+    const img=new Image();
+    img.onload=function(){images[key]=img;imageFiles[key]=paths[i];};
+    img.onerror=function(){tryLoad(i+1);};
+    img.src=paths[i];
+  })(0);
+});
+
+function inMart(){return !!(window.__pandaniaInMiniMart&&window.__pandaniaInMiniMart());}
+function zoomFactor(){return typeof pandaniaMobileZoom==='function'?pandaniaMobileZoom():1;}
+function canvasWorldPoint(e){
+  const rect=canvas.getBoundingClientRect();
+  const sx=(e.clientX-rect.left)*(W/rect.width),sy=(e.clientY-rect.top)*(H/rect.height);
+  const z=zoomFactor();
+  return {x:camera.x+sx/z,y:camera.y+sy/z};
+}
+function rectDistance(x,y,r){
+  const cx=Math.max(r.x,Math.min(x,r.x+r.w)),cy=Math.max(r.y,Math.min(y,r.y+r.h));
+  return Math.hypot(x-cx,y-cy);
+}
+
+/* Floating messages drawn next to a world object (plus the normal message bar). */
+const worldNotes=[];
+const noteTimes={};
+function noteAt(id,text,x,y){
+  const now=performance.now();
+  if(noteTimes[id]&&now-noteTimes[id]<1500)return;
+  noteTimes[id]=now;
+  showMessage(text);
+  for(let i=worldNotes.length-1;i>=0;i--)if(worldNotes[i].id===id)worldNotes.splice(i,1);
+  worldNotes.push({id,text,x,y,until:now+2600});
+}
+
+/* ---------- Solid dungeon boundary: no walking along the outer rock ---------- */
+const prevBlocked=blocked;
+blocked=function(x,y,r=player.r){
+  if(inDungeon&&!inHouse&&!inMart()){
+    if(x-r<80||x+r>dungeon.width-80||y-r<85||y+r>dungeon.height-85)return true;
+  }
+  return prevBlocked(x,y,r);
 };
-window.__pandaniaFloorBossSpawned=window.__pandaniaFloorBossSpawned||false;
-const priorSpawnDungeonLevel=spawnDungeonLevel;
-spawnDungeonLevel=function(level){dungeonStairOpen=false;window.__pandaniaFloorBossSpawned=true;window.__boss4EarthquakeFrames=0;if(Array.isArray(window.__stableMetalMeteors))window.__stableMetalMeteors.length=0;return priorSpawnDungeonLevel(level);};
-const priorPlayerUpdate=updatePlayer;
+
+/* ---------- Second dungeon entrance is closed ---------- */
+const lockedEntrance=dungeonEntrances.find(e=>e.image==='dungeonentrance2');
+function refuseLockedEntrance(){
+  noteAt('pk','PK is off limits for now!',lockedEntrance.x,lockedEntrance.y-80);
+  const dx=player.x-lockedEntrance.x,dy=player.y-lockedEntrance.y,d=Math.hypot(dx,dy)||1;
+  if(d<75){
+    const nx=lockedEntrance.x+dx/d*76,ny=lockedEntrance.y+(d<1?76:dy/d*76);
+    if(!blocked(nx,ny)){player.x=nx;player.y=ny;}
+  }
+  player.targetX=null;player.targetY=null;
+}
+const prevEnterDungeon=enterDungeon;
+enterDungeon=function(entrance){
+  if(lockedEntrance&&entrance===lockedEntrance){refuseLockedEntrance();return;}
+  return prevEnterDungeon.apply(this,arguments);
+};
+
+/* ---------- Grand Exchange is closed ---------- */
+const geBuilding=environment.buildings.find(b=>b.grandExchange);
+function geClosed(){
+  const x=geBuilding?geBuilding.x+geBuilding.w/2:grandExchangeLocation.x;
+  const y=geBuilding?geBuilding.y-18:grandExchangeLocation.y-120;
+  noteAt('ge','Currently Closed!',x,y);
+}
+openExchange=function(){geClosed();};
+const prevEnterHouse=enterHouse;
+enterHouse=function(h){
+  if(h&&h.grandExchange){geClosed();return;}
+  return prevEnterHouse.apply(this,arguments);
+};
+
+/* ---------- Your House: walk-in, click/tap and walk-out ---------- */
+const myHouse=environment.buildings.find(b=>b.playerHouse);
+let houseDoorArmed=true,houseExitArmed=false;
+const prevLeaveHouse=leaveHouse;
+leaveHouse=function(){
+  const was=activeHouse;
+  const r=prevLeaveHouse.apply(this,arguments);
+  if(was&&was.playerHouse&&blocked(player.x,player.y)){player.x=was.doorX;player.y=was.doorY+30;}
+  houseDoorArmed=false;
+  return r;
+};
+
+/* Standing right at the door, E enters the house even if an NPC is wandering nearby. */
+const prevInteract=interact;
+interact=function(){
+  if(!inDungeon&&!inHouse&&!inMart()&&myHouse&&Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY)<50){houseExitArmed=false;enterHouse(myHouse);return;}
+  return prevInteract.apply(this,arguments);
+};
+
+/* ---------- Gems: walk over (or click) to collect through the normal pickup system ---------- */
+function collectGem(i){
+  const gems=window.__pandaniaDungeonGems||[];
+  const g=gems[i];if(!g)return;
+  if(!inventory['Dungeon Gem'])inventory['Dungeon Gem']={icon:'💎',image:'dungeongem',count:0};
+  if(collectDrop({name:'Dungeon Gem',icon:'💎',image:'dungeongem',x:g.x,y:g.y}))gems.splice(i,1);
+}
+
+const prevLeaveDungeon=leaveDungeon;
+leaveDungeon=function(){
+  const r=prevLeaveDungeon.apply(this,arguments);
+  if(!inDungeon){window.__pandaniaDungeonGems=[];window.__pandaniaBossArena=null;window.__boss4SpecialAttacks&&(window.__boss4SpecialAttacks.length=0);}
+  return r;
+};
+
+const prevUpdatePlayer=updatePlayer;
 updatePlayer=function(){
-  priorPlayerUpdate();if(!inDungeon||!window.__pandaniaFloorBossSpawned||dungeonStairOpen)return;
-  if(!monsters.some(m=>m.boss&&(m.dungeonLevel||1)===dungeonLevel)){dungeonStairOpen=true;if(typeof showMessage==='function')showMessage(dungeonLevel<4?'⬇️ The downward stairs have opened!':'🏆 Metal Monster defeated! The dungeon stairs are now visible.');}
-};
-function renderGroundedMonster(m){
-  const floating=m.type==='boss3'||m.type==='roamer1',size=m.type==='roamer1'?110:(m.boss?120:65),off=floating?0:12;
-  if(floating){ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(m.x,m.y+5,m.r+5,8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-  const drawn=drawSprite(m.image,m.x,m.y+off,size,size,false,1);
-  if(!drawn){ctx.fillStyle=m.boss?'#5b1d32':'#75a83f';ctx.beginPath();ctx.arc(m.x,m.y+off-25,m.boss?40:22,0,Math.PI*2);ctx.fill();}
-  const bw=(m.boss||m.type==='roamer1')?110:50;ctx.fillStyle='#191919';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw,7);ctx.fillStyle=m.boss?'#d7263d':'#e74c3c';ctx.fillRect(m.x-bw/2,m.y+off-size-8,bw*Math.max(0,m.hp/m.maxHp),7);ctx.fillStyle='#fff';ctx.font=m.boss?'bold 13px Arial':'9px Arial';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y+off-size-12);if(m.boss){ctx.fillStyle='#ffd36b';ctx.font='bold 11px Arial';ctx.fillText('BOSS',m.x,m.y+off-size-27);}if(m.hitFlash){ctx.fillStyle='rgba(255,70,70,.35)';ctx.beginPath();ctx.arc(m.x,m.y+off-30,size*.45,0,Math.PI*2);ctx.fill();}
-}
-drawMonster=function(m){renderGroundedMonster(m);};drawStableMonster=function(m){renderGroundedMonster(m);};
-const priorStableDungeonRenderer=drawStableDungeon;
-drawStableDungeon=function(){
-  if(window.__boss4EarthquakeFrames>0&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4){const ox=camera.x,oy=camera.y,s=window.__boss4EarthquakeStrength;camera.x=ox+(Math.random()*2-1)*s;camera.y=oy+(Math.random()*2-1)*s;try{priorStableDungeonRenderer();}finally{camera.x=ox;camera.y=oy;}}else priorStableDungeonRenderer();
-};
-window.__pandaniaFinalBoss4DungeonFix=true;
-})();
-</script>
-<!-- ===== END PANDANIA FINAL BOSS4 / STAIRS / GROUNDING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<script>
-(function(){'use strict';
-if(typeof window.__finalBoss4Meteors==='undefined')window.__finalBoss4Meteors=[];
-window.__boss4TelegraphVersion='v2';
-const oldFinalBoss4Tick=window.__finalBoss4Tick;
-if(typeof oldFinalBoss4Tick!=='function')return;
-window.__finalBoss4Tick=function(){
-  const now=performance.now();
-  oldFinalBoss4Tick();
-  const list=window.__finalBoss4Meteors;
-  for(const q of list){
-    if(q.warningUntil===undefined){q.warningUntil=now+1000;q.dropAt=q.warningUntil;q.active=false;q.impacted=false;}
+  prevUpdatePlayer();
+  if(inMart())return;
+  if(inDungeon){
+    const gems=window.__pandaniaDungeonGems||[];
+    for(let i=gems.length-1;i>=0;i--){
+      if(Math.hypot(player.x-gems[i].x,player.y-(gems[i].y-8))<34){collectGem(i);break;}
+    }
+    return;
   }
+  if(inHouse){
+    const d=Math.hypot(player.x-houseInterior.exitX,player.y-houseInterior.exitY);
+    if(d>90)houseExitArmed=true;
+    if(houseExitArmed&&d<48){houseExitArmed=false;leaveHouse();}
+    return;
+  }
+  if(myHouse){
+    const d=Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY);
+    if(d>45)houseDoorArmed=true;
+    if(houseDoorArmed&&d<34&&player.moving){houseDoorArmed=false;houseExitArmed=false;enterHouse(myHouse);return;}
+  }
+  if(geBuilding&&player.moving&&rectDistance(player.x,player.y,geBuilding)<player.r+6)geClosed();
 };
-const oldFinalBoss4DrawWorld=window.__finalBoss4DrawWorld;
-window.__finalBoss4DrawWorld=function(){
-  if(typeof oldFinalBoss4DrawWorld!=='function')return;
-  if(!(inDungeon&&typeof dungeonLevel!=='undefined'&&dungeonLevel===4))return;
-  const now=performance.now();
-  const list=window.__finalBoss4Meteors||[];
-  for(const q of list){
-    if(q.warningUntil!==undefined&&now<q.warningUntil){
-      ctx.save();
-      ctx.globalAlpha=.72+Math.sin(now/100)*.12;
-      ctx.fillStyle='rgba(0,0,0,.62)';
-      ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=8;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
+
+/* ---------- Monsters: bosses stay in their arenas; floors 3-4 attack faster ---------- */
+const prevUpdateMonsters=updateMonsters;
+updateMonsters=function(){
+  prevUpdateMonsters();
+  if(!inDungeon||!Array.isArray(monsters))return;
+  const level=window.__pandaniaDungeonLevel||1,a=window.__pandaniaBossArena;
+  for(const m of monsters){
+    if(m.boss&&level>=2&&a){
+      m.x=Math.max(a.x+m.r,Math.min(a.x+a.w-m.r,m.x));
+      m.y=Math.max(a.y+m.r,Math.min(a.y+a.h-m.r,m.y));
+    }
+    if(level>=3&&!m.boss){
+      const cd=m.attackCooldown||0;
+      if(cd>(m.__pandaniaLastCd||0)+1)m.attackCooldown=Math.max(12,Math.round(cd*.6));
+      m.__pandaniaLastCd=m.attackCooldown;
     }
   }
-  oldFinalBoss4DrawWorld();
 };
-})();
-</script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH / IMAGE TIMING FIX ===== -->
-<!-- ===== BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
-<script>
-(function(){'use strict';
-window.__finalBoss4Meteors=window.__finalBoss4Meteors||[];
-window.__boss4MeteorNext=window.__boss4MeteorNext||0;
-window.__boss4MeteorImage=window.__boss4MeteorImage||null;
-function boss4HasBoss(){return inDungeon&&typeof dungeonLevel!=="undefined"&&dungeonLevel===4&&Array.isArray(monsters)&&monsters.some(function(m){return m.type==="boss4"&&m.hp>0;});}
-function boss4Image(){if(window.__boss4MeteorImage)return window.__boss4MeteorImage;var img=new Image();img.onload=function(){window.__boss4MeteorImage=img;};img.src="./images/metalmonsterspecialattack.png";return img;}
-window.__finalBoss4Tick=function(){
-  if(!boss4HasBoss()){window.__finalBoss4Meteors.length=0;window.__boss4MeteorNext=0;return;}
-  var now=performance.now();
-  if(!window.__boss4MeteorNext)window.__boss4MeteorNext=now+2500;
-  if(now>=window.__boss4MeteorNext){
-    for(var i=0;i<3;i++){
-      var x=140+Math.random()*Math.max(1,dungeon.width-280);
-      var targetY=150+Math.random()*Math.max(1,dungeon.height-300);
-      window.__finalBoss4Meteors.push({x:x,targetY:targetY,y:-150-Math.random()*80,vy:12.5,warningUntil:now+1000,active:false,impacted:false,impactUntil:0,damage:48,radius:24});
-    }
-    window.__boss4MeteorNext=now+2500;
-    if(typeof bossSound==="function")bossSound();
-  }
-  for(var j=window.__finalBoss4Meteors.length-1;j>=0;j--){
-    var q=window.__finalBoss4Meteors[j];
-    if(!q.active&&!q.impacted&&now>=q.warningUntil)q.active=true;
-    if(q.active){
-      q.y+=q.vy;
-      if(q.y>=q.targetY){
-        q.y=q.targetY;q.active=false;q.impacted=true;q.impactUntil=now+220;
-        if(Math.hypot(player.x-q.x,player.y-q.targetY)<=q.radius&&player.invincible<=0){
-          player.hp-=q.damage;addDamageNumber(player.x,player.y-48,q.damage,'#fff');player.invincible=30;if(typeof hitSound==="function")hitSound();if(player.hp<=0)respawnPlayer();
-        }
+
+/* ---------- Clicks / taps (captured before the movement blocker) ---------- */
+document.addEventListener('pointerdown',function(e){
+  if(e.target!==canvas||!gameStarted||inMart())return;
+  const p=canvasWorldPoint(e);
+  let handled=false;
+  if(inDungeon){
+    const gems=window.__pandaniaDungeonGems||[];
+    for(let i=gems.length-1;i>=0;i--){
+      if(Math.hypot(p.x-gems[i].x,p.y-(gems[i].y-20))<40){
+        if(Math.hypot(player.x-gems[i].x,player.y-gems[i].y)<130)collectGem(i);
+        else showMessage('💎 Move closer to pick up the gem.');
+        handled=true;break;
       }
-    }else if(q.impacted&&now>q.impactUntil)window.__finalBoss4Meteors.splice(j,1);
+    }
+  }else if(inHouse){
+    if(Math.hypot(p.x-houseInterior.exitX,p.y-houseInterior.exitY)<85){leaveHouse();handled=true;}
+  }else{
+    if(lockedEntrance&&Math.hypot(p.x-lockedEntrance.x,p.y-lockedEntrance.y)<100){refuseLockedEntrance();handled=true;}
+    else if(geBuilding&&(rectDistance(p.x,p.y,geBuilding)<12||Math.hypot(p.x-geBuilding.doorX,p.y-geBuilding.doorY)<60)){geClosed();handled=true;}
+    else if(myHouse&&(rectDistance(p.x,p.y,myHouse)<12||Math.hypot(p.x-myHouse.doorX,p.y-myHouse.doorY)<60)){
+      if(Math.hypot(player.x-myHouse.doorX,player.y-myHouse.doorY)<140){houseExitArmed=false;enterHouse(myHouse);}
+      else showMessage('🏠 Walk up to the door of Your House to go inside.');
+      handled=true;
+    }
   }
+  if(handled){e.preventDefault();e.stopImmediatePropagation();}
+},true);
+
+/* ---------- Draw floating notes in the overworld ---------- */
+const prevDraw=draw;
+window.draw=draw=function(){
+  const r=prevDraw.apply(this,arguments);
+  if(inDungeon||inHouse||inMart()||!worldNotes.length)return r;
+  const now=performance.now(),z=zoomFactor();
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);
+  for(let i=worldNotes.length-1;i>=0;i--){
+    const n=worldNotes[i];
+    if(now>n.until){worldNotes.splice(i,1);continue;}
+    const x=(n.x-camera.x)*z,y=(n.y-camera.y)*z;
+    ctx.globalAlpha=Math.min(1,(n.until-now)/400);
+    ctx.font='bold 20px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';
+    const w=ctx.measureText(n.text).width+28;
+    ctx.fillStyle='rgba(20,14,10,.85)';ctx.fillRect(x-w/2,y-18,w,36);
+    ctx.strokeStyle='#d7b17c';ctx.lineWidth=2;ctx.strokeRect(x-w/2,y-18,w,36);
+    ctx.fillStyle='#fff';ctx.fillText(n.text,x,y+1);
+  }
+  ctx.restore();
+  return r;
 };
-window.__finalBoss4DrawWorld=function(){
-  if(!boss4HasBoss())return;
-  window.__finalBoss4Tick();
-  var now=performance.now(),img=boss4Image();
-  for(var i=0;i<window.__finalBoss4Meteors.length;i++){
-    var q=window.__finalBoss4Meteors[i];ctx.save();
-    if(!q.impacted&&now<q.warningUntil){
-      ctx.globalAlpha=.68+Math.sin(now/90)*.12;ctx.fillStyle="rgba(0,0,0,.65)";ctx.shadowColor="rgba(0,0,0,.95)";ctx.shadowBlur=9;ctx.beginPath();ctx.arc(q.x,q.targetY,24,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.targetY,23,0,Math.PI*2);ctx.stroke();
-    }
-    if(q.active){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=32;
-      if(img&&img.complete&&img.naturalWidth>0){ctx.imageSmoothingEnabled=false;ctx.drawImage(img,q.x-42,q.y-84,84,84);}
-    }else if(q.impacted&&now<q.impactUntil){
-      ctx.globalAlpha=.95;ctx.shadowColor="#b13cff";ctx.shadowBlur=36;
-      if(img&&img.complete&&img.naturalWidth>0){var w=84*(1+(1-(q.impactUntil-now)/220)*.35);ctx.drawImage(img,q.x-w/2,q.y-w/2,w,w);}
-    }
-    ctx.restore();
-  }
-}
+
+window.__pandaniaAccessUpdate=true;
 })();
 </script>
-<!-- ===== END BOSS4 METEOR TELEGRAPH FINAL AUTHORITATIVE LAYER ===== -->
+<!-- ===== END PANDANIA DUNGEON / TOWN ACCESS UPDATE ===== -->
+<script type="module" src="./Adventures Of Pandania The Lost Realms_files/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;7f7b0fd8732c4326aae4b9d58d5c514a&quot;,&quot;spa&quot;:2}" crossorigin="anonymous"></script>
+
 
 </body></html>

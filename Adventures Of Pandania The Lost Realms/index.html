@@ -4656,107 +4656,327 @@ function closeWindows(){
    SAVE / LOAD
 ========================================================= */
 
-function saveGame(){
+/* =========================================================
+   CLOUD SAVE / LOAD
+   Keeps the existing localStorage save as an offline fallback,
+   while syncing the same save document to the Cloudflare Worker.
+========================================================= */
 
-    const save={
+const PANDANIA_CLOUD_API = "https://pandania-game-api.xprpandas.workers.dev";
+const PANDANIA_LOCAL_SAVE_KEY = "pandaniaAdventuresSave";
+const PANDANIA_GUEST_CREDENTIALS_KEY = "pandaniaCloudGuestCredentialsV1";
+let pandaniaCloudSaveInProgress = false;
+let pandaniaCloudAutoLoadStarted = false;
 
-        player:{
-            x:player.x,
-            y:player.y,
-            hp:player.hp,
-            maxHp:player.maxHp,
-            mana:player.mana,
-            maxMana:player.maxMana,
-            level:player.level,
-            xp:player.xp,
-            xpNext:player.xpNext,
-            gold:player.gold,
-            fish:player.fish,
-            loot:player.loot
+function pandaniaCopyJSON(value){
+    return JSON.parse(JSON.stringify(value));
+}
+
+function pandaniaBuildSave(){
+    const equipment = window.__pandaniaEquipment
+        ? pandaniaCopyJSON(window.__pandaniaEquipment)
+        : null;
+
+    const save = {
+        saveVersion: 2,
+        savedAt: new Date().toISOString(),
+        player: {
+            x: player.x,
+            y: player.y,
+            hp: player.hp,
+            maxHp: player.maxHp,
+            mana: player.mana,
+            maxMana: player.maxMana,
+            level: player.level,
+            xp: player.xp,
+            xpNext: player.xpNext,
+            gold: player.gold,
+            fish: player.fish,
+            loot: player.loot,
+            facing: player.facing,
+            facingX: player.facingX,
+            facingY: player.facingY
         },
-
-        inventory,
-
+        inventory: pandaniaCopyJSON(inventory),
+        blockchainItems: pandaniaCopyJSON(blockchainItems),
         questStarted,
         questKills,
         questComplete,
-        vaultUnlocked
+        vaultUnlocked,
+        inDungeon,
+        dungeonLevel: Number(window.__pandaniaDungeonLevel || 1),
+        dungeonStairOpen: !!window.__pandaniaDungeonStairOpen,
+        activeDungeonEntranceId: activeDungeonEntrance?.id || dungeonEntrance.id,
+        monsters: pandaniaCopyJSON(monsters),
+        groundDrops: pandaniaCopyJSON(groundDrops),
+        inHouse,
+        activeHouseName: activeHouse?.name || null,
+        houseReturnX,
+        houseReturnY,
+        equipment,
+        questTitle: document.getElementById("questTitle")?.textContent || "",
+        questText: document.getElementById("questText")?.textContent || ""
     };
 
-    localStorage.setItem(
-        "pandaniaAdventuresSave",
-        JSON.stringify(save)
-    );
-
-    showMessage(
-        "💾 Game saved!"
-    );
+    return save;
 }
 
-function loadGame(){
+async function pandaniaGetGuestCredentials(){
+    try{
+        const existing = localStorage.getItem(PANDANIA_GUEST_CREDENTIALS_KEY);
+        if(existing){
+            const credentials = JSON.parse(existing);
+            if(credentials && typeof credentials.player_id === "string" &&
+               /^[a-f0-9]{64}$/.test(credentials.token || "")){
+                return credentials;
+            }
+        }
 
-    const data=
-        localStorage.getItem(
-            "pandaniaAdventuresSave"
-        );
+        const response = await fetch(PANDANIA_CLOUD_API + "/api/guest/create", {
+            method: "POST"
+        });
+        if(!response.ok) throw new Error("Guest account request failed (" + response.status + ")");
 
-    if(!data){
+        const credentials = await response.json();
+        if(!credentials.success || !credentials.player_id || !credentials.token){
+            throw new Error("Cloudflare returned an invalid guest account response.");
+        }
 
-        showMessage(
-            "No saved game found."
-        );
+        localStorage.setItem(PANDANIA_GUEST_CREDENTIALS_KEY, JSON.stringify({
+            player_id: credentials.player_id,
+            token: credentials.token
+        }));
+        return credentials;
+    }catch(error){
+        console.error("Pandania guest account error:", error);
+        return null;
+    }
+}
 
+async function pandaniaCloudSave(save, keepalive=false){
+    if(pandaniaCloudSaveInProgress && !keepalive) return false;
+    pandaniaCloudSaveInProgress = true;
+    try{
+        const credentials = await pandaniaGetGuestCredentials();
+        if(!credentials) return false;
+
+        const response = await fetch(PANDANIA_CLOUD_API + "/api/player/save", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + credentials.token
+            },
+            body: JSON.stringify({ save }),
+            keepalive
+        });
+        if(!response.ok){
+            const detail = await response.json().catch(()=>({}));
+            throw new Error(detail.error || "Cloud save failed (" + response.status + ")");
+        }
+        const result = await response.json();
+        return !!result.success;
+    }catch(error){
+        console.error("Pandania cloud save error:", error);
+        return false;
+    }finally{
+        pandaniaCloudSaveInProgress = false;
+    }
+}
+
+async function pandaniaCloudLoad(){
+    try{
+        const credentials = await pandaniaGetGuestCredentials();
+        if(!credentials) return null;
+
+        const response = await fetch(PANDANIA_CLOUD_API + "/api/player/load", {
+            method: "GET",
+            headers: { "Authorization": "Bearer " + credentials.token }
+        });
+        if(!response.ok) throw new Error("Cloud load failed (" + response.status + ")");
+        const result = await response.json();
+        if(!result.success) throw new Error(result.error || "Cloud load failed");
+        return result.save || null;
+    }catch(error){
+        console.error("Pandania cloud load error:", error);
+        return null;
+    }
+}
+
+function pandaniaApplySave(save){
+    if(!save || typeof save !== "object") return false;
+
+    if(save.player && typeof save.player === "object"){
+        Object.assign(player, save.player);
+    }
+
+    if(save.inventory && typeof save.inventory === "object"){
+        Object.keys(inventory).forEach(name=>delete inventory[name]);
+        Object.keys(save.inventory).forEach(name=>{
+            if(name === "Wooden Sword") return;
+            if(name === "Magic Robe"){
+                inventory["Panden Robe"] = save.inventory[name];
+                return;
+            }
+            inventory[name] = save.inventory[name];
+        });
+        delete inventory["Wooden Sword"];
+        delete inventory["Magic Robe"];
+    }
+
+    if(Array.isArray(save.blockchainItems)){
+        blockchainItems.splice(0, blockchainItems.length, ...save.blockchainItems);
+    }
+
+    questStarted = !!save.questStarted;
+    questKills = Number(save.questKills || 0);
+    questComplete = !!save.questComplete;
+    vaultUnlocked = !!save.vaultUnlocked;
+
+    if(save.equipment && typeof save.equipment === "object"){
+        window.__pandaniaEquipment = pandaniaCopyJSON(save.equipment);
+    }
+
+    if(Array.isArray(save.monsters)){
+        monsters.splice(0, monsters.length, ...save.monsters);
+    }
+    if(Array.isArray(save.groundDrops)){
+        groundDrops.splice(0, groundDrops.length, ...save.groundDrops);
+    }
+
+    inDungeon = !!save.inDungeon;
+    const entrance = dungeonEntrances.find(item => item.id === save.activeDungeonEntranceId);
+    if(entrance) activeDungeonEntrance = entrance;
+
+    if(inDungeon && typeof window.__pandaniaRestoreDungeonProgress === "function"){
+        window.__pandaniaRestoreDungeonProgress(save.dungeonLevel || 1, !!save.dungeonStairOpen);
+        // Restore exact saved coordinates and monster health/positions after the level layout is rebuilt.
+        if(Array.isArray(save.monsters)) monsters.splice(0, monsters.length, ...save.monsters);
+        if(Array.isArray(save.groundDrops)) groundDrops.splice(0, groundDrops.length, ...save.groundDrops);
+        // Reapply the exact player position because deeper-floor layout creation sets a default spawn.
+        if(save.player){
+            if(Number.isFinite(save.player.x)) player.x = save.player.x;
+            if(Number.isFinite(save.player.y)) player.y = save.player.y;
+        }
+    }
+
+    inHouse = !!save.inHouse;
+    houseReturnX = Number(save.houseReturnX || 0);
+    houseReturnY = Number(save.houseReturnY || 0);
+    activeHouse = save.activeHouseName
+        ? environment.buildings.find(building => building.name === save.activeHouseName) || null
+        : null;
+
+    if(typeof save.questTitle === "string" && document.getElementById("questTitle")){
+        document.getElementById("questTitle").textContent = save.questTitle;
+    }
+    if(typeof save.questText === "string" && document.getElementById("questText")){
+        document.getElementById("questText").textContent = save.questText;
+    }
+
+    player.targetX = null;
+    player.targetY = null;
+    player.targetMonster = null;
+    if(typeof updateUI === "function") updateUI();
+    if(typeof updateCamera === "function") updateCamera();
+    if(inDungeon){
+        setZoneLabel("🕯️ THE LOST CAVE — LEVEL " + (window.__pandaniaDungeonLevel || save.dungeonLevel || 1));
+        if(gameStarted && typeof startDungeonMusic === "function") startDungeonMusic();
+    }else{
+        setZoneLabel("");
+    }
+    return true;
+}
+
+async function saveGame(options={}){
+    const save = pandaniaBuildSave();
+    const serialized = JSON.stringify(save);
+
+    // Always write locally first so an internet/API outage never blocks a save.
+    localStorage.setItem(PANDANIA_LOCAL_SAVE_KEY, serialized);
+
+    const cloudSaved = await pandaniaCloudSave(save);
+    if(!options.silent){
+        showMessage(cloudSaved
+            ? "💾 Game saved to Cloud!"
+            : "💾 Saved on this device. Cloud sync will retry.");
+    }
+    return cloudSaved;
+}
+
+async function loadGame(){
+    try{
+        const cloudSave = await pandaniaCloudLoad();
+        if(cloudSave){
+            pandaniaApplySave(cloudSave);
+            localStorage.setItem(PANDANIA_LOCAL_SAVE_KEY, JSON.stringify(cloudSave));
+            showMessage("📂 Cloud save loaded!");
+            return;
+        }
+
+        const localData = localStorage.getItem(PANDANIA_LOCAL_SAVE_KEY);
+        if(!localData){
+            showMessage("No saved game found.");
+            return;
+        }
+
+        const localSave = JSON.parse(localData);
+        if(pandaniaApplySave(localSave)){
+            // First-time migration: copy an existing browser save into Cloudflare.
+            const cloudSaved = await pandaniaCloudSave(localSave);
+            showMessage(cloudSaved
+                ? "📂 Local save loaded and synced to Cloud!"
+                : "📂 Local save loaded. Cloud sync is pending.");
+        }else{
+            showMessage("Could not load save.");
+        }
+    }catch(error){
+        console.error("Pandania load error:", error);
+        showMessage("Could not load save.");
+    }
+}
+
+async function pandaniaAutoLoadCloudSave(){
+    if(pandaniaCloudAutoLoadStarted) return;
+    pandaniaCloudAutoLoadStarted = true;
+
+    const cloudSave = await pandaniaCloudLoad();
+    if(cloudSave){
+        pandaniaApplySave(cloudSave);
+        localStorage.setItem(PANDANIA_LOCAL_SAVE_KEY, JSON.stringify(cloudSave));
+        showMessage("☁️ Your saved adventure has been restored!");
         return;
     }
 
-    try{
-
-        const save=JSON.parse(data);
-
-        Object.assign(
-            player,
-            save.player
-        );
-
-        if(save.inventory){
-
-            Object.keys(save.inventory)
-            .forEach(name=>{
-                if(name === "Wooden Sword") return;
-                if(name === "Magic Robe") {
-                    inventory["Panden Robe"] = save.inventory[name];
-                    return;
-                }
-                inventory[name]=save.inventory[name];
-            });
+    // Preserve and migrate an older browser-only save if this is the first cloud login.
+    const localData = localStorage.getItem(PANDANIA_LOCAL_SAVE_KEY);
+    if(localData){
+        try{
+            const localSave = JSON.parse(localData);
+            pandaniaApplySave(localSave);
+            await pandaniaCloudSave(localSave);
+        }catch(error){
+            console.error("Could not migrate the existing local save:", error);
         }
-        delete inventory["Wooden Sword"];
-        delete inventory["Magic Robe"];
-
-        questStarted=
-            save.questStarted||false;
-
-        questKills=
-            save.questKills||0;
-
-        questComplete=save.questComplete||false;
-        vaultUnlocked=!!save.vaultUnlocked;
-
-        updateUI();
-
-        showMessage(
-            "📂 Game loaded!"
-        );
-
-    }catch(e){
-
-        console.error(e);
-
-        showMessage(
-            "Could not load save."
-        );
     }
 }
+
+// Restore the cloud character shortly after the player presses Play.
+document.getElementById("playButton").addEventListener("click", ()=>{
+    setTimeout(pandaniaAutoLoadCloudSave, 150);
+});
+
+// Periodic autosave while the player is actively playing.
+setInterval(()=>{
+    if(gameStarted) saveGame({ silent: true });
+}, 30000);
+
+// Save when the tab is backgrounded; the periodic save remains the primary safeguard.
+document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "hidden" && gameStarted){
+        saveGame({ silent: true });
+    }
+});
+
 
 /* =========================================================
    MESSAGE
@@ -7891,6 +8111,15 @@ requestAnimationFrame(
     }
     placeDungeonGems(layout);
   }
+
+  window.__pandaniaRestoreDungeonProgress=function(level, stairOpen){
+    dungeonLevel=Math.max(1,Math.min(4,Math.floor(Number(level)||1)));
+    dungeonStairOpen=!!stairOpen;
+    spawnDungeonLevel(dungeonLevel);
+    dungeonStairOpen=!!stairOpen;
+    window.__pandaniaDungeonLevel=dungeonLevel;
+    window.__pandaniaDungeonStairOpen=dungeonStairOpen;
+  };
 
   window.__pandaniaPlayerInBossArena=function(){
     const a=window.__pandaniaBossArena;

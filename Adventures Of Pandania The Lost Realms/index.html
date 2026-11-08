@@ -1206,6 +1206,8 @@ kbd{
 
 <div id="pandaniaMobileControls"><div id="pmDpad"><button data-k="w">▲</button><div><button data-k="a">◀</button><button data-k="s">▼</button><button data-k="d">▶</button></div></div><div id="pmActions"><button id="pmAttack">⚔️</button><button id="pmInteract">💬</button><button id="pmBag">🎒</button></div></div><div id="pandaniaJoystickOnly" style="display: none;"><div class="jb"><div class="jk"></div></div></div><button id="pandaniaAttackRestore" type="button" aria-label="Sword attack" style="display: none;">⚔️</button></div>
 
+<script src="https://unpkg.com/@proton/web-sdk@latest"></script>
+
 <script>
 
 "use strict";
@@ -7043,176 +7045,111 @@ document.getElementById(
 );
 
 /* =========================================================
-   WEBAUTH
+   WEBAUTH PLAYER WALLET CONNECTION
+   Uses the same Proton Web SDK connection flow as Wack a Pandee.
+   A successful connection identifies the XPR account in this browser.
+   Cloud save authentication remains on the existing guest-token system
+   until the Worker adds wallet-based account linking/authentication.
 ========================================================= */
 
-let walletSession=null;
-let walletLink=null;
+let walletSession = null;
+let walletLink = null;
+let connectedWallet = null;
 
-const PANDA_ASSET=
-"https://ipfs-gateway.soon.market/ipfs/QmakHQRpk7rXdqMkrg1nYhvLmWahnRpSBbWYNqAd8JtGfD";
+const PANDA_ASSET =
+    "https://ipfs-gateway.soon.market/ipfs/QmakHQRpk7rXdqMkrg1nYhvLmWahnRpSBbWYNqAd8JtGfD";
+
+const PANDANIA_RPC_ENDPOINTS = [
+    "https://api.protonnz.com",
+    "https://proton.eosusa.io",
+    "https://proton.protonuk.io"
+];
 
 async function connectWebAuth(){
 
-    const status=
-        document.getElementById(
-            "walletStatus"
-        );
+    const status = document.getElementById("walletStatus");
+    const button = document.getElementById("connectWalletButton");
 
-    const button=
-        document.getElementById(
-            "connectWalletButton"
-        );
+    if(!status || !button) return;
 
-    status.textContent=
-        "Connecting to XPR Network...";
-
-    button.disabled=true;
+    status.textContent = "Connecting to XPR Network...";
+    status.classList.remove("connected");
+    button.disabled = true;
+    button.textContent = "CONNECTING...";
 
     try{
 
-        const sdk=await import(
-            "https://esm.sh/@proton/web-sdk"
-        );
-
-        const ConnectWallet=
-            sdk.ConnectWallet||
-            sdk.default||
-            sdk;
-
-        if(
-            typeof ConnectWallet!=="function"
-        ){
-
-            throw new Error(
-                "XPR Web SDK could not be loaded."
-            );
+        if(typeof window.ProtonWebSDK !== "function"){
+            throw new Error("Proton Web SDK has not loaded. Refresh the page and try again.");
         }
 
-        const result=
-            await ConnectWallet({
+        const { session, link } = await window.ProtonWebSDK({
 
-            linkOptions:{
-
-                chainId:
-                "384da888112027f0321850a169f737c33e53b388aad48b5adace4bab97f437e0",
-
-                endpoints:[
-
-                    "https://api.protonnz.com",
-
-                    "https://proton.eosusa.io",
-
-                    "https://proton.protonuk.io"
-                ],
-
-                restoreSession:false
+            linkOptions: {
+                endpoints: PANDANIA_RPC_ENDPOINTS,
+                restoreSession: false
             },
 
-            selectorOptions:{
+            selectorOptions: {
+                appName: "Pandania Adventures",
+                appLogo: PANDA_ASSET,
 
-                appName:
-                    "Pandania Adventures",
-
-                appLogo:
-                    PANDA_ASSET,
-
-                enabledWalletTypes:[
-                    "webauth"
-                ],
-
-                customStyleOptions:{
-
-                    modalBackgroundColor:
-                        "#1b1510",
-
-                    logoBackgroundColor:
-                        "#3d2919",
-
-                    isLogoRound:true,
-
-                    optionBackgroundColor:
-                        "#302218",
-
-                    optionFontColor:"#fff",
-
-                    primaryFontColor:
-                        "#f1d19a",
-
-                    secondaryFontColor:
-                        "#b9a488",
-
-                    linkColor:"#48d7ff"
+                customStyleOptions: {
+                    modalBackgroundColor: "#1b1510",
+                    logoBackgroundColor: "#3d2919",
+                    isLogoRound: true,
+                    optionBackgroundColor: "#302218",
+                    optionFontColor: "#fff",
+                    primaryFontColor: "#f1d19a",
+                    secondaryFontColor: "#b9a488",
+                    linkColor: "#48d7ff"
                 }
             },
 
-            transportOptions:{
-
-                requestAccount:
-                    "pandaniaadventure",
-
-                backButton:true
+            transportOptions: {
+                requestAccount: "pandaniaadventure"
             }
         });
 
-        if(
-            !result||
-            !result.session
-        ){
-
-            throw new Error(
-                "Wallet connection was cancelled."
-            );
+        if(!session || !session.auth || !session.auth.actor){
+            throw new Error("No XPR account was returned by WebAuth.");
         }
 
-        walletSession=
-            result.session;
+        walletSession = session;
+        walletLink = link;
+        connectedWallet = session.auth.actor;
 
-        walletLink=
-            result.link;
+        // Expose the authenticated account for other game modules.
+        window.pandaniaWalletSession = walletSession;
+        window.pandaniaWalletLink = walletLink;
+        window.pandaniaWalletActor = connectedWallet;
 
-        const actor=
-            result.session.auth &&
-            result.session.auth.actor
-            ?result.session.auth.actor
-            :"Connected";
+        status.textContent = "✓ Connected: @" + connectedWallet;
+        status.classList.add("connected");
 
-        status.textContent=
-            "✓ Connected: @"+
-            actor;
+        button.textContent = "✓ WEBAUTH CONNECTED";
+        button.disabled = false;
+        button.setAttribute("aria-label", "WebAuth connected as " + connectedWallet);
 
-        status.classList.add(
-            "connected"
-        );
+        showMessage("🔐 WebAuth connected: @" + connectedWallet);
 
-        button.textContent=
-            "✓ WEBAUTH CONNECTED";
-
-        showMessage(
-            "🔐 WebAuth connected: @"+
-            actor
-        );
+        console.log("Pandania WebAuth connected:", connectedWallet);
 
     }catch(error){
 
-        console.error(
-            "WebAuth connection error:",
-            error
-        );
+        console.error("Pandania WebAuth connection error:", error);
 
-        status.textContent=
-            "WebAuth cancelled or unavailable. You can still play normally.";
+        status.textContent =
+            error && error.message
+                ? "WebAuth connection failed: " + error.message
+                : "WebAuth cancelled or unavailable. You can still play as a guest.";
 
-        button.disabled=false;
-
-        button.textContent=
-            "🔐 CONNECT WEBAUTH";
+        button.disabled = false;
+        button.textContent = "🔐 CONNECT WEBAUTH";
     }
 }
 
-document.getElementById(
-    "connectWalletButton"
-).addEventListener(
+document.getElementById("connectWalletButton").addEventListener(
     "click",
     connectWebAuth
 );

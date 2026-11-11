@@ -1,0 +1,1384 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pandania Compendium | The Lost Realms</title>
+
+<style>
+:root {
+    --bg: #17120e;
+    --panel: #282019;
+    --panel-light: #382a1d;
+    --brown: #604329;
+    --gold: #d5a64e;
+    --gold-light: #f0ce83;
+    --text: #f1e5cf;
+    --muted: #b9a88e;
+    --border: #80603a;
+    --purple: #8060b5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background:
+        radial-gradient(ellipse at top, #38291c 0%, #17120e 65%);
+    color: var(--text);
+    font-family: Georgia, "Times New Roman", serif;
+    min-height: 100vh;
+}
+
+a {
+    color: var(--gold-light);
+}
+
+.page-header {
+    text-align: center;
+    padding: 30px 16px 22px;
+    background: linear-gradient(180deg, #302116, #1d1711);
+    border-bottom: 2px solid var(--border);
+}
+
+.page-header h1 {
+    color: var(--gold-light);
+    font-size: clamp(27px, 5vw, 43px);
+    margin: 10px 0 5px;
+    letter-spacing: 2px;
+    text-shadow: 2px 3px 5px #000;
+}
+
+.subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+}
+
+.header-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.header-links a {
+    display: inline-block;
+    padding: 10px 17px;
+    background: linear-gradient(#725333, #402d1c);
+    border: 1px solid var(--gold);
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.header-links a:hover {
+    background: #8b683b;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.container {
+    width: min(1180px, 94%);
+    margin: 25px auto 55px;
+}
+
+/* Navigation tabs */
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 auto 25px;
+}
+
+.tab-button {
+    cursor: pointer;
+    padding: 12px 20px;
+    color: var(--gold-light);
+    background: linear-gradient(#493522, #2b2017);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-family: Georgia, serif;
+    font-size: 15px;
+    transition: 0.2s;
+}
+
+.tab-button:hover,
+.tab-button.active {
+    color: #21170e;
+    background: linear-gradient(#f0ce83, #bd8d43);
+    border-color: #f0ce83;
+}
+
+.tab-panel {
+    display: none;
+    animation: fadeIn 0.25s ease;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section headings */
+
+.section-heading {
+    text-align: center;
+    color: var(--gold-light);
+    font-size: 30px;
+    letter-spacing: 2px;
+    margin: 28px 0 8px;
+    text-shadow: 2px 3px 5px #000;
+}
+
+.section-intro {
+    text-align: center;
+    color: var(--muted);
+    margin: 0 auto 25px;
+    line-height: 1.6;
+    max-width: 720px;
+}
+
+.subheading {
+    color: var(--gold-light);
+    font-size: 22px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 9px;
+    margin: 35px 0 18px;
+}
+
+/* World map */
+
+.map-card {
+    max-width: 760px;
+    margin: 20px auto;
+    padding: 14px;
+    background: linear-gradient(145deg, #493522, #241a13);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 25px #0008;
+    text-align: center;
+}
+
+.map-card h2 {
+    color: var(--gold-light);
+    margin: 4px 0 12px;
+}
+
+.map-card img {
+    display: block;
+    width: 100%;
+    max-height: 390px;
+    object-fit: contain;
+    border: 1px solid #967247;
+    border-radius: 4px;
+    background: #17120e;
+}
+
+.map-caption {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 12px 0 2px;
+}
+
+/* Monster and boss cards */
+
+.creature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
+    gap: 18px;
+}
+
+.creature-card {
+    position: relative;
+    background: linear-gradient(145deg, #493522, #2b2017 70%);
+    border: 2px solid #785735;
+    border-radius: 7px;
+    padding: 13px;
+    box-shadow: 0 5px 15px #0007;
+    overflow: hidden;
+}
+
+.creature-top {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-height: 105px;
+    margin-bottom: 12px;
+}
+
+.creature-image {
+    width: 94px;
+    height: 94px;
+    flex: 0 0 94px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #17120e;
+    border: 2px solid #987346;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.creature-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+.creature-name {
+    color: var(--gold-light);
+    font-size: 21px;
+    font-weight: bold;
+    text-shadow: 1px 2px 3px #000;
+}
+
+.creature-description {
+    color: #d0bea2;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 7px;
+}
+
+.creature-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+}
+
+.rustic-box {
+    min-width: 0;
+    background: linear-gradient(145deg, #34251a, #21170f);
+    border: 1px solid #987044;
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: inset 0 0 10px #0007;
+}
+
+.rustic-box h4 {
+    color: var(--gold-light);
+    font-size: 15px;
+    margin: 0 0 9px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #725332;
+    text-align: center;
+}
+
+.rustic-box p {
+    color: #e2d3bb;
+    font-size: 12px;
+    margin: 7px 0;
+    line-height: 1.35;
+}
+
+.rustic-box .unknown {
+    color: #c5b18f;
+    text-align: center;
+    font-style: italic;
+}
+
+/* Item cards */
+
+.item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+    gap: 17px;
+}
+
+.item-card {
+    background: linear-gradient(145deg, #493522, #281e16);
+    border: 1px solid #80603a;
+    border-radius: 7px;
+    padding: 14px;
+    box-shadow: 0 5px 15px #0007;
+}
+
+.item-top {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 12px;
+}
+
+.item-image {
+    width: 85px;
+    height: 85px;
+    flex: 0 0 85px;
+    background: #17120e;
+    border: 1px solid #a17a48;
+    border-radius: 5px;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+.item-name {
+    color: var(--gold-light);
+    font-size: 19px;
+    font-weight: bold;
+}
+
+.item-type {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.item-description {
+    color: #dfd0b8;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0;
+}
+
+.item-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+}
+
+.stat-tag {
+    display: inline-block;
+    background: #21170f;
+    border: 1px solid #80603a;
+    border-radius: 3px;
+    padding: 5px 8px;
+    color: #e9d5ad;
+    font-size: 11px;
+}
+
+.supply {
+    color: #f0ce83;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 8px 0;
+    border-top: 1px solid #725332;
+    border-bottom: 1px solid #725332;
+}
+
+.rarity-legendary {
+    color: #e9b9ff;
+}
+
+.rarity-rare {
+    color: #8bd2ff;
+}
+
+.market-link {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(#725333, #402d1c);
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    color: var(--gold-light);
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.market-link:hover {
+    background: #8b683b;
+    color: white;
+}
+
+/* Non-blockchain items */
+
+.coming-soon {
+    text-align: center;
+    background: #21170f;
+    border: 1px solid #80603a;
+    border-radius: 4px;
+    padding: 9px;
+    margin-top: 10px;
+}
+
+.coming-soon strong {
+    display: block;
+    color: var(--gold-light);
+    font-size: 16px;
+}
+
+.coming-soon span {
+    display: block;
+    color: #c5b18f;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.footer {
+    text-align: center;
+    padding: 25px 15px;
+    color: #8f7b60;
+    border-top: 1px solid #604329;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .container {
+        width: 94%;
+    }
+
+    .tabs {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tab-button {
+        padding: 11px 7px;
+        font-size: 13px;
+    }
+
+    .tab-button:last-child {
+        grid-column: span 2;
+    }
+
+    .creature-grid,
+    .item-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .creature-details {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .creature-image {
+        width: 82px;
+        height: 82px;
+        flex-basis: 82px;
+    }
+
+    .section-heading {
+        font-size: 25px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header class="page-header">
+    <h1>THE PANDANIA COMPENDIUM</h1>
+    <div class="subtitle">ADVENTURES OF PANDANIA: THE LOST REALMS</div>
+
+    <div class="header-links">
+        <a href="https://pandania.xyz/">← Pandania Home</a>
+        <a href="https://soon.market/collection/234332253245"
+           target="_blank" rel="noopener noreferrer">
+           Game NFT Collection ↗
+        </a>
+    </div>
+</header>
+
+<main class="container">
+
+    <nav class="tabs" aria-label="Compendium sections">
+        <button class="tab-button active" data-tab="map">Map</button>
+        <button class="tab-button" data-tab="monsters">Monsters</button>
+        <button class="tab-button" data-tab="bosses">Bosses</button>
+        <button class="tab-button" data-tab="blockchain">Blockchain Items</button>
+        <button class="tab-button" data-tab="nonblockchain">Non Blockchain Items</button>
+    </nav>
+
+    <!-- MAP TAB -->
+    <section id="map" class="tab-panel active">
+        <h2 class="section-heading">World Map</h2>
+        <p class="section-intro">
+            Explore Pandania and discover the places, creatures, and
+            secrets hidden throughout The Lost Realms.
+        </p>
+
+        <div class="map-card">
+            <h2>Pandania</h2>
+            <img
+                src="images/environments/PandaniaWorldMap.png"
+                alt="Pandania World Map"
+                loading="lazy">
+            <p class="map-caption">
+                The known world of Pandania. More regions and discoveries
+                await brave adventurers.
+            </p>
+        </div>
+    </section>
+
+    <!-- MONSTERS TAB -->
+    <section id="monsters" class="tab-panel">
+        <h2 class="section-heading">Monsters</h2>
+        <p class="section-intro">
+            Not every creature in Pandania is friendly. Learn about the
+            monsters that roam the forests, dungeons, and forgotten places
+            of The Lost Realms.
+        </p>
+
+        <div class="creature-grid">
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster1.png" alt="Slime" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Slime</div>
+                        <div class="creature-description">
+                            A mysterious gelatinous creature found wandering
+                            the lands of Pandania.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster2.png" alt="Goblin" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Goblin</div>
+                        <div class="creature-description">
+                            A troublesome creature that attacks adventurers
+                            who wander too close.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster3.png" alt="Skeleton" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Skeleton</div>
+                        <div class="creature-description">
+                            An undead warrior whose bones refuse to rest
+                            beneath the soil of Pandania.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster4.png" alt="Werewolf" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Werewolf</div>
+                        <div class="creature-description">
+                            A fierce beast with the strength and instincts
+                            of a dangerous predator.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster5.png" alt="Orc" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Orc</div>
+                        <div class="creature-description">
+                            A powerful brute known for its intimidating
+                            presence and raw strength.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster6.png" alt="Green Biter" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Green Biter</div>
+                        <div class="creature-description">
+                            A hostile creature that uses its sharp bite
+                            against unsuspecting adventurers.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/monster7.png" alt="Dungeon Beast" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Dungeon Beast</div>
+                        <div class="creature-description">
+                            A dangerous creature lurking in the depths
+                            of Pandania's dungeons.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/roamer1.png" alt="Troll Reaper" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Troll Reaper</div>
+                        <div class="creature-description">
+                            A menacing roaming enemy armed with the
+                            strength of a dungeon-born troll.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/metalmonsterminion1.png"
+                             alt="Mini Metal Monster" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Mini Metal Monster</div>
+                        <div class="creature-description">
+                            A smaller mechanical menace connected to
+                            the mysterious Metal Monster.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/metalmonsterminion2.png"
+                             alt="Mini Metal Monster" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Mini Metal Monster</div>
+                        <div class="creature-description">
+                            Another variation of the Metal Monster's
+                            smaller mechanical minions.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+    </section>
+
+    <!-- BOSSES TAB -->
+    <section id="bosses" class="tab-panel">
+        <h2 class="section-heading">Bosses</h2>
+        <p class="section-intro">
+            Only the bravest adventurers dare challenge the powerful
+            bosses hidden within The Lost Realms.
+        </p>
+
+        <div class="creature-grid">
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/Boss1.png" alt="Flameozen" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Flameozen</div>
+                        <div class="creature-description">
+                            A formidable fire-wielding boss whose flames
+                            threaten anyone who enters its domain.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/Boss2.png" alt="Stone Troll" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Stone Troll</div>
+                        <div class="creature-description">
+                            A massive stone-hardened enemy built to withstand
+                            the attacks of determined warriors.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/Boss3.png" alt="XPR Wizard" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">XPR Wizard</div>
+                        <div class="creature-description">
+                            A mysterious spellcaster wielding powerful
+                            magic from the realms.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="creature-card">
+                <div class="creature-top">
+                    <div class="creature-image">
+                        <img src="images/Boss4.png" alt="Metal Monster" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="creature-name">Metal Monster</div>
+                        <div class="creature-description">
+                            A powerful mechanical creature that commands
+                            its own smaller Metal Monster minions.
+                        </div>
+                    </div>
+                </div>
+                <div class="creature-details">
+                    <div class="rustic-box">
+                        <h4>Stats - Unknown</h4>
+                        <p>Hp - ???</p><p>Defense - ???</p>
+                        <p>Attack Power - ???</p><p>Attack Speed - ???</p>
+                    </div>
+                    <div class="rustic-box">
+                        <h4>Drops</h4><p class="unknown">Unknown</p>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+    </section>
+
+    <!-- BLOCKCHAIN ITEMS TAB -->
+    <section id="blockchain" class="tab-panel">
+        <h2 class="section-heading">Blockchain Items</h2>
+        <p class="section-intro">
+            Special equipment secured on the XPR Network.
+            These items are part of the Adventures of Pandania
+            game NFT collection.
+        </p>
+
+        <h3 class="subheading">Weapons</h3>
+
+        <div class="item-grid">
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon10.png" alt="Purplereign" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">Purplereign</div>
+                        <div class="item-type rarity-legendary">Legendary Magical Staff</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 10</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Legendary</span>
+                    <span class="stat-tag">Accuracy +3</span>
+                    <span class="stat-tag">Magic Damage +10</span>
+                    <span class="stat-tag">Attack Damage 190-230</span>
+                    <span class="stat-tag">Critical Chance +5%</span>
+                </div>
+                <p class="item-description">
+                    Purplereign is a legendary magical staff crafted for the
+                    most powerful mages of Pandania, chosen to channel the
+                    mysterious forces hidden within The Lost Realms. Its
+                    elegant golden frame is wrapped in swirling purple
+                    energy, drawn from the radiant purple pearl held within
+                    the crescent of the staff. As its magic flows through
+                    the weapon, Purplereign becomes a symbol of arcane
+                    mastery, mystery, and the boundless power of those brave
+                    enough to explore the realms. With its limited supply,
+                    Purplereign is a rare treasure among the adventurers
+                    of Pandania.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047044616"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon4.png" alt="XPR Lens" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">XPR Lens</div>
+                        <div class="item-type rarity-legendary">Legendary Magical Staff</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 10</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Legendary</span>
+                    <span class="stat-tag">Accuracy +3</span>
+                    <span class="stat-tag">Magic Damage +30</span>
+                    <span class="stat-tag">Attack Damage 165-180</span>
+                    <span class="stat-tag">Critical Chance +10%</span>
+                </div>
+                <p class="item-description">
+                    The XPR Lens is a legendary magical staff forged for
+                    the bravest adventurers of Pandania chosen to travel
+                    through The Lost Realms. Its glowing purple orb contains
+                    the iconic XPR, channeling mysterious energy through
+                    the realms. Wielding this weapon represents power,
+                    discovery, and the spirit of the Proton Panda adventure.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047044379"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon6.png" alt="Purple Ice Blade" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">Purple Ice Blade</div>
+                        <div class="item-type rarity-rare">Rare Weapon</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 50</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Rare</span>
+                    <span class="stat-tag">Accuracy +8</span>
+                    <span class="stat-tag">Strength +10</span>
+                    <span class="stat-tag">Magic Damage +5</span>
+                    <span class="stat-tag">Attack Damage 90-120</span>
+                    <span class="stat-tag">Critical Chance +5%</span>
+                </div>
+                <p class="item-description">
+                    The Purple Ice Blade is a rare weapon carved from
+                    enchanted purple ice found atop the magical snow capped
+                    mountains surrounding Pandania. Its razor sharp edge
+                    makes it a precise and reliable weapon for warriors,
+                    while the mystical energy preserved within the mountain
+                    ice gives it a touch of magical power favored by mages.
+                    A proud Panda emblem adorns its handle, marking its
+                    connection to the adventurers of Pandania. Though not
+                    as powerful as the legendary weapons of The Lost Realms,
+                    the Purple Ice Blade is a prized weapon for those who
+                    seek the perfect balance between strength, accuracy,
+                    and magic.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047045017"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon7.png" alt="Thunderma" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">Thunderma</div>
+                        <div class="item-type rarity-legendary">Legendary Great Sword</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 10</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Legendary</span>
+                    <span class="stat-tag">Accuracy +3</span>
+                    <span class="stat-tag">Magic Damage +30</span>
+                    <span class="stat-tag">Attack Damage 165-180</span>
+                    <span class="stat-tag">Critical Chance +10%</span>
+                </div>
+                <p class="item-description">
+                    The Thunderma is a legendary great sword forged for the
+                    mightiest warriors of Pandania, chosen to face the
+                    dangers lurking within The Lost Realms. Its massive
+                    blade crackles with golden energy, while its deep
+                    purple handle bears the mark of a weapon built for those
+                    who favor strength over subtlety. With its limited
+                    supply, Thunderma is a rare prize among adventurers,
+                    a symbol of power, courage, and the unstoppable spirit
+                    of the Proton Panda adventure.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047044596"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+        </div>
+
+        <h3 class="subheading">Armor</h3>
+
+        <div class="item-grid">
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/armor3.png" alt="PDA Cloak" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">PDA Cloak</div>
+                        <div class="item-type rarity-legendary">Legendary Armor</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 10</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Legendary</span>
+                    <span class="stat-tag">Mana +30</span>
+                    <span class="stat-tag">Evade +20</span>
+                    <span class="stat-tag">Defense +50</span>
+                    <span class="stat-tag">Strength +5</span>
+                    <span class="stat-tag">Magic Damage +50</span>
+                </div>
+                <p class="item-description">
+                    The PDA Cloak is a legendary magical garment woven for
+                    the most gifted mages and mystics of Pandania, chosen
+                    to venture deep into The Lost Realms. Its rich purple
+                    fabric is traced with shimmering golden lining, while
+                    an iconic golden PDA coin is proudly stitched into
+                    the cloak, marking its connection to the ancient magic
+                    of Pandania. With its limited supply, the PDA Cloak
+                    is a rare treasure among adventurers. It is a symbol
+                    of magic, prestige, discovery, and the spirit of the
+                    Proton Panda adventure.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047044586"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/armor4.png" alt="Golden Plate" loading="lazy">
+                    </div>
+                    <div>
+                        <div class="item-name">Golden Plate</div>
+                        <div class="item-type rarity-legendary">Legendary Heavy Armor</div>
+                    </div>
+                </div>
+                <div class="supply">Total Supply - 10</div>
+                <div class="item-stats">
+                    <span class="stat-tag">Rarity - Legendary</span>
+                    <span class="stat-tag">Evade +5</span>
+                    <span class="stat-tag">Health +30</span>
+                    <span class="stat-tag">Defense +100</span>
+                    <span class="stat-tag">Strength +20</span>
+                    <span class="stat-tag">Magic Damage -20</span>
+                </div>
+                <p class="item-description">
+                    Golden Plate is a legendary set of heavy armor forged
+                    for the strongest warriors of Pandania, designed to
+                    withstand the fiercest battles of The Lost Realms.
+                    Its thick golden plating provides exceptional defense
+                    and health, allowing its wearer to endure devastating
+                    attacks that would bring lesser adventurers to their
+                    knees. But such protection comes at a cost: the weight
+                    of the armor limits the flow of magical energy,
+                    reducing its magic damage. Though any adventurer can
+                    wear Golden Plate, it is especially prized by warriors
+                    who rely on strength, endurance, and sheer resilience.
+                    With its limited supply, Golden Plate stands as a
+                    symbol of power, protection, and the unbreakable spirit
+                    of the Proton Panda adventure.
+                </p>
+                <a class="market-link"
+                   href="https://soon.market/nft/4398047044606"
+                   target="_blank" rel="noopener noreferrer">
+                   View on Marketplace ↗
+                </a>
+            </article>
+
+        </div>
+    </section>
+
+    <!-- NON-BLOCKCHAIN ITEMS TAB -->
+    <section id="nonblockchain" class="tab-panel">
+        <h2 class="section-heading">Non Blockchain Items</h2>
+        <p class="section-intro">
+            Everyday equipment, supplies, and useful discoveries
+            found throughout Pandania. More information coming soon.
+        </p>
+
+        <h3 class="subheading">Weapons</h3>
+
+        <div class="item-grid">
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon1.png" alt="Bamboo Sword" loading="lazy">
+                    </div>
+                    <div class="item-name">Bamboo Sword</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon2.png" alt="Iron Sword" loading="lazy">
+                    </div>
+                    <div class="item-name">Iron Sword</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon3.png" alt="Goblin Saber" loading="lazy">
+                    </div>
+                    <div class="item-name">Goblin Saber</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon5.png" alt="Spiked Twin Blade" loading="lazy">
+                    </div>
+                    <div class="item-name">Spiked Twin Blade</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon8.png" alt="Diamond Staff" loading="lazy">
+                    </div>
+                    <div class="item-name">Diamond Staff</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/weapon9.png" alt="Golden Beacon Staff" loading="lazy">
+                    </div>
+                    <div class="item-name">Golden Beacon Staff</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+        </div>
+
+        <h3 class="subheading">Armor</h3>
+
+        <div class="item-grid">
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/armor1.png" alt="Panden Robe" loading="lazy">
+                    </div>
+                    <div class="item-name">Panden Robe</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/armor2.png" alt="Bruiser Plate" loading="lazy">
+                    </div>
+                    <div class="item-name">Bruiser Plate</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+        </div>
+
+        <h3 class="subheading">Items & Supplies</h3>
+
+        <div class="item-grid">
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/fish.png" alt="Fish" loading="lazy">
+                    </div>
+                    <div class="item-name">Fish</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/lofidisc.png" alt="Lofi Disc" loading="lazy">
+                    </div>
+                    <div class="item-name">Lofi Disc</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/manapotion.png" alt="Mana Potion" loading="lazy">
+                    </div>
+                    <div class="item-name">Mana Potion</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartcandy.png" alt="Mini Mart Candy" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Candy</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartchips.png" alt="Mini Mart Chips" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Chips</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartcola.png" alt="Mini Mart Cola" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Cola</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartgain.png" alt="Mini Mart Gain" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Gain</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartlights.png" alt="Mini Mart Lights" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Lights</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+            <article class="item-card">
+                <div class="item-top">
+                    <div class="item-image">
+                        <img src="images/minimartmallows.png" alt="Mini Mart Mallows" loading="lazy">
+                    </div>
+                    <div class="item-name">Mini Mart Mallows</div>
+                </div>
+                <div class="coming-soon"><strong>???</strong><span>Coming Soon</span></div>
+            </article>
+
+        </div>
+    </section>
+
+</main>
+
+<footer class="footer">
+    Adventures of Pandania: The Lost Realms · Compendium
+    <br>
+    Explore. Discover. Become a Legend.
+</footer>
+
+<script>
+const tabButtons = document.querySelectorAll(".tab-button");
+const tabPanels = document.querySelectorAll(".tab-panel");
+
+tabButtons.forEach(button => {
+    button.addEventListener("click", () => {
+        const selectedTab = button.dataset.tab;
+
+        tabButtons.forEach(tab => {
+            tab.classList.remove("active");
+        });
+
+        tabPanels.forEach(panel => {
+            panel.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        const selectedPanel = document.getElementById(selectedTab);
+        if (selectedPanel) {
+            selectedPanel.classList.add("active");
+        }
+    });
+});
+</script>
+
+</body>
+</html>

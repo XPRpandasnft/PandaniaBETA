@@ -881,10 +881,6 @@ kbd{
 
         <div class="startButtons">
 
-            <button id="playButton">
-                ▶ PLAY AS GUEST
-            </button>
-
             <button id="connectWalletButton">
                 🔐 CONNECT WEBAUTH
             </button>
@@ -892,7 +888,7 @@ kbd{
         </div>
 
         <div id="walletStatus">
-            WebAuth is optional. You can play without connecting a wallet.
+            Connect your WebAuth wallet to create or restore your Pandania character.
         </div>
 
     </div>
@@ -4928,43 +4924,6 @@ function pandaniaParseCredentials(raw){
     return null;
 }
 
-async function pandaniaCreateGuestCredentials(){
-    const response = await fetch(PANDANIA_CLOUD_API + "/api/guest/create", {
-        method: "POST"
-    });
-    if(!response.ok) throw new Error("Guest account request failed (" + response.status + ")");
-    const result = await response.json();
-    if(!result.success || !result.player_id || !result.token){
-        throw new Error("Cloudflare returned an invalid guest account response.");
-    }
-    return { player_id: result.player_id, token: result.token };
-}
-
-async function pandaniaLinkWalletWithCredentials(walletAccount, credentials){
-    const response = await fetch(PANDANIA_CLOUD_API + "/api/wallet/link", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + credentials.token
-        },
-        body: JSON.stringify({
-            chain_id: PANDANIA_CHAIN_ID,
-            wallet_account: walletAccount
-        })
-    });
-    const result = await response.json().catch(() => ({}));
-    if(!response.ok || !result.success){
-        const error = new Error(result.error || "Wallet-to-character association failed (" + response.status + ").");
-        error.status = response.status;
-        error.code = result.code || null;
-        throw error;
-    }
-    if(result.player_id && result.player_id !== credentials.player_id){
-        throw new Error("Cloudflare returned a different player ID than the authenticated character.");
-    }
-    return result;
-}
-
 async function pandaniaAssociateConnectedWallet(){
     const walletAccount = String(
         window.pandaniaWalletSession?.auth?.actor || ""
@@ -5018,28 +4977,14 @@ async function pandaniaAssociateConnectedWallet(){
 }
 
 async function pandaniaGetGuestCredentials(){
-    try{
-        // Once WebAuth is connected, all cloud operations are scoped to that wallet.
-        if(connectedWallet){
-            const walletCredentials = pandaniaActivePlayerCredentials ||
-                pandaniaParseCredentials(localStorage.getItem(pandaniaWalletCredentialsKey(connectedWallet)));
-            if(walletCredentials){
-                pandaniaActivePlayerCredentials = walletCredentials;
-                return walletCredentials;
-            }
-            return null;
-        }
-
-        const existing = pandaniaParseCredentials(localStorage.getItem(PANDANIA_GUEST_CREDENTIALS_KEY));
-        if(existing) return existing;
-
-        const credentials = await pandaniaCreateGuestCredentials();
-        localStorage.setItem(PANDANIA_GUEST_CREDENTIALS_KEY, JSON.stringify(credentials));
-        return credentials;
-    }catch(error){
-        console.error("Pandania player credentials error:", error);
-        return null;
-    }
+    // Despite the legacy function name, cloud saves now require a verified
+    // WebAuth session. Guest credentials are accepted only once during the
+    // signed-in character migration handled by /api/auth/webauth.
+    if(!connectedWallet) return null;
+    const credentials = pandaniaActivePlayerCredentials ||
+        pandaniaParseCredentials(localStorage.getItem(pandaniaWalletCredentialsKey(connectedWallet)));
+    if(credentials) pandaniaActivePlayerCredentials = credentials;
+    return credentials || null;
 }
 
 function pandaniaLocalSaveKey(){
@@ -5278,11 +5223,6 @@ async function pandaniaAutoLoadCloudSave(){
         return false;
     }
 }
-
-// Restore the cloud character shortly after the player presses Play.
-document.getElementById("playButton").addEventListener("click", ()=>{
-    setTimeout(pandaniaAutoLoadCloudSave, 150);
-});
 
 // Periodic autosave while the player is actively playing.
 setInterval(()=>{

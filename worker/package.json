@@ -1,0 +1,15 @@
+{
+  "name": "pandania-game-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@wharfkit/signing-request": "4.0.2"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}

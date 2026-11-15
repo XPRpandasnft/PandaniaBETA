@@ -4982,7 +4982,7 @@ async function pandaniaAssociateConnectedWallet(){
     };
 }
 
-async function pandaniaGetGuestCredentials(){
+async function pandaniaGetPlayerCredentials(){
     if(!connectedWallet) return null;
     const credentials = pandaniaActivePlayerCredentials ||
         pandaniaParseCredentials(localStorage.getItem(pandaniaWalletCredentialsKey(connectedWallet)));
@@ -5000,7 +5000,7 @@ async function pandaniaCloudSave(save, keepalive=false){
     if(pandaniaCloudSaveInProgress && !keepalive) return false;
     pandaniaCloudSaveInProgress = true;
     try{
-        const credentials = await pandaniaGetGuestCredentials();
+        const credentials = await pandaniaGetPlayerCredentials();
         if(!credentials) return false;
 
         const response = await fetch(PANDANIA_CLOUD_API + "/api/player/save", {
@@ -5027,7 +5027,7 @@ async function pandaniaCloudSave(save, keepalive=false){
 }
 
 async function pandaniaCloudLoad(){
-    const credentials = await pandaniaGetGuestCredentials();
+    const credentials = await pandaniaGetPlayerCredentials();
     if(!credentials) throw new Error("Could not retrieve the Cloudflare player credentials.");
 
     const response = await fetch(PANDANIA_CLOUD_API + "/api/player/load", {
@@ -7401,10 +7401,10 @@ async function connectWebAuth(){
 
         console.log("Pandania WebAuth connected:", connectedWallet);
 
-        // Associate this connected account with the character's existing guest player_id.
-        // This is an account label/link only; it does not establish wallet-only authentication.
+        // Authenticate the wallet cryptographically before allowing entry.
+        let association;
         try{
-            const association = await pandaniaAssociateConnectedWallet();
+            association = await pandaniaAssociateConnectedWallet();
             console.log("Pandania wallet association:", association);
             if(association.already_linked){
                 showMessage("🔗 @" + connectedWallet + " is already associated with this character.");
@@ -7444,7 +7444,7 @@ async function connectWebAuth(){
             return;
         }
 
-        // A successful WebAuth connection is also the player's request to enter.
+        // Enter only after verified WebAuth login and successful cloud restore.
         startPandaniaGame("🐼 Welcome to Pandania, @" + connectedWallet + "!");
 
     }catch(error){

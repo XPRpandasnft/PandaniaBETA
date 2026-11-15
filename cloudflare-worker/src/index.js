@@ -141,13 +141,22 @@ async function authenticateWebAuth(request, env) {
     // Existing wallet associations are authoritative and are never reassigned here.
     playerId = walletLink.player_id;
   } else {
-    const legacy = await authenticateLegacyGuestToken(body.legacy_token, env);
+    const legacyTokens = Array.isArray(body.legacy_tokens)
+      ? body.legacy_tokens
+      : [body.legacy_token];
+    let legacy = null;
+    for (const candidate of legacyTokens) {
+      legacy = await authenticateLegacyGuestToken(candidate, env);
+      if (legacy) break;
+    }
+
     if (legacy) {
       const existingPlayerWallet = await env.DB.prepare(
         "SELECT wallet_account FROM wallet_accounts WHERE chain_id = ? AND player_id = ? LIMIT 1"
       ).bind(chainId, legacy.player_id).first();
 
-      if (existingPlayerWallet && existingPlayerWallet.wallet_account !== walletAccount) {
+      if (existingPlayerWallet &&
+          String(existingPlayerWallet.wallet_account).toLowerCase() !== walletAccount) {
         return jsonResponse({
           success: false,
           code: "PLAYER_ALREADY_LINKED_TO_ANOTHER_WALLET",

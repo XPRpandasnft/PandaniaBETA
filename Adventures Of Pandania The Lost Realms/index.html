@@ -4968,64 +4968,51 @@ async function pandaniaAssociateConnectedWallet(){
         window.pandaniaWalletSession?.auth?.actor || ""
     ).trim().toLowerCase();
     if(!walletAccount) throw new Error("No connected WebAuth account is available.");
+    if(!window.pandaniaWalletLink || typeof window.pandaniaWalletLink.identify !== "function"){
+        throw new Error("This WebAuth session cannot request an identity proof. Please reconnect.");
+    }
+
+    // Request a fresh cryptographic identity proof. The Worker verifies the
+    // signature against the wallet's current on-chain permission authority.
+    const identity = await window.pandaniaWalletLink.identify({});
+    if(!identity || !identity.proof || typeof identity.proof.toString !== "function"){
+        throw new Error("WebAuth did not return a verifiable identity proof.");
+    }
 
     const walletKey = pandaniaWalletCredentialsKey(walletAccount);
-    let credentials = pandaniaParseCredentials(localStorage.getItem(walletKey));
-
-    // A wallet with its own saved credential normally uses that character token.
-    // If an old cached credential belongs to another wallet, create a fresh
-    // character credential and let the Worker repair the duplicate association.
-    if(credentials){
-        try{
-            const association = await pandaniaLinkWalletWithCredentials(walletAccount, credentials);
-            pandaniaActivePlayerCredentials = credentials;
-            return association;
-        }catch(error){
-            if(error.code !== "PLAYER_ALREADY_LINKED_TO_ANOTHER_WALLET"){
-                throw error;
-            }
-
-            console.warn(
-                "Cached wallet credentials belong to another character. Creating isolated credentials for:",
-                walletAccount
-            );
-
-            // Do not reuse the conflicting credential.
-            credentials = await pandaniaCreateGuestCredentials();
-
-            // The Worker can now split the later duplicate wallet association.
-            const association = await pandaniaLinkWalletWithCredentials(walletAccount, credentials);
-
-            localStorage.setItem(walletKey, JSON.stringify(credentials));
-            pandaniaActivePlayerCredentials = credentials;
-
-            return association;
-        }
-    }
-
-    // One-time migration: try the legacy browser token. The Worker only accepts
-    // it for the wallet that owns the existing player association. If this
-    // player already belongs to another wallet, create an isolated character.
+    const walletCredentials = pandaniaParseCredentials(localStorage.getItem(walletKey));
     const legacyCredentials = pandaniaParseCredentials(localStorage.getItem(PANDANIA_GUEST_CREDENTIALS_KEY));
-    if(legacyCredentials){
-        try{
-            const association = await pandaniaLinkWalletWithCredentials(walletAccount, legacyCredentials);
-            credentials = legacyCredentials;
-            localStorage.setItem(walletKey, JSON.stringify(credentials));
-            pandaniaActivePlayerCredentials = credentials;
-            return association;
-        }catch(error){
-            if(error.code !== "PLAYER_ALREADY_LINKED_TO_ANOTHER_WALLET") throw error;
-            console.warn("Legacy guest character belongs to a different wallet; creating a separate character for", walletAccount);
-        }
+    const migrationCredentials = walletCredentials || legacyCredentials;
+
+    const response = await fetch(PANDANIA_CLOUD_API + "/api/auth/webauth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            proof: identity.proof.toString(),
+            legacy_token: migrationCredentials ? migrationCredentials.token : null
+        })
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if(!response.ok || !result.success || !result.player_id || !/^[a-f0-9]{64}$/.test(result.token || "")){
+        const error = new Error(result.error || "WebAuth authentication failed (" + response.status + ").");
+        error.status = response.status;
+        error.code = result.code || null;
+        throw error;
     }
 
-    // A different wallet must never inherit the browser's generic guest token.
-    credentials = await pandaniaCreateGuestCredentials();
-    const association = await pandaniaLinkWalletWithCredentials(walletAccount, credentials);
+    const credentials = { player_id: result.player_id, token: result.token };
     localStorage.setItem(walletKey, JSON.stringify(credentials));
     pandaniaActivePlayerCredentials = credentials;
-    return association;
+
+    return {
+        success: true,
+        linked: true,
+        already_linked: !!walletCredentials,
+        player_id: result.player_id,
+        wallet_account: result.wallet_account,
+        expires_at: result.expires_at
+    };
 }
 
 async function pandaniaGetGuestCredentials(){

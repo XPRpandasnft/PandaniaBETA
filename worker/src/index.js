@@ -94,17 +94,10 @@ async function verifyWebAuthProof(proofText) {
 }
 async function consumeProofOnce(env, proofText) {
   const proofHash = await sha256(proofText);
-  const result = await env.DB.prepare(
-    "INSERT OR IGNORE INTO wallet_auth_proofs (proof_hash, used_at) VALUES (?, ?)"
-  ).bind(proofHash, Math.floor(Date.now() / 1000)).run();
-
-  if (result.meta && Number(result.meta.changes) === 0) {
-    throw new Error("IDENTITY_PROOF_ALREADY_USED");
-  }
-  const check = await env.DB.prepare(
-    "SELECT proof_hash FROM wallet_auth_proofs WHERE proof_hash = ?"
-  ).bind(proofHash).first();
-  if (!check) throw new Error("PROOF_REPLAY_CHECK_FAILED");
+  const inserted = await env.DB.prepare(
+    "INSERT INTO wallet_auth_proofs (proof_hash, used_at) VALUES (?, ?) ON CONFLICT(proof_hash) DO NOTHING RETURNING proof_hash"
+  ).bind(proofHash, Math.floor(Date.now() / 1000)).first();
+  if (!inserted) throw new Error("IDENTITY_PROOF_ALREADY_USED");
 }
 async function findLegacyPlayer(env, tokens, chainId) {
   if (!Array.isArray(tokens)) return null;
@@ -128,29 +121,35 @@ async function resolvePlayerForWallet(env, auth, legacyTokens) {
   const existing = await env.DB.prepare(
     "SELECT player_id FROM wallet_accounts WHERE chain_id = ? AND wallet_account = ?"
   ).bind(auth.chainId, auth.walletAccount).first();
-  if (existing && existing.player_id) return existing.player_id;
+  if (existing && existing.player_id) {
+    return { playerId: existing.player_id, migratedGuest: false, alreadyLinked: true };
+  }
 
   const legacyPlayerId = await findLegacyPlayer(env, legacyTokens, auth.chainId);
   const candidatePlayerId = legacyPlayerId || crypto.randomUUID();
 
-  // Do not attach a wallet to a character already owned by another wallet.
-  const playerWallet = await env.DB.prepare(
-    "SELECT wallet_account FROM wallet_accounts WHERE chain_id = ? AND player_id = ? LIMIT 1"
-  ).bind(auth.chainId, candidatePlayerId).first();
-  if (playerWallet && playerWallet.wallet_account !== auth.walletAccount) {
-    return createWalletPlayer(env, auth);
-  }
-
+  // Insert only if this player has no other wallet mapping. This conditional
+  // statement makes the one-wallet-per-player rule part of the DB write itself.
   await env.DB.prepare(
-    "INSERT OR IGNORE INTO wallet_accounts (chain_id, wallet_account, player_id) VALUES (?, ?, ?)"
-  ).bind(auth.chainId, auth.walletAccount, candidatePlayerId).run();
+    `INSERT INTO wallet_accounts (chain_id, wallet_account, player_id)
+     SELECT ?, ?, ?
+     WHERE NOT EXISTS (
+       SELECT 1 FROM wallet_accounts
+       WHERE chain_id = ? AND player_id = ?
+     )
+     ON CONFLICT(chain_id, wallet_account) DO NOTHING`
+  ).bind(auth.chainId, auth.walletAccount, candidatePlayerId, auth.chainId, candidatePlayerId).run();
 
   // Resolve concurrent first-login races using the database's winning mapping.
   const finalMapping = await env.DB.prepare(
     "SELECT player_id FROM wallet_accounts WHERE chain_id = ? AND wallet_account = ?"
   ).bind(auth.chainId, auth.walletAccount).first();
   if (!finalMapping || !finalMapping.player_id) throw new Error("WALLET_MAPPING_FAILED");
-  return finalMapping.player_id;
+  return {
+    playerId: finalMapping.player_id,
+    migratedGuest: !!legacyPlayerId && finalMapping.player_id === legacyPlayerId,
+    alreadyLinked: false
+  };
 }
 async function createWalletPlayer(env, auth) {
   const candidate = crypto.randomUUID();
@@ -186,14 +185,16 @@ async function handleLogin(request, env) {
   const body = await readJson(request);
   const auth = await verifyWebAuthProof(body.proof);
   await consumeProofOnce(env, auth.proofText);
-  const playerId = await resolvePlayerForWallet(env, auth, body.legacy_tokens);
-  const session = await createSession(env, playerId, auth);
+  const resolved = await resolvePlayerForWallet(env, auth, body.legacy_tokens);
+  const session = await createSession(env, resolved.playerId, auth);
   return json({
     success: true,
-    player_id: playerId,
+    player_id: resolved.playerId,
     wallet_account: auth.walletAccount,
     token: session.token,
-    expires_at: session.expires_at
+    expires_at: session.expires_at,
+    already_linked: resolved.alreadyLinked,
+    migrated_guest: resolved.migratedGuest
   });
 }
 

@@ -141,9 +141,23 @@ async function resolvePlayerForWallet(env, auth, legacyTokens) {
   ).bind(auth.chainId, auth.walletAccount, candidatePlayerId, auth.chainId, candidatePlayerId).run();
 
   // Resolve concurrent first-login races using the database's winning mapping.
-  const finalMapping = await env.DB.prepare(
+  let finalMapping = await env.DB.prepare(
     "SELECT player_id FROM wallet_accounts WHERE chain_id = ? AND wallet_account = ?"
   ).bind(auth.chainId, auth.walletAccount).first();
+
+  // If another wallet claimed the same legacy guest identity at the same time,
+  // do not merge the two wallets. Give this wallet a fresh independent player.
+  if (!finalMapping && legacyPlayerId) {
+    const separatePlayerId = crypto.randomUUID();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO wallet_accounts (chain_id, wallet_account, player_id)
+       VALUES (?, ?, ?)`
+    ).bind(auth.chainId, auth.walletAccount, separatePlayerId).run();
+    finalMapping = await env.DB.prepare(
+      "SELECT player_id FROM wallet_accounts WHERE chain_id = ? AND wallet_account = ?"
+    ).bind(auth.chainId, auth.walletAccount).first();
+  }
+
   if (!finalMapping || !finalMapping.player_id) throw new Error("WALLET_MAPPING_FAILED");
   return {
     playerId: finalMapping.player_id,

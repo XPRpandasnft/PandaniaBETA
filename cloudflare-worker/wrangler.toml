@@ -1,0 +1,8 @@
+name = "pandania-game-api"
+main = "src/index.js"
+compatibility_date = "2026-11-15"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pandania-game-db"
+database_id = "REPLACE_WITH_EXISTING_D1_DATABASE_ID"

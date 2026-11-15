@@ -124,7 +124,7 @@ async function authenticateWebAuth(request, env) {
 
   // Identity proofs are not nonce-bound by the Proton SDK. Store a one-use
   // fingerprint so a previously accepted proof cannot create another session.
-  const proofHash = await sha256(body.proof);
+  const proofHash = await sha256(proof.toString());
   const replayInsert = await env.DB.prepare(
     "INSERT OR IGNORE INTO wallet_auth_proofs (proof_hash, used_at) VALUES (?, ?)"
   ).bind(proofHash, Math.floor(Date.now() / 1000)).run();
@@ -137,6 +137,7 @@ async function authenticateWebAuth(request, env) {
   ).bind(chainId, walletAccount).first();
 
   let playerId;
+  let migratedGuest = false;
   if (walletLink) {
     // Existing wallet associations are authoritative and are never reassigned here.
     playerId = walletLink.player_id;
@@ -151,6 +152,7 @@ async function authenticateWebAuth(request, env) {
     }
 
     if (legacy) {
+      migratedGuest = true;
       const existingPlayerWallet = await env.DB.prepare(
         "SELECT wallet_account FROM wallet_accounts WHERE chain_id = ? AND player_id = ? LIMIT 1"
       ).bind(chainId, legacy.player_id).first();
@@ -196,6 +198,7 @@ async function authenticateWebAuth(request, env) {
     success: true,
     player_id: playerId,
     wallet_account: walletAccount,
+    migrated_guest: migratedGuest,
     token,
     expires_at: expiresAt
   });

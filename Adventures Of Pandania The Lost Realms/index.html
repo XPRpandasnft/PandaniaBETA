@@ -4851,7 +4851,7 @@ function closeWindows(){
    while syncing the same save document to the Cloudflare Worker.
 ========================================================= */
 
-const PANDANIA_CLOUD_API = "https://pandania-game-api.xprpandas.workers.dev";
+const PANDANIA_CLOUD_API = "https://pandania-game-api-webauth-test.xprpandas.workers.dev";
 const PANDANIA_LOCAL_SAVE_KEY = "pandaniaAdventuresSave";
 const PANDANIA_GUEST_CREDENTIALS_KEY = "pandaniaCloudGuestCredentialsV1";
 const PANDANIA_WALLET_CREDENTIALS_PREFIX = "pandaniaCloudWalletCredentialsV1:";
@@ -4954,7 +4954,10 @@ async function pandaniaAssociateConnectedWallet(){
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             proof: identity.proof.toString(),
-            legacy_token: migrationCredentials ? migrationCredentials.token : null
+            legacy_tokens: [
+                walletCredentials?.token,
+                legacyCredentials?.token
+            ].filter(Boolean)
         })
     });
 

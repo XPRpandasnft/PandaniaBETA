@@ -4979,6 +4979,7 @@ async function pandaniaAssociateConnectedWallet(){
         success: true,
         linked: true,
         already_linked: !!walletCredentials,
+        migrated_guest: !!result.migrated_guest,
         player_id: result.player_id,
         wallet_account: result.wallet_account,
         expires_at: result.expires_at
@@ -7434,9 +7435,18 @@ async function connectWebAuth(){
             }
         }
 
-        // IMPORTANT: Unlike guest login, WebAuth starts the game directly and
-        // previously skipped the Play-button cloud-load hook. Restore the linked
-        // character before setting gameStarted=true (which enables autosaving).
+        // If this sign-in safely adopted the old guest player ID, its generic
+        // local save belongs to that same character. Copy it only when no
+        // wallet-scoped local save exists; never overwrite wallet-specific data.
+        if(association.migrated_guest){
+            const walletLocalKey = pandaniaLocalSaveKey();
+            if(!localStorage.getItem(walletLocalKey)){
+                const oldGuestSave = localStorage.getItem(PANDANIA_LOCAL_SAVE_KEY);
+                if(oldGuestSave) localStorage.setItem(walletLocalKey, oldGuestSave);
+            }
+        }
+
+        // Restore the linked character before starting gameplay/autosave.
         const characterLoaded = await pandaniaAutoLoadCloudSave();
         if(!characterLoaded){
             status.textContent = "Could not restore your saved character. Please retry WebAuth login.";

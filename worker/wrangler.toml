@@ -1,0 +1,7 @@
+name = "pandania-game-api-webauth-test"
+main = "src/index.js"
+compatibility_date = "2026-11-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Bind the existing pandania-game-db D1 database in the Cloudflare dashboard
+# using the variable name DB. Do not create a new database for this Worker.

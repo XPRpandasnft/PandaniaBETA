@@ -87,7 +87,7 @@ async function verifyWebAuthProof(proofText) {
   if (!permission || !permission.required_auth) throw new Error("UNKNOWN_PERMISSION");
 
   let verified = false;
-  try { verified = proof.verify(permission.required_auth); } catch (_) {}
+  try { verified = proof.verify(permission.required_auth, account.head_block_time); } catch (_) {}
   if (!verified) throw new Error("INVALID_SIGNATURE_OR_EXPIRED_PROOF");
 
   return { walletAccount, chainId, permissionName, proofText };

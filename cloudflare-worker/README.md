@@ -17,9 +17,9 @@ This Worker is the server-side authentication and cloud-save API for Adventures 
 
 1. Create a separate **staging D1 database** for authentication testing. Do not point a test Worker at the live `pandania-game-db` until testing is complete.
 2. Apply `migrations/0001_webauth_sessions.sql` to the staging database.
-3. In `wrangler.toml`, replace `REPLACE_WITH_STAGING_D1_DATABASE_ID` with the staging D1 database ID.
+3. In `wrangler.toml`, replace `REPLACE_WITH_STAGING_D1_DATABASE_ID` with the staging D1 database ID. Keep the staging database name as `pandania-game-db-webauth-test`.
 4. Confirm the staging Worker name is `pandania-game-api-webauth-test`. It must not overwrite the current production Worker.
-5. Configure Workers Builds to use this directory (`cloudflare-worker`) as the root directory and branch `webauth-secure-login`.
+5. Configure Workers Builds to use this directory (`cloudflare-worker`) as the root directory and branch `webauth-secure-login`. The game file on this branch is pointed at `https://pandania-game-api-webauth-test.xprpandas.workers.dev`.
 6. Build command: `npm install`. Deploy command: `npx wrangler deploy`.
 
 ## D1 schema requirements
@@ -31,7 +31,7 @@ The staging database needs the existing game tables with the same schema as prod
 - `guest_accounts`
 - `player_saves`
 
-The additive migration in this directory creates only the WebAuth proof/session tables and indexes. It does not alter or delete existing game records.
+Run the migration from this directory with `npx wrangler d1 execute pandania-game-db-webauth-test --remote --file=./migrations/0001_webauth_sessions.sql`. The additive migration creates only the WebAuth proof/session tables and indexes. It does not alter or delete existing game records.
 
 ## Important deployment note
 

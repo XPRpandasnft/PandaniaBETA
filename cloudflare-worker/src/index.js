@@ -174,9 +174,17 @@ async function authenticateWebAuth(request, env) {
       "INSERT OR IGNORE INTO players (player_id, username, level, xp, gold) VALUES (?, ?, 1, 0, 0)"
     ).bind(playerId, walletAccount).run();
 
-    const insertLink = await env.DB.prepare(
-      "INSERT OR IGNORE INTO wallet_accounts (chain_id, wallet_account, player_id) VALUES (?, ?, ?)"
-    ).bind(chainId, walletAccount, playerId).run();
+    // Enforce one wallet per player atomically during the insert as well as
+    // in the earlier friendly check. This closes the race where two wallets
+    // try to claim the same legacy guest character at the same time.
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO wallet_accounts (chain_id, wallet_account, player_id)
+       SELECT ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM wallet_accounts
+         WHERE chain_id = ? AND player_id = ? AND wallet_account <> ?
+       )`
+    ).bind(chainId, walletAccount, playerId, chainId, playerId, walletAccount).run();
 
     walletLink = await env.DB.prepare(
       "SELECT player_id FROM wallet_accounts WHERE chain_id = ? AND wallet_account = ?"

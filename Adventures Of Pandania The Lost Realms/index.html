@@ -4976,6 +4976,9 @@ async function pandaniaAssociateConnectedWallet(){
     const credentials = { player_id: result.player_id, token: result.token };
     localStorage.setItem(walletKey, JSON.stringify(credentials));
     pandaniaActivePlayerCredentials = credentials;
+    if(result.migrated_guest){
+        localStorage.removeItem(PANDANIA_GUEST_CREDENTIALS_KEY);
+    }
 
     return {
         success: true,

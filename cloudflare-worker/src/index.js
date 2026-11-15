@@ -112,6 +112,10 @@ async function authenticateWebAuth(request, env) {
     return jsonResponse({ success: false, error: "The signing permission does not exist on this wallet." }, 401);
   }
 
+  if (String(chainAccount.account_name || "").toLowerCase() !== walletAccount) {
+    return jsonResponse({ success: false, error: "The XPR RPC account response did not match the signed wallet." }, 503);
+  }
+
   let proofValid = false;
   try {
     proofValid = proof.verify(permission.required_auth, chainAccount.head_block_time);
@@ -125,9 +129,14 @@ async function authenticateWebAuth(request, env) {
   // Identity proofs are not nonce-bound by the Proton SDK. Store a one-use
   // fingerprint so a previously accepted proof cannot create another session.
   const proofHash = await sha256(proof.toString());
+  const proofUsedAt = Math.floor(Date.now() / 1000);
+  await env.DB.prepare(
+    "DELETE FROM wallet_auth_proofs WHERE used_at < ?"
+  ).bind(proofUsedAt - 60 * 60 * 24 * 30).run();
+
   const replayInsert = await env.DB.prepare(
     "INSERT OR IGNORE INTO wallet_auth_proofs (proof_hash, used_at) VALUES (?, ?)"
-  ).bind(proofHash, Math.floor(Date.now() / 1000)).run();
+  ).bind(proofHash, proofUsedAt).run();
   if (!replayInsert.meta || replayInsert.meta.changes !== 1) {
     return jsonResponse({ success: false, error: "This WebAuth proof has already been used. Please reconnect and sign in again." }, 409);
   }

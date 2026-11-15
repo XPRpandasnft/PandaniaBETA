@@ -7278,7 +7278,7 @@ function resumeOverworldMusic(){
 let gameStarted=false;
 
 // The connected WebAuth account becomes the in-game display name.
-// Guest players continue to use the original default name, Pandee.
+// The wallet account becomes the in-game display name after verified login.
 window.pandaniaPlayerName = window.pandaniaPlayerName || "Pandee";
 
 function pandaniaUpdatePlayerName(name){
@@ -7305,26 +7305,14 @@ function startPandaniaGame(welcomeMessage){
 
 /* =========================================================
    START GAME
+   Entry is started only after a successful WebAuth login and cloud restore.
 ========================================================= */
-
-document.getElementById(
-    "playButton"
-).addEventListener(
-    "click",
-    ()=>{
-        // Guest play retains the default Pandee display name.
-        if(!connectedWallet) pandaniaUpdatePlayerName("Pandee");
-        startPandaniaGame("🐼 Welcome to Pandania!");
-    }
-);
 
 /* =========================================================
    WEBAUTH PLAYER WALLET CONNECTION
    Uses the same Proton Web SDK connection flow as Wack a Pandee.
-   A successful connection selects a wallet-scoped Cloudflare player credential.
-   Different wallets in the same browser must never share a guest token.
-   The Worker association is an account mapping; cryptographic wallet challenge
-   authentication is still required for secure cross-device recovery.
+   A successful connection obtains a signed identity proof and a wallet-scoped
+   Cloudflare session. Different wallets must never share character credentials.
 ========================================================= */
 
 let walletSession = null;
@@ -7460,7 +7448,7 @@ async function connectWebAuth(){
         status.textContent =
             error && error.message
                 ? "WebAuth connection failed: " + error.message
-                : "WebAuth cancelled or unavailable. You can still play as a guest.";
+                : "WebAuth cancelled or unavailable. Connect your wallet to enter Pandania.";
 
         button.disabled = false;
         button.textContent = "🔐 CONNECT WEBAUTH";
